@@ -33,7 +33,7 @@
 namespace android::nn {
 
 std::shared_ptr<ManagedBuffer> ManagedBuffer::create(uint32_t size,
-                                                     std::set<PreparedModelRole> roles,
+                                                     std::set<HalPreparedModelRole> roles,
                                                      const Operand& operand) {
     std::unique_ptr<uint8_t[]> buffer(new (std::nothrow) uint8_t[size]);
     if (buffer == nullptr) {
@@ -47,7 +47,7 @@ std::shared_ptr<ManagedBuffer> ManagedBuffer::create(uint32_t size,
 }
 
 ManagedBuffer::ManagedBuffer(std::unique_ptr<uint8_t[]> buffer, uint32_t size,
-                             std::set<PreparedModelRole> roles, const Operand& operand)
+                             std::set<HalPreparedModelRole> roles, const Operand& operand)
     : kBuffer(std::move(buffer)),
       kSize(size),
       kRoles(std::move(roles)),

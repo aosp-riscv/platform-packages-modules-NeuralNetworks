@@ -255,7 +255,7 @@ hardware::Return<void> SampleDriver::allocate(
     constexpr uint32_t kInvalidBufferToken = 0;
 
     VLOG(DRIVER) << "SampleDriver::allocate";
-    std::set<PreparedModelRole> roles;
+    std::set<HalPreparedModelRole> roles;
     V1_3::Operand operand;
     auto getModel = [](const sp<V1_3::IPreparedModel>& preparedModel) -> const V1_3::Model* {
         const auto* samplePreparedModel = castToSamplePreparedModel(preparedModel);

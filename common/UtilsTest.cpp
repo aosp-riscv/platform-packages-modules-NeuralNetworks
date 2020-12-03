@@ -24,6 +24,7 @@
 #include "MemoryUtils.h"
 #include "OperationsUtils.cpp"
 #include "QuantUtils.h"
+#include "ValidateHal.h"
 #include "nnapi/TypeUtils.h"
 #include "nnapi/Types.h"
 

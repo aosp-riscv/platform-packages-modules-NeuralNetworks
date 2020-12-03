@@ -335,8 +335,10 @@ class ValidationTestExecutionDeviceMemory : public ValidationTest {
         addScalarOperand(model);
         addTensorOperand(model, dimensionsUnspecified);
 
-        ANeuralNetworksModel_setOperandValue(model, 1, &constData, sizeof(float));
-        ANeuralNetworksModel_setOperandValue(model, 2, &actData, sizeof(uint32_t));
+        ASSERT_EQ(ANeuralNetworksModel_setOperandValue(model, 1, &constData, sizeof(float)),
+                  ANEURALNETWORKS_NO_ERROR);
+        ASSERT_EQ(ANeuralNetworksModel_setOperandValue(model, 2, &actData, sizeof(uint32_t)),
+                  ANEURALNETWORKS_NO_ERROR);
 
         uint32_t inList[] = {0, 1, 2}, outList[] = {3};
         ASSERT_EQ(ANeuralNetworksModel_addOperation(model, ANEURALNETWORKS_ADD, 3, inList, 1,

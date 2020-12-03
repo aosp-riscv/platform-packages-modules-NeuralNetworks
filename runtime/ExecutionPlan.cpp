@@ -2328,7 +2328,7 @@ int ModelBuilder::findBestDeviceForEachOperation(
             const int kControlFlowInterpreter = deviceCount;
             (*bestDeviceForOperation)[operationIndex] = kControlFlowInterpreter;
             VLOG(COMPILATION) << "ModelBuilder::findBestDeviceForEachOperation(" << operation.type
-                              << operation.type << ":" << operationIndex << ") = -1 (NNAPI)";
+                              << ":" << operationIndex << ") = -1 (NNAPI)";
         } else {
             (*bestDeviceForOperation)[operationIndex] = bestChoice;
             VLOG(COMPILATION) << "ModelBuilder::findBestDeviceForEachOperation(" << operation.type

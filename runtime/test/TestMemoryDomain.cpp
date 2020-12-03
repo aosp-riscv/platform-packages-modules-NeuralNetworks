@@ -305,12 +305,12 @@ TEST_P(MemoryDomainTest, SinglePartition) {
             const RuntimeMemory* m = reinterpret_cast<const RuntimeMemory*>(memory.get());
             ASSERT_NE(m, nullptr);
             EXPECT_EQ(m->getIBuffer(), nullptr);
-            const auto& hidlMemory = m->getHidlMemory();
-            EXPECT_TRUE(hidlMemory.valid());
+            const auto& memory = m->getMemory();
+            EXPECT_TRUE(validate(memory).ok());
             if (kUseV1_2Driver) {
-                EXPECT_EQ(hidlMemory.name(), "ashmem");
+                EXPECT_EQ(memory.name, "ashmem");
             } else {
-                EXPECT_EQ(hidlMemory.name(), "hardware_buffer_blob");
+                EXPECT_EQ(memory.name, "hardware_buffer_blob");
             }
         }
     }
@@ -343,12 +343,12 @@ TEST_P(MemoryDomainTest, MultiplePartitions) {
                 const RuntimeMemory* m = reinterpret_cast<const RuntimeMemory*>(memory.get());
                 ASSERT_NE(m, nullptr);
                 EXPECT_EQ(m->getIBuffer(), nullptr);
-                const auto& hidlMemory = m->getHidlMemory();
-                EXPECT_TRUE(hidlMemory.valid());
+                const auto& memory = m->getMemory();
+                EXPECT_TRUE(validate(memory).ok());
                 if (kUseV1_2Driver) {
-                    EXPECT_EQ(hidlMemory.name(), "ashmem");
+                    EXPECT_EQ(memory.name, "ashmem");
                 } else {
-                    EXPECT_EQ(hidlMemory.name(), "hardware_buffer_blob");
+                    EXPECT_EQ(memory.name, "hardware_buffer_blob");
                 }
             }
         }
@@ -367,12 +367,12 @@ TEST_P(MemoryDomainTest, MultiplePartitions) {
             const RuntimeMemory* m = reinterpret_cast<const RuntimeMemory*>(memory.get());
             ASSERT_NE(m, nullptr);
             EXPECT_EQ(m->getIBuffer(), nullptr);
-            const auto& hidlMemory = m->getHidlMemory();
-            EXPECT_TRUE(hidlMemory.valid());
+            const auto& memory = m->getMemory();
+            EXPECT_TRUE(validate(memory).ok());
             if (kUseV1_2Driver) {
-                EXPECT_EQ(hidlMemory.name(), "ashmem");
+                EXPECT_EQ(memory.name, "ashmem");
             } else {
-                EXPECT_EQ(hidlMemory.name(), "hardware_buffer_blob");
+                EXPECT_EQ(memory.name, "hardware_buffer_blob");
             }
         }
     }
@@ -390,12 +390,12 @@ TEST_P(MemoryDomainTest, MultiplePartitions) {
             const RuntimeMemory* m = reinterpret_cast<const RuntimeMemory*>(memory.get());
             ASSERT_NE(m, nullptr);
             EXPECT_EQ(m->getIBuffer(), nullptr);
-            const auto& hidlMemory = m->getHidlMemory();
-            EXPECT_TRUE(hidlMemory.valid());
+            const auto& memory = m->getMemory();
+            EXPECT_TRUE(validate(memory).ok());
             if (kUseV1_2Driver) {
-                EXPECT_EQ(hidlMemory.name(), "ashmem");
+                EXPECT_EQ(memory.name, "ashmem");
             } else {
-                EXPECT_EQ(hidlMemory.name(), "hardware_buffer_blob");
+                EXPECT_EQ(memory.name, "hardware_buffer_blob");
             }
         }
     }

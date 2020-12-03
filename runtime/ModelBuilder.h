@@ -232,6 +232,10 @@ class ModelBuilder {
     // Models referenced by operands in this model.
     std::vector<const ModelBuilder*> mReferencedModels;
 
+    // Main subgraphs of models referenced by operands in this model. Required
+    // for validateOperation().
+    std::vector<Model::Subgraph> mReferencedSubgraphsForValidation;
+
     class ModelMaker;
 };
 

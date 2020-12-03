@@ -17,6 +17,9 @@
 #ifndef ANDROID_FRAMEWORKS_ML_NN_RUNTIME_EXECUTION_BUILDER_H
 #define ANDROID_FRAMEWORKS_ML_NN_RUNTIME_EXECUTION_BUILDER_H
 
+#include <nnapi/IPreparedModel.h>
+#include <nnapi/Validation.h>
+
 #include <atomic>
 #include <memory>
 #include <string>
@@ -107,8 +110,7 @@ class ExecutionBuilder {
     ErrorStatus finishWithoutSyncFence(ErrorStatus error,
                                        const std::vector<OutputShape>& outputShapes);
 
-    // Retrieve a reference to the IFencedExecutionCallback callback.
-    const sp<V1_3::IFencedExecutionCallback>& getFencedExecutionCallback() {
+    const ExecuteFencedInfoCallback& getExecuteFencedInfoCallback() {
         return mFencedExecutionCallback;
     }
 
@@ -205,7 +207,7 @@ class ExecutionBuilder {
     // doesn't support fenced execution (e.g., the driver is too old), or if the
     // launch of execution on the driver fails, then this callback will be
     // nullptr.
-    sp<V1_3::IFencedExecutionCallback> mFencedExecutionCallback;
+    ExecuteFencedInfoCallback mFencedExecutionCallback;
 };
 
 // class StepExecutor is used to execute a single "step" in a
@@ -307,7 +309,7 @@ class StepExecutor {
 
     // Perform fenced execution and return error_code, sync_fence_fd and a
     // callback.
-    std::tuple<int, int, sp<V1_3::IFencedExecutionCallback>> computeFenced(
+    std::tuple<int, int, ExecuteFencedInfoCallback> computeFenced(
             const std::vector<int>& wait_for, uint64_t timeoutDurationAfterFence,
             const std::optional<Deadline>& deadline);
 

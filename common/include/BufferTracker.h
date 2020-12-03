@@ -30,18 +30,20 @@
 #include "CpuExecutor.h"
 #include "HalInterfaces.h"
 #include "Utils.h"
+#include "ValidateHal.h"
 
 namespace android::nn {
 
 // This class manages a CPU buffer allocated on heap and provides validation methods.
 class ManagedBuffer {
    public:
-    static std::shared_ptr<ManagedBuffer> create(uint32_t size, std::set<PreparedModelRole> roles,
+    static std::shared_ptr<ManagedBuffer> create(uint32_t size,
+                                                 std::set<HalPreparedModelRole> roles,
                                                  const Operand& operand);
 
     // Prefer ManagedBuffer::create.
     ManagedBuffer(std::unique_ptr<uint8_t[]> buffer, uint32_t size,
-                  std::set<PreparedModelRole> roles, const Operand& operand);
+                  std::set<HalPreparedModelRole> roles, const Operand& operand);
 
     RunTimePoolInfo createRunTimePoolInfo() const {
         return RunTimePoolInfo::createFromExistingBuffer(kBuffer.get(), kSize);
@@ -51,7 +53,7 @@ class ManagedBuffer {
     ErrorStatus validateRequest(uint32_t poolIndex, const Request& request,
                                 const V1_3::IPreparedModel* preparedModel) const;
 
-    // "size" is the byte size of the hidl_memory provided to the copyFrom or copyTo method.
+    // "size" is the byte size of the Memory provided to the copyFrom or copyTo method.
     ErrorStatus validateCopyFrom(const std::vector<uint32_t>& dimensions, uint32_t size) const;
     ErrorStatus validateCopyTo(uint32_t size) const;
 
@@ -62,7 +64,7 @@ class ManagedBuffer {
     mutable std::mutex mMutex;
     const std::unique_ptr<uint8_t[]> kBuffer;
     const uint32_t kSize;
-    const std::set<PreparedModelRole> kRoles;
+    const std::set<HalPreparedModelRole> kRoles;
     const OperandType kOperandType;
     const std::vector<uint32_t> kInitialDimensions;
     std::vector<uint32_t> mUpdatedDimensions;

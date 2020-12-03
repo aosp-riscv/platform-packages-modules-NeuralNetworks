@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#define LOG_TAG "SharedMemoryAndroid"
+
 #include <android-base/logging.h>
 #include <android-base/mapped_file.h>
 #include <android-base/scopeguard.h>
@@ -177,6 +179,10 @@ GeneralResult<Mapping> mapMemFd(const Memory& memory) {
     return Mapping{.pointer = data, .size = size, .context = std::move(context)};
 }
 
+static uint32_t roundUpToMultiple(uint32_t value, uint32_t multiple) {
+    return (value + multiple - 1) / multiple * multiple;
+}
+
 GeneralResult<Mapping> mapAhwbBlobMemory(const Memory& memory) {
     const SharedHandle& handle = memory.handle;
     const auto size = memory.size;
@@ -185,21 +191,30 @@ GeneralResult<Mapping> mapAhwbBlobMemory(const Memory& memory) {
     const uint32_t width = size;
     const uint32_t height = 1;  // height is always 1 for BLOB mode AHardwareBuffer.
     const uint32_t layers = 1;  // layers is always 1 for BLOB mode AHardwareBuffer.
-    const uint32_t stride = size;
 
-    AHardwareBuffer_Desc desc{
-            .width = width,
-            .height = height,
-            .layers = layers,
-            .format = format,
-            .usage = usage,
-            .stride = stride,
-    };
-
+    // AHardwareBuffer_createFromHandle() might fail because an allocator
+    // expects a specific stride value. In that case, we try to guess it by
+    // aligning the width to small powers of 2.
+    // TODO(b/174120849): Avoid stride assumptions.
     AHardwareBuffer* hardwareBuffer = nullptr;
-    status_t status = AHardwareBuffer_createFromHandle(
-            &desc, NN_TRY(hidlHandleFromSharedHandle(handle)),
-            AHARDWAREBUFFER_CREATE_FROM_HANDLE_METHOD_CLONE, &hardwareBuffer);
+    status_t status = UNKNOWN_ERROR;
+    for (uint32_t alignment : {1, 4, 32, 64, 128, 2, 8, 16}) {
+        const uint32_t stride = roundUpToMultiple(width, alignment);
+        AHardwareBuffer_Desc desc{
+                .width = width,
+                .height = height,
+                .layers = layers,
+                .format = format,
+                .usage = usage,
+                .stride = stride,
+        };
+        status = AHardwareBuffer_createFromHandle(&desc, NN_TRY(hidlHandleFromSharedHandle(handle)),
+                                                  AHARDWAREBUFFER_CREATE_FROM_HANDLE_METHOD_CLONE,
+                                                  &hardwareBuffer);
+        if (status == NO_ERROR) {
+            break;
+        }
+    }
     if (status != NO_ERROR) {
         return NN_ERROR(ErrorStatus::GENERAL_FAILURE)
                << "Can't create AHardwareBuffer from handle. Error: " << status;

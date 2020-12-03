@@ -18,6 +18,7 @@
 #define ANDROID_FRAMEWORKS_ML_NN_COMMON_CPU_EXECUTOR_H
 
 #include <android-base/macros.h>
+#include <nnapi/Types.h>
 
 #include <algorithm>
 #include <memory>
@@ -28,7 +29,6 @@
 #include "OperationResolver.h"
 #include "OperationsUtils.h"
 #include "Utils.h"
-#include "nnapi/Types.h"
 
 namespace android {
 namespace nn {
@@ -110,8 +110,7 @@ class RunTimePoolInfo {
 
     uint8_t* getBuffer() const;
     bool flush() const;
-    // TODO(b/169672209): "const Memory& getMemory() const;"
-    Memory getMemory() const;
+    const Memory& getMemory() const;
     uint32_t getSize() const;
 
    private:

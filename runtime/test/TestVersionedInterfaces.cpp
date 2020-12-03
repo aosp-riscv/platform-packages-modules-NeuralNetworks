@@ -2183,7 +2183,7 @@ TEST_F(VersionedIPreparedModelV1_0Test, executeFenced) {
     // verify success
     EXPECT_EQ(ANEURALNETWORKS_NO_ERROR, resultCode);
     EXPECT_EQ(nullptr, syncFence.getSharedHandle());
-    EXPECT_EQ(nullptr, dispatchCallback.get());
+    EXPECT_EQ(nullptr, dispatchCallback);
     EXPECT_EQ(kNoTiming, timing);
 }
 
@@ -2199,7 +2199,7 @@ TEST_F(VersionedIPreparedModelV1_1Test, executeFenced) {
     // verify success
     EXPECT_EQ(ANEURALNETWORKS_NO_ERROR, resultCode);
     EXPECT_EQ(nullptr, syncFence.getSharedHandle());
-    EXPECT_EQ(nullptr, dispatchCallback.get());
+    EXPECT_EQ(nullptr, dispatchCallback);
     EXPECT_EQ(kNoTiming, timing);
 }
 
@@ -2215,7 +2215,7 @@ TEST_F(VersionedIPreparedModelV1_2Test, executeFenced) {
     // verify success
     EXPECT_EQ(ANEURALNETWORKS_NO_ERROR, resultCode);
     EXPECT_EQ(nullptr, syncFence.getSharedHandle());
-    EXPECT_EQ(nullptr, dispatchCallback.get());
+    EXPECT_EQ(nullptr, dispatchCallback);
     EXPECT_EQ(kNoTiming, timing);
 }
 
@@ -2236,7 +2236,7 @@ TEST_F(VersionedIPreparedModelV1_3Test, executeFenced) {
     // verify success
     EXPECT_EQ(ANEURALNETWORKS_NO_ERROR, resultCode);
     EXPECT_NE(nullptr, syncFence.getSharedHandle());
-    EXPECT_NE(nullptr, dispatchCallback.get());
+    EXPECT_NE(nullptr, dispatchCallback);
     EXPECT_EQ(kNoTiming, timing);
 }
 
@@ -2495,7 +2495,7 @@ TEST_F(VersionedIPreparedModelV1_0Test, executeFencedFailure) {
     // verify failure
     EXPECT_EQ(ANEURALNETWORKS_OP_FAILED, resultCode);
     EXPECT_EQ(nullptr, syncFence.getSharedHandle());
-    EXPECT_EQ(nullptr, dispatchCallback.get());
+    EXPECT_EQ(nullptr, dispatchCallback);
     EXPECT_EQ(kNoTiming, timing);
 }
 
@@ -2512,7 +2512,7 @@ TEST_F(VersionedIPreparedModelV1_1Test, executeFencedFailure) {
     // verify failure
     EXPECT_EQ(ANEURALNETWORKS_OP_FAILED, resultCode);
     EXPECT_EQ(nullptr, syncFence.getSharedHandle());
-    EXPECT_EQ(nullptr, dispatchCallback.get());
+    EXPECT_EQ(nullptr, dispatchCallback);
     EXPECT_EQ(kNoTiming, timing);
 }
 
@@ -2529,7 +2529,7 @@ TEST_F(VersionedIPreparedModelV1_2Test, executeFencedFailure) {
     // verify failure
     EXPECT_EQ(ANEURALNETWORKS_OP_FAILED, resultCode);
     EXPECT_EQ(nullptr, syncFence.getSharedHandle());
-    EXPECT_EQ(nullptr, dispatchCallback.get());
+    EXPECT_EQ(nullptr, dispatchCallback);
     EXPECT_EQ(kNoTiming, timing);
 }
 
@@ -2551,7 +2551,7 @@ TEST_F(VersionedIPreparedModelV1_3Test, executeFencedFailure) {
     // verify failure
     EXPECT_EQ(ANEURALNETWORKS_OP_FAILED, resultCode);
     EXPECT_EQ(nullptr, syncFence.getSharedHandle());
-    EXPECT_EQ(nullptr, dispatchCallback.get());
+    EXPECT_EQ(nullptr, dispatchCallback);
     EXPECT_EQ(kNoTiming, timing);
 }
 
@@ -2760,7 +2760,7 @@ TEST_F(VersionedIPreparedModelV1_0Test, executeFencedTransportFailure) {
     // verify failure
     EXPECT_EQ(ANEURALNETWORKS_OP_FAILED, resultCode);
     EXPECT_EQ(nullptr, syncFence.getSharedHandle());
-    EXPECT_EQ(nullptr, dispatchCallback.get());
+    EXPECT_EQ(nullptr, dispatchCallback);
     EXPECT_EQ(kNoTiming, timing);
 }
 
@@ -2777,7 +2777,7 @@ TEST_F(VersionedIPreparedModelV1_1Test, executeFencedTransportFailure) {
     // verify failure
     EXPECT_EQ(ANEURALNETWORKS_OP_FAILED, resultCode);
     EXPECT_EQ(nullptr, syncFence.getSharedHandle());
-    EXPECT_EQ(nullptr, dispatchCallback.get());
+    EXPECT_EQ(nullptr, dispatchCallback);
     EXPECT_EQ(kNoTiming, timing);
 }
 
@@ -2794,7 +2794,7 @@ TEST_F(VersionedIPreparedModelV1_2Test, executeFencedTransportFailure) {
     // verify failure
     EXPECT_EQ(ANEURALNETWORKS_OP_FAILED, resultCode);
     EXPECT_EQ(nullptr, syncFence.getSharedHandle());
-    EXPECT_EQ(nullptr, dispatchCallback.get());
+    EXPECT_EQ(nullptr, dispatchCallback);
     EXPECT_EQ(kNoTiming, timing);
 }
 
@@ -2811,7 +2811,7 @@ TEST_F(VersionedIPreparedModelV1_3Test, executeFencedTransportFailure) {
     // verify failure
     EXPECT_EQ(ANEURALNETWORKS_OP_FAILED, resultCode);
     EXPECT_EQ(nullptr, syncFence.getSharedHandle());
-    EXPECT_EQ(nullptr, dispatchCallback.get());
+    EXPECT_EQ(nullptr, dispatchCallback);
     EXPECT_EQ(kNoTiming, timing);
 }
 

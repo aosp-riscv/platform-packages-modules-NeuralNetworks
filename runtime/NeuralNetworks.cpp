@@ -1559,7 +1559,7 @@ int ANeuralNetworksExecution_startComputeWithDependencies(
     int syncFenceToSignal = -1;
     int n = r->computeFenced(waitForList, duration, &syncFenceToSignal);
     std::unique_ptr<SyncFenceEvent> e =
-            std::make_unique<SyncFenceEvent>(syncFenceToSignal, r->getFencedExecutionCallback());
+            std::make_unique<SyncFenceEvent>(syncFenceToSignal, r->getExecuteFencedInfoCallback());
     if (n != ANEURALNETWORKS_NO_ERROR) {
         *event = nullptr;
     } else {

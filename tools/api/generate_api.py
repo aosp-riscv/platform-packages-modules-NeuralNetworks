@@ -119,7 +119,8 @@ class Specification(Reader):
             " wasn't defined in %define-kinds"
         )
         lowest_pos = self.kinds.index(pattern[:-1])
-        return self.kind in self.kinds[lowest_pos:]
+        if self.kind in self.kinds[lowest_pos:]:
+          return True
       else:
         # An ordinary pattern: See if it matches self.kind.
         if not self.kinds is None and not pattern in self.kinds:
@@ -318,14 +319,17 @@ class Template(Reader):
         return
 
       # Check for insertion
-      match = re.search("^%insert\s+(\S+)\s*$", self.line)
+      match = re.search("^%insert(?:-indented\s+(\S+))?\s+(\S+)\s*$", self.line)
       if match:
-        key = match[1]
+        count = match[1] or "0"
+        key = match[2]
+        assert re.match("\d+", count), "Bad count \"" + count + "\" on " + self.context()
         assert key in specification.sections, "Unknown section \"" + key + "\" on " + self.context()
+        indent = " " * int(count)
         for line in specification.sections[key]:
           if re.search("TODO", line, re.IGNORECASE):
             print("WARNING: \"TODO\" at " + self.context())
-          self.lines.append(line)
+          self.lines.append(indent + line if line.rstrip("\n") else line)
         return
 
       # Bad directive

@@ -53,6 +53,11 @@ Copy the *section* with the specified *name* from the specification file to the
 output file.  The section is defined by a `%section` directive in the
 specification file.
 
+#### `%insert-indented *count* *name*`
+
+Similar to `%insert *name*`, but each non-empty copied line is prefixed with
+*count* space characters.  *count* must be a non-negative integer.
+
 ## Specification File Syntax
 
 The specification file consists of comments, *directives*, and other text.
@@ -117,7 +122,8 @@ A *section region* is a sequence of lines immediately preceded by the `%section
 *name*` directive and immediately followed by the `%/section` directive.  Every
 non-comment line in the sequence undergoes macro substitution, and the resulting
 lines are associated with the section name.  They can be inserted into the
-generated output file as directed by the template file's `%insert` directive.
+generated output file as directed by the template file's `%insert` and
+`%insert-indented` directives.
 
 This is the mechanism by which a specification file contributes text to the
 generated output file.

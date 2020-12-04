@@ -146,6 +146,7 @@ cc_defaults {
         "libneuralnetworks_common",
         "libneuralnetworks_generated_test_harness",
         "libneuralnetworks_static",
+        "neuralnetworks_test_utils",
     ],
     shared_libs: [
         "libcutils",

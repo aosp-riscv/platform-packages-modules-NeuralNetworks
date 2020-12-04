@@ -22,6 +22,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <hidl/Status.h>
+#include <nnapi/TestUtils.h>
 #include <nnapi/TypeUtils.h>
 #include <utils/Errors.h>
 
@@ -34,6 +35,11 @@
 #include "MemoryUtils.h"
 #include "MetaModel.h"
 #include "VersionedInterfaces.h"
+
+// Forward declaration
+namespace generated_tests::add {
+const test_helper::TestModel& get_test_model();
+}  // namespace generated_tests::add
 
 namespace android::nn {
 namespace {
@@ -49,6 +55,10 @@ constexpr V1_2::Timing kNoTiming12 = {.timeOnDevice = std::numeric_limits<uint64
                                       .timeInDriver = std::numeric_limits<uint64_t>::max()};
 constexpr V1_0::PerformanceInfo kNoPerformanceInfo = {.execTime = FLT_MAX, .powerUsage = FLT_MAX};
 constexpr Timing kNoTiming = {};
+
+const Model kSimpleModel = test::createModel(generated_tests::add::get_test_model());
+const MetaModel kSimpleMetaModel = MetaModel(kSimpleModel, /*strictSlicing=*/true);
+const ModelFactory kMakeSimpleModel = [] { return kSimpleModel; };
 
 template <typename... Args>
 auto makeCallbackReturn(Args&&... args) {
@@ -1153,70 +1163,74 @@ TEST_F(VersionedIDeviceV1_3Test, getFeatureLevel) {
 
 TEST_F(VersionedIDeviceV1_0Test, getSupportedOperations) {
     // setup call
-    const auto ret = [](const auto& /*model*/, const auto cb) {
-        cb(V1_0::ErrorStatus::NONE, {});
+    const auto ret = [](const auto& model, const auto cb) {
+        cb(V1_0::ErrorStatus::NONE, std::vector<bool>(model.operations.size(), true));
         return hardware::Void();
     };
     EXPECT_CALL(*kMockDevice, getSupportedOperations(_, _)).Times(1).WillOnce(Invoke(ret));
 
     // run test
-    const auto metaModel = MetaModel(Model{}, /*strictSlicing=*/true);
-    const auto [resultCode, supportedOperations] = kDevice->getSupportedOperations(metaModel);
+    const auto [resultCode, supportedOperations] =
+            kDevice->getSupportedOperations(kSimpleMetaModel);
 
     // verify success
     EXPECT_EQ(ErrorStatus::NONE, resultCode);
-    EXPECT_EQ(0u, supportedOperations.size());
+    EXPECT_EQ(1u, supportedOperations.size());
+    EXPECT_THAT(supportedOperations, Each(testing::IsTrue()));
 }
 
 TEST_F(VersionedIDeviceV1_1Test, getSupportedOperations) {
     // setup call
-    const auto ret = [](const auto& /*model*/, const auto cb) {
-        cb(V1_0::ErrorStatus::NONE, {});
+    const auto ret = [](const auto& model, const auto cb) {
+        cb(V1_0::ErrorStatus::NONE, std::vector<bool>(model.operations.size(), true));
         return hardware::Void();
     };
     EXPECT_CALL(*kMockDevice, getSupportedOperations_1_1(_, _)).Times(1).WillOnce(Invoke(ret));
 
     // run test
-    const auto metaModel = MetaModel(Model{}, /*strictSlicing=*/true);
-    const auto [resultCode, supportedOperations] = kDevice->getSupportedOperations(metaModel);
+    const auto [resultCode, supportedOperations] =
+            kDevice->getSupportedOperations(kSimpleMetaModel);
 
     // verify success
     EXPECT_EQ(ErrorStatus::NONE, resultCode);
-    EXPECT_EQ(0u, supportedOperations.size());
+    EXPECT_EQ(1u, supportedOperations.size());
+    EXPECT_THAT(supportedOperations, Each(testing::IsTrue()));
 }
 
 TEST_F(VersionedIDeviceV1_2Test, getSupportedOperations) {
     // setup call
-    const auto ret = [](const auto& /*model*/, const auto cb) {
-        cb(V1_0::ErrorStatus::NONE, {});
+    const auto ret = [](const auto& model, const auto cb) {
+        cb(V1_0::ErrorStatus::NONE, std::vector<bool>(model.operations.size(), true));
         return hardware::Void();
     };
     EXPECT_CALL(*kMockDevice, getSupportedOperations_1_2(_, _)).Times(1).WillOnce(Invoke(ret));
 
     // run test
-    const auto metaModel = MetaModel(Model{}, /*strictSlicing=*/true);
-    const auto [resultCode, supportedOperations] = kDevice->getSupportedOperations(metaModel);
+    const auto [resultCode, supportedOperations] =
+            kDevice->getSupportedOperations(kSimpleMetaModel);
 
     // verify success
     EXPECT_EQ(ErrorStatus::NONE, resultCode);
-    EXPECT_EQ(0u, supportedOperations.size());
+    EXPECT_EQ(1u, supportedOperations.size());
+    EXPECT_THAT(supportedOperations, Each(testing::IsTrue()));
 }
 
 TEST_F(VersionedIDeviceV1_3Test, getSupportedOperations) {
     // setup call
-    const auto ret = [](const auto& /*model*/, const auto cb) {
-        cb(V1_3::ErrorStatus::NONE, {});
+    const auto ret = [](const auto& model, const auto cb) {
+        cb(V1_3::ErrorStatus::NONE, std::vector<bool>(model.main.operations.size(), true));
         return hardware::Void();
     };
     EXPECT_CALL(*kMockDevice, getSupportedOperations_1_3(_, _)).Times(1).WillOnce(Invoke(ret));
 
     // run test
-    const auto metaModel = MetaModel(Model{}, /*strictSlicing=*/true);
-    const auto [resultCode, supportedOperations] = kDevice->getSupportedOperations(metaModel);
+    const auto [resultCode, supportedOperations] =
+            kDevice->getSupportedOperations(kSimpleMetaModel);
 
     // verify success
     EXPECT_EQ(ErrorStatus::NONE, resultCode);
-    EXPECT_EQ(0u, supportedOperations.size());
+    EXPECT_EQ(1u, supportedOperations.size());
+    EXPECT_THAT(supportedOperations, Each(testing::IsTrue()));
 }
 
 TEST_F(VersionedIDeviceV1_0Test, prepareModel) {
@@ -1227,8 +1241,8 @@ TEST_F(VersionedIDeviceV1_0Test, prepareModel) {
     EXPECT_CALL(*kMockDevice, prepareModel(_, _)).Times(1).WillOnce(Invoke(ret));
 
     // run test
-    const ModelFactory makeModel = [] { return Model{}; };
-    const auto [resultCode, preparedModel] = kDevice->prepareModel(makeModel, {}, {}, {}, {}, {});
+    const auto [resultCode, preparedModel] =
+            kDevice->prepareModel(kMakeSimpleModel, {}, {}, {}, {}, {});
 
     // verify success
     EXPECT_EQ(ANEURALNETWORKS_NO_ERROR, resultCode);
@@ -1243,8 +1257,8 @@ TEST_F(VersionedIDeviceV1_1Test, prepareModel) {
     EXPECT_CALL(*kMockDevice, prepareModel_1_1(_, _, _)).Times(1).WillOnce(Invoke(ret));
 
     // run test
-    const ModelFactory makeModel = [] { return Model{}; };
-    const auto [resultCode, preparedModel] = kDevice->prepareModel(makeModel, {}, {}, {}, {}, {});
+    const auto [resultCode, preparedModel] =
+            kDevice->prepareModel(kMakeSimpleModel, {}, {}, {}, {}, {});
 
     // verify success
     EXPECT_EQ(ANEURALNETWORKS_NO_ERROR, resultCode);
@@ -1259,8 +1273,8 @@ TEST_F(VersionedIDeviceV1_2Test, prepareModel) {
     EXPECT_CALL(*kMockDevice, prepareModel_1_2(_, _, _, _, _, _)).Times(1).WillOnce(Invoke(ret));
 
     // run test
-    const ModelFactory makeModel = [] { return Model{}; };
-    const auto [resultCode, preparedModel] = kDevice->prepareModel(makeModel, {}, {}, {}, {}, {});
+    const auto [resultCode, preparedModel] =
+            kDevice->prepareModel(kMakeSimpleModel, {}, {}, {}, {}, {});
 
     // verify success
     EXPECT_EQ(ANEURALNETWORKS_NO_ERROR, resultCode);
@@ -1277,8 +1291,8 @@ TEST_F(VersionedIDeviceV1_3Test, prepareModel) {
             .WillOnce(Invoke(ret));
 
     // run test
-    const ModelFactory makeModel = [] { return Model{}; };
-    const auto [resultCode, preparedModel] = kDevice->prepareModel(makeModel, {}, {}, {}, {}, {});
+    const auto [resultCode, preparedModel] =
+            kDevice->prepareModel(kMakeSimpleModel, {}, {}, {}, {}, {});
 
     // verify success
     EXPECT_EQ(ANEURALNETWORKS_NO_ERROR, resultCode);
@@ -1355,70 +1369,75 @@ TEST_F(VersionedIDeviceMockTest, wait) {
 
 TEST_F(VersionedIDeviceV1_0Test, getSupportedOperationsFailure) {
     // setup failure
-    const auto ret = [](const auto& /*model*/, const auto cb) {
-        cb(V1_0::ErrorStatus::GENERAL_FAILURE, {});
+    const auto ret = [](const auto& model, const auto cb) {
+        cb(V1_0::ErrorStatus::GENERAL_FAILURE, std::vector<bool>(model.operations.size(), false));
         return hardware::Void();
     };
     EXPECT_CALL(*kMockDevice, getSupportedOperations(_, _)).Times(1).WillOnce(Invoke(ret));
 
     // run test
-    const auto metaModel = MetaModel(Model{}, /*strictSlicing=*/true);
-    const auto [resultCode, supportedOperations] = kDevice->getSupportedOperations(metaModel);
+    const auto [resultCode, supportedOperations] =
+            kDevice->getSupportedOperations(kSimpleMetaModel);
 
     // verify failure
     EXPECT_EQ(ErrorStatus::GENERAL_FAILURE, resultCode);
-    EXPECT_EQ(0u, supportedOperations.size());
+    EXPECT_EQ(1u, supportedOperations.size());
+    EXPECT_THAT(supportedOperations, Each(testing::IsFalse()));
 }
 
 TEST_F(VersionedIDeviceV1_1Test, getSupportedOperationsFailure) {
     // setup failure
-    const auto ret = [](const auto& /*model*/, const auto cb) {
-        cb(V1_0::ErrorStatus::GENERAL_FAILURE, {});
+    const auto ret = [](const auto& model, const auto cb) {
+        cb(V1_0::ErrorStatus::GENERAL_FAILURE, std::vector<bool>(model.operations.size(), false));
         return hardware::Void();
     };
     EXPECT_CALL(*kMockDevice, getSupportedOperations_1_1(_, _)).Times(1).WillOnce(Invoke(ret));
 
     // run test
-    const auto metaModel = MetaModel(Model{}, /*strictSlicing=*/true);
-    const auto [resultCode, supportedOperations] = kDevice->getSupportedOperations(metaModel);
+    const auto [resultCode, supportedOperations] =
+            kDevice->getSupportedOperations(kSimpleMetaModel);
 
     // verify failure
     EXPECT_EQ(ErrorStatus::GENERAL_FAILURE, resultCode);
-    EXPECT_EQ(0u, supportedOperations.size());
+    EXPECT_EQ(1u, supportedOperations.size());
+    EXPECT_THAT(supportedOperations, Each(testing::IsFalse()));
 }
 
 TEST_F(VersionedIDeviceV1_2Test, getSupportedOperationsFailure) {
     // setup failure
-    const auto ret = [](const auto& /*model*/, const auto cb) {
-        cb(V1_0::ErrorStatus::GENERAL_FAILURE, {});
+    const auto ret = [](const auto& model, const auto cb) {
+        cb(V1_0::ErrorStatus::GENERAL_FAILURE, std::vector<bool>(model.operations.size(), false));
         return hardware::Void();
     };
     EXPECT_CALL(*kMockDevice, getSupportedOperations_1_2(_, _)).Times(1).WillOnce(Invoke(ret));
 
     // run test
-    const auto metaModel = MetaModel(Model{}, /*strictSlicing=*/true);
-    const auto [resultCode, supportedOperations] = kDevice->getSupportedOperations(metaModel);
+    const auto [resultCode, supportedOperations] =
+            kDevice->getSupportedOperations(kSimpleMetaModel);
 
     // verify failure
     EXPECT_EQ(ErrorStatus::GENERAL_FAILURE, resultCode);
-    EXPECT_EQ(0u, supportedOperations.size());
+    EXPECT_EQ(1u, supportedOperations.size());
+    EXPECT_THAT(supportedOperations, Each(testing::IsFalse()));
 }
 
 TEST_F(VersionedIDeviceV1_3Test, getSupportedOperationsFailure) {
     // setup failure
-    const auto ret = [](const auto& /*model*/, const auto cb) {
-        cb(V1_3::ErrorStatus::GENERAL_FAILURE, {});
+    const auto ret = [](const auto& model, const auto cb) {
+        cb(V1_3::ErrorStatus::GENERAL_FAILURE,
+           std::vector<bool>(model.main.operations.size(), false));
         return hardware::Void();
     };
     EXPECT_CALL(*kMockDevice, getSupportedOperations_1_3(_, _)).Times(1).WillOnce(Invoke(ret));
 
     // run test
-    const auto metaModel = MetaModel(Model{}, /*strictSlicing=*/true);
-    const auto [resultCode, supportedOperations] = kDevice->getSupportedOperations(metaModel);
+    const auto [resultCode, supportedOperations] =
+            kDevice->getSupportedOperations(kSimpleMetaModel);
 
     // verify failure
     EXPECT_EQ(ErrorStatus::GENERAL_FAILURE, resultCode);
-    EXPECT_EQ(0u, supportedOperations.size());
+    EXPECT_EQ(1u, supportedOperations.size());
+    EXPECT_THAT(supportedOperations, Each(testing::IsFalse()));
 }
 
 TEST_F(VersionedIDeviceV1_0Test, prepareModelLaunchFailure) {
@@ -1429,8 +1448,8 @@ TEST_F(VersionedIDeviceV1_0Test, prepareModelLaunchFailure) {
     EXPECT_CALL(*kMockDevice, prepareModel(_, _)).Times(1).WillOnce(Invoke(ret));
 
     // run test
-    const ModelFactory makeModel = [] { return Model{}; };
-    const auto [resultCode, preparedModel] = kDevice->prepareModel(makeModel, {}, {}, {}, {}, {});
+    const auto [resultCode, preparedModel] =
+            kDevice->prepareModel(kMakeSimpleModel, {}, {}, {}, {}, {});
 
     // verify failure
     EXPECT_EQ(ANEURALNETWORKS_OP_FAILED, resultCode);
@@ -1445,8 +1464,8 @@ TEST_F(VersionedIDeviceV1_1Test, prepareModelLaunchFailure) {
     EXPECT_CALL(*kMockDevice, prepareModel_1_1(_, _, _)).Times(1).WillOnce(Invoke(ret));
 
     // run test
-    const ModelFactory makeModel = [] { return Model{}; };
-    const auto [resultCode, preparedModel] = kDevice->prepareModel(makeModel, {}, {}, {}, {}, {});
+    const auto [resultCode, preparedModel] =
+            kDevice->prepareModel(kMakeSimpleModel, {}, {}, {}, {}, {});
 
     // verify failure
     EXPECT_EQ(ANEURALNETWORKS_OP_FAILED, resultCode);
@@ -1461,8 +1480,8 @@ TEST_F(VersionedIDeviceV1_2Test, prepareModelLaunchFailure) {
     EXPECT_CALL(*kMockDevice, prepareModel_1_2(_, _, _, _, _, _)).Times(1).WillOnce(Invoke(ret));
 
     // run test
-    const ModelFactory makeModel = [] { return Model{}; };
-    const auto [resultCode, preparedModel] = kDevice->prepareModel(makeModel, {}, {}, {}, {}, {});
+    const auto [resultCode, preparedModel] =
+            kDevice->prepareModel(kMakeSimpleModel, {}, {}, {}, {}, {});
 
     // verify failure
     EXPECT_EQ(ANEURALNETWORKS_OP_FAILED, resultCode);
@@ -1479,8 +1498,8 @@ TEST_F(VersionedIDeviceV1_3Test, prepareModelLaunchFailure) {
             .WillOnce(Invoke(ret));
 
     // run test
-    const ModelFactory makeModel = [] { return Model{}; };
-    const auto [resultCode, preparedModel] = kDevice->prepareModel(makeModel, {}, {}, {}, {}, {});
+    const auto [resultCode, preparedModel] =
+            kDevice->prepareModel(kMakeSimpleModel, {}, {}, {}, {}, {});
 
     // verify failure
     EXPECT_EQ(ANEURALNETWORKS_OP_FAILED, resultCode);
@@ -1495,8 +1514,8 @@ TEST_F(VersionedIDeviceV1_0Test, prepareModelReturnFailure) {
     EXPECT_CALL(*kMockDevice, prepareModel(_, _)).Times(1).WillOnce(Invoke(ret));
 
     // run test
-    const ModelFactory makeModel = [] { return Model{}; };
-    const auto [resultCode, preparedModel] = kDevice->prepareModel(makeModel, {}, {}, {}, {}, {});
+    const auto [resultCode, preparedModel] =
+            kDevice->prepareModel(kMakeSimpleModel, {}, {}, {}, {}, {});
 
     // verify failure
     EXPECT_EQ(ANEURALNETWORKS_OP_FAILED, resultCode);
@@ -1511,8 +1530,8 @@ TEST_F(VersionedIDeviceV1_1Test, prepareModelReturnFailure) {
     EXPECT_CALL(*kMockDevice, prepareModel_1_1(_, _, _)).Times(1).WillOnce(Invoke(ret));
 
     // run test
-    const ModelFactory makeModel = [] { return Model{}; };
-    const auto [resultCode, preparedModel] = kDevice->prepareModel(makeModel, {}, {}, {}, {}, {});
+    const auto [resultCode, preparedModel] =
+            kDevice->prepareModel(kMakeSimpleModel, {}, {}, {}, {}, {});
 
     // verify failure
     EXPECT_EQ(ANEURALNETWORKS_OP_FAILED, resultCode);
@@ -1527,8 +1546,8 @@ TEST_F(VersionedIDeviceV1_2Test, prepareModelReturnFailure) {
     EXPECT_CALL(*kMockDevice, prepareModel_1_2(_, _, _, _, _, _)).Times(1).WillOnce(Invoke(ret));
 
     // run test
-    const ModelFactory makeModel = [] { return Model{}; };
-    const auto [resultCode, preparedModel] = kDevice->prepareModel(makeModel, {}, {}, {}, {}, {});
+    const auto [resultCode, preparedModel] =
+            kDevice->prepareModel(kMakeSimpleModel, {}, {}, {}, {}, {});
 
     // verify failure
     EXPECT_EQ(ANEURALNETWORKS_OP_FAILED, resultCode);
@@ -1545,8 +1564,8 @@ TEST_F(VersionedIDeviceV1_3Test, prepareModelReturnFailure) {
             .WillOnce(Invoke(ret));
 
     // run test
-    const ModelFactory makeModel = [] { return Model{}; };
-    const auto [resultCode, preparedModel] = kDevice->prepareModel(makeModel, {}, {}, {}, {}, {});
+    const auto [resultCode, preparedModel] =
+            kDevice->prepareModel(kMakeSimpleModel, {}, {}, {}, {}, {});
 
     // verify failure
     EXPECT_EQ(ANEURALNETWORKS_OP_FAILED, resultCode);
@@ -1561,8 +1580,8 @@ TEST_F(VersionedIDeviceV1_0Test, prepareModelNullptrError) {
     EXPECT_CALL(*kMockDevice, prepareModel(_, _)).Times(1).WillOnce(Invoke(ret));
 
     // run test
-    const ModelFactory makeModel = [] { return Model{}; };
-    const auto [resultCode, preparedModel] = kDevice->prepareModel(makeModel, {}, {}, {}, {}, {});
+    const auto [resultCode, preparedModel] =
+            kDevice->prepareModel(kMakeSimpleModel, {}, {}, {}, {}, {});
 
     // verify failure
     EXPECT_EQ(ANEURALNETWORKS_OP_FAILED, resultCode);
@@ -1577,8 +1596,8 @@ TEST_F(VersionedIDeviceV1_1Test, prepareModelNullptrError) {
     EXPECT_CALL(*kMockDevice, prepareModel_1_1(_, _, _)).Times(1).WillOnce(Invoke(ret));
 
     // run test
-    const ModelFactory makeModel = [] { return Model{}; };
-    const auto [resultCode, preparedModel] = kDevice->prepareModel(makeModel, {}, {}, {}, {}, {});
+    const auto [resultCode, preparedModel] =
+            kDevice->prepareModel(kMakeSimpleModel, {}, {}, {}, {}, {});
 
     // verify failure
     EXPECT_EQ(ANEURALNETWORKS_OP_FAILED, resultCode);
@@ -1593,8 +1612,8 @@ TEST_F(VersionedIDeviceV1_2Test, prepareModelNullptrError) {
     EXPECT_CALL(*kMockDevice, prepareModel_1_2(_, _, _, _, _, _)).Times(1).WillOnce(Invoke(ret));
 
     // run test
-    const ModelFactory makeModel = [] { return Model{}; };
-    const auto [resultCode, preparedModel] = kDevice->prepareModel(makeModel, {}, {}, {}, {}, {});
+    const auto [resultCode, preparedModel] =
+            kDevice->prepareModel(kMakeSimpleModel, {}, {}, {}, {}, {});
 
     // verify failure
     EXPECT_EQ(ANEURALNETWORKS_OP_FAILED, resultCode);
@@ -1611,8 +1630,8 @@ TEST_F(VersionedIDeviceV1_3Test, prepareModelNullptrError) {
             .WillOnce(Invoke(ret));
 
     // run test
-    const ModelFactory makeModel = [] { return Model{}; };
-    const auto [resultCode, preparedModel] = kDevice->prepareModel(makeModel, {}, {}, {}, {}, {});
+    const auto [resultCode, preparedModel] =
+            kDevice->prepareModel(kMakeSimpleModel, {}, {}, {}, {}, {});
 
     // verify failure
     EXPECT_EQ(ANEURALNETWORKS_OP_FAILED, resultCode);
@@ -1649,8 +1668,8 @@ TEST_F(VersionedIDeviceV1_0Test, getSupportedOperationsTransportFailure) {
             .WillOnce(InvokeWithoutArgs(makeGeneralTransportFailure));
 
     // run test
-    const auto metaModel = MetaModel(Model{}, /*strictSlicing=*/true);
-    const auto [resultCode, supportedOperations] = kDevice->getSupportedOperations(metaModel);
+    const auto [resultCode, supportedOperations] =
+            kDevice->getSupportedOperations(kSimpleMetaModel);
 
     // verify failure
     EXPECT_EQ(ErrorStatus::GENERAL_FAILURE, resultCode);
@@ -1664,8 +1683,8 @@ TEST_F(VersionedIDeviceV1_1Test, getSupportedOperationsTransportFailure) {
             .WillOnce(InvokeWithoutArgs(makeGeneralTransportFailure));
 
     // run test
-    const auto metaModel = MetaModel(Model{}, /*strictSlicing=*/true);
-    const auto [resultCode, supportedOperations] = kDevice->getSupportedOperations(metaModel);
+    const auto [resultCode, supportedOperations] =
+            kDevice->getSupportedOperations(kSimpleMetaModel);
 
     // verify failure
     EXPECT_EQ(ErrorStatus::GENERAL_FAILURE, resultCode);
@@ -1679,8 +1698,8 @@ TEST_F(VersionedIDeviceV1_2Test, getSupportedOperationsTransportFailure) {
             .WillOnce(InvokeWithoutArgs(makeGeneralTransportFailure));
 
     // run test
-    const auto metaModel = MetaModel(Model{}, /*strictSlicing=*/true);
-    const auto [resultCode, supportedOperations] = kDevice->getSupportedOperations(metaModel);
+    const auto [resultCode, supportedOperations] =
+            kDevice->getSupportedOperations(kSimpleMetaModel);
 
     // verify failure
     EXPECT_EQ(ErrorStatus::GENERAL_FAILURE, resultCode);
@@ -1694,8 +1713,8 @@ TEST_F(VersionedIDeviceV1_3Test, getSupportedOperationsTransportFailure) {
             .WillOnce(InvokeWithoutArgs(makeGeneralTransportFailure));
 
     // run test
-    const auto metaModel = MetaModel(Model{}, /*strictSlicing=*/true);
-    const auto [resultCode, supportedOperations] = kDevice->getSupportedOperations(metaModel);
+    const auto [resultCode, supportedOperations] =
+            kDevice->getSupportedOperations(kSimpleMetaModel);
 
     // verify failure
     EXPECT_EQ(ErrorStatus::GENERAL_FAILURE, resultCode);
@@ -1709,8 +1728,8 @@ TEST_F(VersionedIDeviceV1_0Test, prepareModelTransportFailure) {
             .WillOnce(InvokeWithoutArgs(makeGeneralTransportFailure));
 
     // run test
-    const ModelFactory makeModel = [] { return Model{}; };
-    const auto [resultCode, preparedModel] = kDevice->prepareModel(makeModel, {}, {}, {}, {}, {});
+    const auto [resultCode, preparedModel] =
+            kDevice->prepareModel(kMakeSimpleModel, {}, {}, {}, {}, {});
 
     // verify failure
     EXPECT_EQ(ANEURALNETWORKS_OP_FAILED, resultCode);
@@ -1724,8 +1743,8 @@ TEST_F(VersionedIDeviceV1_1Test, prepareModelTransportFailure) {
             .WillOnce(InvokeWithoutArgs(makeGeneralTransportFailure));
 
     // run test
-    const ModelFactory makeModel = [] { return Model{}; };
-    const auto [resultCode, preparedModel] = kDevice->prepareModel(makeModel, {}, {}, {}, {}, {});
+    const auto [resultCode, preparedModel] =
+            kDevice->prepareModel(kMakeSimpleModel, {}, {}, {}, {}, {});
 
     // verify failure
     EXPECT_EQ(ANEURALNETWORKS_OP_FAILED, resultCode);
@@ -1739,8 +1758,8 @@ TEST_F(VersionedIDeviceV1_2Test, prepareModelTransportFailure) {
             .WillOnce(InvokeWithoutArgs(makeGeneralTransportFailure));
 
     // run test
-    const ModelFactory makeModel = [] { return Model{}; };
-    const auto [resultCode, preparedModel] = kDevice->prepareModel(makeModel, {}, {}, {}, {}, {});
+    const auto [resultCode, preparedModel] =
+            kDevice->prepareModel(kMakeSimpleModel, {}, {}, {}, {}, {});
 
     // verify failure
     EXPECT_EQ(ANEURALNETWORKS_OP_FAILED, resultCode);
@@ -1754,8 +1773,8 @@ TEST_F(VersionedIDeviceV1_3Test, prepareModelTransportFailure) {
             .WillOnce(InvokeWithoutArgs(makeGeneralTransportFailure));
 
     // run test
-    const ModelFactory makeModel = [] { return Model{}; };
-    const auto [resultCode, preparedModel] = kDevice->prepareModel(makeModel, {}, {}, {}, {}, {});
+    const auto [resultCode, preparedModel] =
+            kDevice->prepareModel(kMakeSimpleModel, {}, {}, {}, {}, {});
 
     // verify failure
     EXPECT_EQ(ANEURALNETWORKS_OP_FAILED, resultCode);
@@ -1816,8 +1835,8 @@ TEST_F(VersionedIDeviceMockTest, DISABLED_prepareModelRecoverCrash) {
             .WillOnce(Invoke(ret));
 
     // run test
-    const ModelFactory makeModel = [] { return Model{}; };
-    const auto [resultCode, preparedModel] = kDevice->prepareModel(makeModel, {}, {}, {}, {}, {});
+    const auto [resultCode, preparedModel] =
+            kDevice->prepareModel(kMakeSimpleModel, {}, {}, {}, {}, {});
 
     // verify success
     EXPECT_EQ(ANEURALNETWORKS_NO_ERROR, resultCode);
@@ -1837,8 +1856,8 @@ TEST_F(VersionedIDeviceMockTest, prepareModelFullCrash) {
             .WillOnce(testing::Return(nullptr));
 
     // run test
-    const ModelFactory makeModel = [] { return Model{}; };
-    const auto [resultCode, preparedModel] = kDevice->prepareModel(makeModel, {}, {}, {}, {}, {});
+    const auto [resultCode, preparedModel] =
+            kDevice->prepareModel(kMakeSimpleModel, {}, {}, {}, {}, {});
 
     // verify failure
     EXPECT_EQ(ANEURALNETWORKS_DEAD_OBJECT, resultCode);
@@ -1856,8 +1875,8 @@ TEST_F(VersionedIDeviceMockTest, prepareModelAsyncCrash) {
             .WillOnce(InvokeWithoutArgs(ret));
 
     // run test
-    const ModelFactory makeModel = [] { return Model{}; };
-    const auto [resultCode, preparedModel] = kDevice->prepareModel(makeModel, {}, {}, {}, {}, {});
+    const auto [resultCode, preparedModel] =
+            kDevice->prepareModel(kMakeSimpleModel, {}, {}, {}, {}, {});
 
     // verify failure
     EXPECT_EQ(ANEURALNETWORKS_DEAD_OBJECT, resultCode);
@@ -1952,8 +1971,8 @@ std::shared_ptr<VersionedIPreparedModel> makeVersionedIPreparedModelSuccessfulIn
     EXPECT_CALL(*mockDevice, prepareModel_1_2(_, _, _, _, _, _)).Times(testing::AnyNumber());
     EXPECT_CALL(*mockDevice, prepareModel_1_3(_, _, _, _, _, _, _, _)).Times(testing::AnyNumber());
 
-    const ModelFactory makeModel = [] { return Model{}; };
-    const auto [resultCode, preparedModel] = device.prepareModel(makeModel, {}, {}, {}, {}, {});
+    const auto [resultCode, preparedModel] =
+            device.prepareModel(kMakeSimpleModel, {}, {}, {}, {}, {});
 
     CHECK_EQ(ANEURALNETWORKS_NO_ERROR, resultCode);
     CHECK(preparedModel != nullptr);
@@ -1997,8 +2016,8 @@ TEST_F(VersionedIPreparedModelInitializationTest, linkToDeathTransportFailure) {
             .WillOnce(Invoke(ret));
 
     // run test
-    const ModelFactory makeModel = [] { return Model{}; };
-    const auto [resultCode, preparedModel] = kDevice->prepareModel(makeModel, {}, {}, {}, {}, {});
+    const auto [resultCode, preparedModel] =
+            kDevice->prepareModel(kMakeSimpleModel, {}, {}, {}, {}, {});
 
     // verify failure
     EXPECT_EQ(ANEURALNETWORKS_OP_FAILED, resultCode);
@@ -2017,8 +2036,8 @@ TEST_F(VersionedIPreparedModelInitializationTest, linkToDeathDeadObject) {
             .WillOnce(Invoke(ret));
 
     // run test
-    const ModelFactory makeModel = [] { return Model{}; };
-    const auto [resultCode, preparedModel] = kDevice->prepareModel(makeModel, {}, {}, {}, {}, {});
+    const auto [resultCode, preparedModel] =
+            kDevice->prepareModel(kMakeSimpleModel, {}, {}, {}, {}, {});
 
     // verify failure
     EXPECT_EQ(ANEURALNETWORKS_DEAD_OBJECT, resultCode);
@@ -2037,8 +2056,8 @@ TEST_F(VersionedIPreparedModelInitializationTest, linkToDeathReturnError) {
             .WillOnce(Invoke(ret));
 
     // run test
-    const ModelFactory makeModel = [] { return Model{}; };
-    const auto [resultCode, preparedModel] = kDevice->prepareModel(makeModel, {}, {}, {}, {}, {});
+    const auto [resultCode, preparedModel] =
+            kDevice->prepareModel(kMakeSimpleModel, {}, {}, {}, {}, {});
 
     // verify failure
     EXPECT_EQ(ANEURALNETWORKS_OP_FAILED, resultCode);

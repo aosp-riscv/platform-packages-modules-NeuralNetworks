@@ -796,9 +796,9 @@ Result<Version> validateModelSubgraph(const Model::Subgraph& subgraph, size_t op
                                       const std::vector<Model::Subgraph>& referenced) {
     NN_VALIDATE(!subgraph.operands.empty());
     NN_VALIDATE(!subgraph.operations.empty());
-    // TODO(b/134529942#comment7): should we verify !subgraph.inputIndexes.empty()?
-    NN_VALIDATE(!subgraph.inputIndexes.empty());
-    NN_VALIDATE(!subgraph.outputIndexes.empty());
+    // TODO(b/173780642): Clarify whether subgraphs with no inputs or outputs are valid.
+    // NN_VALIDATE(!subgraph.inputIndexes.empty());
+    // NN_VALIDATE(!subgraph.outputIndexes.empty());
 
     auto version = NN_TRY(
             validateOperands(subgraph.operands, operandValuesSize, poolSizes, referenced.size()));
@@ -969,8 +969,8 @@ Result<Version> validateRequestMemoryPool(const Request::MemoryPool& memoryPool)
         NN_VALIDATE(std::get<Request::MemoryDomainToken>(memoryPool) != kInvalidMemoryDomainToken);
         return Version::ANDROID_R;
     }
-    if (std::holds_alternative<std::shared_ptr<const IBuffer>>(memoryPool)) {
-        NN_VALIDATE(std::get<std::shared_ptr<const IBuffer>>(memoryPool) != nullptr);
+    if (std::holds_alternative<SharedBuffer>(memoryPool)) {
+        NN_VALIDATE(std::get<SharedBuffer>(memoryPool) != nullptr);
         return Version::ANDROID_R;
     }
     return validateMemory(std::get<Memory>(memoryPool));
@@ -1105,10 +1105,9 @@ Result<Version> validateRequestForModelImpl(const Request& request, const Model&
 }
 
 Result<Version> validateMemoryDescImpl(
-        const BufferDesc& desc,
-        const std::vector<std::shared_ptr<const IPreparedModel>>& preparedModels,
+        const BufferDesc& desc, const std::vector<SharedPreparedModel>& preparedModels,
         const std::vector<BufferRole>& inputRoles, const std::vector<BufferRole>& outputRoles,
-        const std::function<const Model*(const std::shared_ptr<const IPreparedModel>&)>& getModel,
+        const std::function<const Model*(const SharedPreparedModel&)>& getModel,
         std::set<PreparedModelRole>* preparedModelRoles, Operand* combinedOperand) {
     NN_VALIDATE(!preparedModels.empty());
     NN_VALIDATE(!inputRoles.empty() || !outputRoles.empty());
@@ -2626,10 +2625,9 @@ Result<Version> validateRequestForModel(const Request& request, const Model& mod
 }
 
 Result<Version> validateMemoryDesc(
-        const BufferDesc& desc,
-        const std::vector<std::shared_ptr<const IPreparedModel>>& preparedModels,
+        const BufferDesc& desc, const std::vector<SharedPreparedModel>& preparedModels,
         const std::vector<BufferRole>& inputRoles, const std::vector<BufferRole>& outputRoles,
-        const std::function<const Model*(const std::shared_ptr<const IPreparedModel>&)>& getModel,
+        const std::function<const Model*(const SharedPreparedModel&)>& getModel,
         std::set<PreparedModelRole>* preparedModelRoles, Operand* combinedOperand) {
     return validateMemoryDescImpl(desc, preparedModels, inputRoles, outputRoles, getModel,
                                   preparedModelRoles, combinedOperand);

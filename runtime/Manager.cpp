@@ -23,6 +23,8 @@
 #include <cutils/native_handle.h>
 #include <hidl/HidlTransportSupport.h>
 #include <hidl/ServiceManagement.h>
+#include <nnapi/IPreparedModel.h>
+#include <nnapi/hal/1.3/Buffer.h>
 
 #include <algorithm>
 #include <functional>
@@ -130,7 +132,7 @@ class DriverPreparedModel : public RuntimePreparedModel {
             const std::optional<Deadline>& deadline,
             const OptionalTimeoutDuration& loopTimeoutDuration) const override;
 
-    std::tuple<int, int, sp<V1_3::IFencedExecutionCallback>, Timing> executeFenced(
+    std::tuple<int, int, ExecuteFencedInfoCallback, Timing> executeFenced(
             const std::vector<ModelArgumentInfo>& inputs,
             const std::vector<ModelArgumentInfo>& outputs,
             const std::vector<const RuntimeMemory*>& memories, const std::vector<int>& waitFor,
@@ -256,14 +258,21 @@ std::pair<int, std::unique_ptr<RuntimeMemory>> DriverDevice::allocate(const Memo
                        CHECK(versionedPreparedModel != nullptr);
                        return versionedPreparedModel;
                    });
-    auto [status, buffer, token] =
+    auto [status, hidlBuffer, token] =
             kInterface->allocate(hidlDesc, preparedModels, desc.inputRoles, desc.outputRoles);
     if (status != V1_3::ErrorStatus::NONE) {
         LOG(ERROR) << "DriverDevice::allocate -- memory allocation on device " << getName()
                    << " failed!";
         return {convertErrorStatusToResultCode(status), nullptr};
     }
-    return MemoryFromDevice::create(std::move(buffer), token);
+    auto buffer =
+            V1_3::utils::Buffer::create(hidlBuffer, static_cast<Request::MemoryDomainToken>(token));
+    if (!buffer.has_value()) {
+        LOG(ERROR) << "DriverDevice::allocate -- memory allocation on device " << getName()
+                   << " failed: " << buffer.error().message;
+        return {ANEURALNETWORKS_OP_FAILED, nullptr};
+    }
+    return MemoryFromDevice::create(std::move(buffer).value());
 }
 
 // Figures out how to place each of the input or outputs in a buffer. This just
@@ -356,7 +365,7 @@ std::tuple<int, std::vector<OutputShape>, Timing> DriverPreparedModel::execute(
     uint32_t count = localMemories.size();
     request.pools.resize(count);
     for (uint32_t i = 0; i < count; i++) {
-        request.pools[i] = uncheckedConvert(localMemories[i]->getMemoryPool());
+        request.pools[i] = localMemories[i]->getMemoryPool();
     }
 
     NNTRACE_FULL_SWITCH(NNTRACE_LAYER_IPC, NNTRACE_PHASE_EXECUTION,
@@ -422,7 +431,7 @@ std::tuple<int, std::vector<OutputShape>, Timing> DriverPreparedModel::execute(
     return {ANEURALNETWORKS_NO_ERROR, std::move(outputShapes), timing};
 }
 
-std::tuple<int, int, sp<V1_3::IFencedExecutionCallback>, Timing> DriverPreparedModel::executeFenced(
+std::tuple<int, int, ExecuteFencedInfoCallback, Timing> DriverPreparedModel::executeFenced(
         const std::vector<ModelArgumentInfo>& inputs, const std::vector<ModelArgumentInfo>& outputs,
         const std::vector<const RuntimeMemory*>& memories, const std::vector<int>& waitFor,
         MeasureTiming measure, const std::optional<Deadline>& deadline,
@@ -467,7 +476,7 @@ std::tuple<int, int, sp<V1_3::IFencedExecutionCallback>, Timing> DriverPreparedM
     uint32_t count = localMemories.size();
     request.pools.resize(count);
     for (uint32_t i = 0; i < count; i++) {
-        request.pools[i] = uncheckedConvert(localMemories[i]->getMemoryPool());
+        request.pools[i] = localMemories[i]->getMemoryPool();
     }
 
     NNTRACE_FULL_SWITCH(NNTRACE_LAYER_IPC, NNTRACE_PHASE_EXECUTION,
@@ -484,7 +493,7 @@ std::tuple<int, int, sp<V1_3::IFencedExecutionCallback>, Timing> DriverPreparedM
         waitForHandles.push_back(SyncFence::create(base::unique_fd(dupFd)));
     }
 
-    auto [n, syncFence, executeFencedCallback, timing] =
+    auto [n, syncFence, executeFencedInfoCallback, timing] =
             mPreparedModel->executeFenced(request, waitForHandles, measure, deadline,
                                           loopTimeoutDuration, timeoutDurationAfterFence);
 
@@ -523,7 +532,7 @@ std::tuple<int, int, sp<V1_3::IFencedExecutionCallback>, Timing> DriverPreparedM
     }
 
     VLOG(EXECUTION) << "DriverPreparedModel::executeFenced completed";
-    return {ANEURALNETWORKS_NO_ERROR, syncFenceFd, executeFencedCallback, timing};
+    return {ANEURALNETWORKS_NO_ERROR, syncFenceFd, executeFencedInfoCallback, timing};
 }
 
 // A special abstracted device for the CPU. Only one instance of this class will exist.
@@ -601,7 +610,7 @@ class CpuPreparedModel : public RuntimePreparedModel {
         return nullptr;
     }
 
-    std::tuple<int, int, sp<V1_3::IFencedExecutionCallback>, Timing> executeFenced(
+    std::tuple<int, int, ExecuteFencedInfoCallback, Timing> executeFenced(
             const std::vector<ModelArgumentInfo>& inputs,
             const std::vector<ModelArgumentInfo>& outputs,
             const std::vector<const RuntimeMemory*>& memories, const std::vector<int>& wait_for,
@@ -640,9 +649,16 @@ std::pair<int, std::shared_ptr<RuntimePreparedModel>> CpuDevice::prepareModel(
             << "Should never call prepareModel with cache information on CpuDevice";
 
     const Model model = makeModel();
-    if (!validateModel(convertToV1_3(model), ValidationMode::RUNTIME) ||
-        !validateExecutionPreference(convertToV1_1(preference)) ||
-        !validatePriority(convertToV1_3(priority))) {
+    if (auto result = validate(model); !result.ok()) {
+        LOG(ERROR) << "Invalid Model: " << result.error();
+        return {ANEURALNETWORKS_OP_FAILED, nullptr};
+    }
+    if (auto result = validate(preference); !result.ok()) {
+        LOG(ERROR) << "Invalid ExecutionPreference: " << result.error();
+        return {ANEURALNETWORKS_OP_FAILED, nullptr};
+    }
+    if (auto result = validate(priority); !result.ok()) {
+        LOG(ERROR) << "Invalid Priority: " << result.error();
         return {ANEURALNETWORKS_OP_FAILED, nullptr};
     }
     if (hasDeadlinePassed(deadline)) {
@@ -692,7 +708,7 @@ static std::tuple<int, std::vector<OutputShape>, Timing> computeOnCpu(
     return {err, outputShapes, {}};
 }
 
-std::tuple<int, int, sp<V1_3::IFencedExecutionCallback>, Timing> CpuPreparedModel::executeFenced(
+std::tuple<int, int, ExecuteFencedInfoCallback, Timing> CpuPreparedModel::executeFenced(
         const std::vector<ModelArgumentInfo>& inputs, const std::vector<ModelArgumentInfo>& outputs,
         const std::vector<const RuntimeMemory*>& memories, const std::vector<int>& waitFor,
         MeasureTiming measure, const std::optional<Deadline>& deadline,

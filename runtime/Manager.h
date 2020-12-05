@@ -18,6 +18,7 @@
 #define ANDROID_FRAMEWORKS_ML_NN_RUNTIME_MANAGER_H
 
 #include <android-base/macros.h>
+#include <nnapi/IPreparedModel.h>
 
 #include <map>
 #include <memory>
@@ -65,7 +66,7 @@ class RuntimePreparedModel {
     // Perform fenced computation with given input/output argument info and memory pools.
     // The returned timing information is only valid if the callback is nullptr.
     // Returns error_code, sync_fence, callback and timing.
-    virtual std::tuple<int, int, sp<V1_3::IFencedExecutionCallback>, Timing> executeFenced(
+    virtual std::tuple<int, int, ExecuteFencedInfoCallback, Timing> executeFenced(
             const std::vector<ModelArgumentInfo>& inputs,
             const std::vector<ModelArgumentInfo>& outputs,
             const std::vector<const RuntimeMemory*>& memories, const std::vector<int>& waitFor,

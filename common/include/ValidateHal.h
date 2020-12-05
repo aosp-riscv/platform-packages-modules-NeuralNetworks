@@ -20,14 +20,14 @@
 #include <set>
 #include <tuple>
 
+#include <nnapi/TypeUtils.h>
+#include <nnapi/Validation.h>
 #include "HalInterfaces.h"
-#include "nnapi/TypeUtils.h"
 
 namespace android {
 namespace nn {
 
-enum class IOType { INPUT, OUTPUT };
-using PreparedModelRole = std::tuple<const V1_3::IPreparedModel*, IOType, uint32_t>;
+using HalPreparedModelRole = std::tuple<const V1_3::IPreparedModel*, IOType, uint32_t>;
 
 // 1.3 HAL does not support control flow operations with operands of unknown size.
 // See http://b/132458982#comment63.
@@ -81,7 +81,7 @@ bool validateMemoryDesc(const V1_3::BufferDesc& desc,
                         const hardware::hidl_vec<V1_3::BufferRole>& inputRoles,
                         const hardware::hidl_vec<V1_3::BufferRole>& outputRoles,
                         std::function<const V1_3::Model*(const sp<V1_3::IPreparedModel>&)> getModel,
-                        std::set<PreparedModelRole>* preparedModelRoles,
+                        std::set<HalPreparedModelRole>* preparedModelRoles,
                         V1_3::Operand* combinedOperand);
 
 }  // namespace nn

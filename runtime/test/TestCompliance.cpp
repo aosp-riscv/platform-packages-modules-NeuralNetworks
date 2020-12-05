@@ -171,7 +171,8 @@ TEST_F(ComplianceTest, HardwareBufferModel) {
 TEST_F(ComplianceTest, HardwareBufferRequest) {
     const auto [n, ahwb] = MemoryRuntimeAHWB::create(1024);
     ASSERT_EQ(n, ANEURALNETWORKS_NO_ERROR);
-    V1_3::Request::MemoryPool sharedMemoryPool, ahwbMemoryPool = ahwb->getMemoryPool();
+    V1_3::Request::MemoryPool sharedMemoryPool,
+            ahwbMemoryPool = convertToV1_3(ahwb->getMemoryPool());
     sharedMemoryPool.hidlMemory(allocateSharedMemory(1024));
     ASSERT_TRUE(sharedMemoryPool.hidlMemory().valid());
     ASSERT_TRUE(ahwbMemoryPool.hidlMemory().valid());

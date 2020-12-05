@@ -18,6 +18,7 @@
 #define ANDROID_FRAMEWORKS_ML_NN_RUNTIME_VERSIONED_INTERFACES_H
 
 #include <android-base/macros.h>
+#include <nnapi/IPreparedModel.h>
 
 #include <cstddef>
 #include <functional>
@@ -760,10 +761,10 @@ class VersionedIPreparedModel {
      *         - A callback can be used to query information like duration
      *           and detailed runtime error status when the task is completed.
      *         - Optional timing information. Only useful if the call is simulated using
-     *           sync execution. Either IFencedExecutionCallback will be
-     *           returned or optional timing information is returned
+     *           sync execution. Either ExecuteFencedInfoCallback or optional
+     *           timing information is returned.
      */
-    std::tuple<int, SyncFence, sp<V1_3::IFencedExecutionCallback>, Timing> executeFenced(
+    std::tuple<int, SyncFence, ExecuteFencedInfoCallback, Timing> executeFenced(
             const Request& request, const std::vector<SyncFence>& waitFor, MeasureTiming measure,
             const std::optional<Deadline>& deadline,
             const OptionalTimeoutDuration& loopTimeoutDuration,

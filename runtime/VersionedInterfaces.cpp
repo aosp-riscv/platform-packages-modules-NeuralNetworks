@@ -24,7 +24,9 @@
 #include <android-base/thread_annotations.h>
 #include <cutils/native_handle.h>
 #include <fcntl.h>
+#include <nnapi/hal/1.3/Utils.h>
 #include <nnapi/hal/CommonUtils.h>
+#include <nnapi/hal/HandleError.h>
 
 #include <algorithm>
 #include <chrono>
@@ -417,7 +419,13 @@ static std::pair<V1_3::ErrorStatus, V1_3::Capabilities> getCapabilitiesFunction(
     return result;
 }
 
-std::tuple<int, SyncFence, sp<V1_3::IFencedExecutionCallback>, Timing>
+static GeneralResult<std::pair<Timing, Timing>> convertFencedExecutionCallbackResults(
+        const V1_2::Timing& timingLaunched, const V1_2::Timing& timingFenced) {
+    return std::make_pair(NN_TRY(V1_3::utils::validatedConvertToCanonical(timingLaunched)),
+                          NN_TRY(V1_3::utils::validatedConvertToCanonical(timingFenced)));
+}
+
+std::tuple<int, SyncFence, ExecuteFencedInfoCallback, Timing>
 VersionedIPreparedModel::executeFenced(const Request& request,
                                        const std::vector<SyncFence>& waitFor, MeasureTiming measure,
                                        const std::optional<Deadline>& deadline,
@@ -425,10 +433,10 @@ VersionedIPreparedModel::executeFenced(const Request& request,
                                        const OptionalTimeoutDuration& timeoutDurationAfterFence) {
     // version 1.3 HAL
     hardware::hidl_handle hidlSyncFence;
-    sp<V1_3::IFencedExecutionCallback> dispatchCallback;
     Timing timing = {UINT64_MAX, UINT64_MAX};
     if (mPreparedModelV1_3 != nullptr) {
         ErrorStatus errorStatus;
+        sp<V1_3::IFencedExecutionCallback> hidlCallback;
         const auto otp = makeTimePoint(deadline);
         auto waitForHandles = hal::utils::convertSyncFences(waitFor);
         if (!waitForHandles.has_value()) {
@@ -440,12 +448,12 @@ VersionedIPreparedModel::executeFenced(const Request& request,
                 convertToV1_3(request), std::move(waitForHandles).value(), convertToV1_2(measure),
                 convertToV1_3(otp), convertToV1_3(loopTimeoutDuration),
                 convertToV1_3(timeoutDurationAfterFence),
-                [&hidlSyncFence, &errorStatus, &dispatchCallback](
+                [&hidlSyncFence, &errorStatus, &hidlCallback](
                         V1_3::ErrorStatus error, const hardware::hidl_handle& handle,
                         const sp<V1_3::IFencedExecutionCallback>& callback) {
                     hidlSyncFence = handle;
                     errorStatus = uncheckedConvert(error);
-                    dispatchCallback = callback;
+                    hidlCallback = callback;
                 });
         if (!ret.isOk()) {
             LOG(ERROR) << "executeFenced failure: " << ret.description();
@@ -457,6 +465,7 @@ VersionedIPreparedModel::executeFenced(const Request& request,
             return std::make_tuple(convertErrorStatusToResultCode(errorStatus),
                                    SyncFence::createAsSignaled(), nullptr, timing);
         }
+
         auto sharedHandle = hal::utils::sharedHandleFromNativeHandle(hidlSyncFence);
         if (!sharedHandle.has_value()) {
             LOG(ERROR) << "executeFenced failure: " << sharedHandle.error().message;
@@ -471,8 +480,30 @@ VersionedIPreparedModel::executeFenced(const Request& request,
             return std::make_tuple(ANEURALNETWORKS_OP_FAILED, SyncFence::createAsSignaled(),
                                    nullptr, timing);
         }
+
+        ExecuteFencedInfoCallback callback =
+                [hidlCallback]() -> GeneralResult<std::pair<Timing, Timing>> {
+            GeneralResult<std::pair<Timing, Timing>> result = NN_ERROR() << "uninitialized";
+            auto cb = [&result](V1_3::ErrorStatus status, const V1_2::Timing& timingLaunched,
+                                const V1_2::Timing& timingFenced) {
+                if (status != V1_3::ErrorStatus::NONE) {
+                    const auto canonical =
+                            V1_3::utils::validatedConvertToCanonical(status).value_or(
+                                    ErrorStatus::GENERAL_FAILURE);
+                    result = NN_ERROR(canonical)
+                             << "getExecutionInfo failed with " << toString(status);
+                } else {
+                    result = convertFencedExecutionCallbackResults(timingLaunched, timingFenced);
+                }
+            };
+
+            const auto ret = hidlCallback->getExecutionInfo(cb);
+            NN_TRY(hal::utils::handleTransportError(ret));
+            return result;
+        };
+
         return std::make_tuple(ANEURALNETWORKS_NO_ERROR, std::move(syncFence).value(),
-                               dispatchCallback, timing);
+                               std::move(callback), timing);
     }
 
     // fallback to synchronous execution if sync_fence is not supported

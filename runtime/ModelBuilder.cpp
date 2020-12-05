@@ -30,7 +30,6 @@
 #include "Manager.h"
 #include "TypeManager.h"
 #include "Utils.h"
-#include "ValidateHal.h"
 
 namespace android {
 namespace nn {
@@ -38,6 +37,19 @@ namespace nn {
 // The maximum number of operands and operations that a model may have.
 const uint32_t MAX_NUMBER_OF_OPERANDS = 0xFFFFFFFE;
 const uint32_t MAX_NUMBER_OF_OPERATIONS = 0xFFFFFFFE;
+
+#define NN_VALIDATE_NULL_OR_SIZED(tag, data, length)                                          \
+    if ((data == nullptr) != (length == 0)) {                                                 \
+        LOG(ERROR) << "ANeuralNetworksModel_" << tag << " " << #data << " is "                \
+                   << (data == nullptr ? "null" : "not null") << " but " << #length << " is " \
+                   << length;                                                                 \
+        return ANEURALNETWORKS_BAD_DATA;                                                      \
+    }
+
+template <typename Type>
+static std::vector<Type> makeVector(const Type* data, uint32_t length) {
+    return length > 0 ? std::vector<Type>(data, data + length) : std::vector<Type>();
+}
 
 bool ModelBuilder::badState(const char* name) {
     if (mCompletedModel) {
@@ -80,23 +92,29 @@ int ModelBuilder::addOperand(const ANeuralNetworksOperandType& type) {
         LOG(ERROR) << "Extension operand type " << operandType << " is not registered";
         return ANEURALNETWORKS_BAD_DATA;
     }
-    NN_RETURN_IF_ERROR(validateOperandType(type, info, "ANeuralNetworksModel_addOperand", true));
+    NN_VALIDATE_NULL_OR_SIZED("addOperand", type.dimensions, type.dimensionCount);
+    Operand operand = {
+            .type = operandType,
+            .dimensions = makeVector(type.dimensions, type.dimensionCount),
+            .scale = type.scale,
+            .zeroPoint = type.zeroPoint,
+            .lifetime = Operand::LifeTime::TEMPORARY_VARIABLE,
+            .location = {.poolIndex = 0, .offset = 0, .length = 0},
+            .extraParams = {},
+    };
+    if (auto result = validateOperandType(operand, info, "ANeuralNetworksModel_addOperand", true);
+        !result.ok()) {
+        LOG(ERROR) << result.error();
+        return ANEURALNETWORKS_BAD_DATA;
+    }
+
     size_t idx = mOperands.size();
     if (idx >= MAX_NUMBER_OF_OPERANDS) {
         LOG(ERROR) << "ANeuralNetworksModel_addOperand exceed max operands";
         return ANEURALNETWORKS_BAD_DATA;
     }
 
-    mOperands.push_back({
-            .type = operandType,
-            .dimensions =
-                    std::vector<uint32_t>(type.dimensions, type.dimensions + type.dimensionCount),
-            .scale = type.scale,
-            .zeroPoint = type.zeroPoint,
-            .lifetime = Operand::LifeTime::TEMPORARY_VARIABLE,
-            .location = {.poolIndex = 0, .offset = 0, .length = 0},
-            .extraParams = {},
-    });
+    mOperands.push_back(std::move(operand));
     mHasOEMOperand |= isOemOperand;
     return ANEURALNETWORKS_NO_ERROR;
 }
@@ -113,12 +131,8 @@ int ModelBuilder::setOperandValue(uint32_t index, const void* buffer, size_t len
         return ANEURALNETWORKS_BAD_DATA;
     }
     Operand& operand = mOperands[index];
+    NN_VALIDATE_NULL_OR_SIZED("setOperandValue", buffer, length);
     if (buffer == nullptr) {
-        if (length) {
-            LOG(ERROR) << "ANeuralNetworksModel_setOperandValue buffer is nullptr but length is "
-                          "not 0";
-            return ANEURALNETWORKS_BAD_DATA;
-        }
         operand.lifetime = Operand::LifeTime::NO_VALUE;
         // The location is unused and is set to zeros.
         operand.location = {.poolIndex = 0, .offset = 0, .length = 0};
@@ -195,6 +209,7 @@ int ModelBuilder::setOperandValueFromModel(uint32_t index, const ModelBuilder* v
             .length = 0,
     };
     mReferencedModels.push_back(value);
+    mReferencedSubgraphsForValidation.push_back(value->makeModel().main);
     return ANEURALNETWORKS_NO_ERROR;
 }
 
@@ -212,18 +227,21 @@ int ModelBuilder::setOperandSymmPerChannelQuantParams(
     }
     Operand& operand = mOperands[index];
 
-    if (!validateOperandSymmPerChannelQuantParams(
-                convertToV1_3(operand), channelQuant,
-                "ANeuralNetworksModel_setOperandSymmPerChannelQuantParams")) {
+    NN_VALIDATE_NULL_OR_SIZED("setOperandSymmPerChannelQuantParams", channelQuant.scales,
+                              channelQuant.scaleCount);
+    Operand::SymmPerChannelQuantParams extraParams = {
+            .scales = makeVector(channelQuant.scales, channelQuant.scaleCount),
+            .channelDim = channelQuant.channelDim,
+    };
+    if (auto result = validateOperandSymmPerChannelQuantParams(
+                operand, extraParams, "ANeuralNetworksModel_setOperandSymmPerChannelQuantParams");
+        !result.ok()) {
+        LOG(ERROR) << result.error();
         return ANEURALNETWORKS_BAD_DATA;
     }
     switch (operand.type) {
         case OperandType::TENSOR_QUANT8_SYMM_PER_CHANNEL:
-            operand.extraParams = Operand::SymmPerChannelQuantParams{
-                    .scales = std::vector<float>(channelQuant.scales,
-                                                 channelQuant.scales + channelQuant.scaleCount),
-                    .channelDim = channelQuant.channelDim,
-            };
+            operand.extraParams = std::move(extraParams);
             break;
         default:
             LOG(ERROR) << "ANeuralNetworksModel_setOperandSymmPerChannelQuantParams "
@@ -245,16 +263,6 @@ int ModelBuilder::setOperandExtensionData(uint32_t index, const void* data, size
     }
     Operand& operand = mOperands[index];
 
-    if (data == nullptr && length != 0) {
-        LOG(ERROR) << "ANeuralNetworksModel_setOperandExtensionData data is nullptr but length is "
-                   << length;
-        return ANEURALNETWORKS_BAD_DATA;
-    }
-    if (data != nullptr && length == 0) {
-        LOG(ERROR) << "ANeuralNetworksModel_setOperandExtensionData data is not nullptr but length "
-                   << "is zero";
-        return ANEURALNETWORKS_BAD_DATA;
-    }
     if (!isExtension(operand.type)) {
         LOG(ERROR) << "ANeuralNetworksModel_setOperandExtensionData "
                    << "setting extension data for a base operand type "
@@ -262,6 +270,7 @@ int ModelBuilder::setOperandExtensionData(uint32_t index, const void* data, size
         return ANEURALNETWORKS_BAD_DATA;
     }
 
+    NN_VALIDATE_NULL_OR_SIZED("setOperandExtensionData", data, length);
     if (data == nullptr) {
         operand.extraParams = {};
     } else {
@@ -332,8 +341,8 @@ int ModelBuilder::setOperandValueFromMemory(uint32_t index, const RuntimeMemory*
     }
     // Set compilation = nullptr to indicate that the memory is used for a model constant.
     // In this case, IOType::INPUT is a placeholder value that is ignored by the validator.
-    if (!memory->getValidator().validate(/*compilation=*/nullptr, /*placeholder*/ IOType::INPUT, index,
-                                         nullptr, offset, length)) {
+    if (!memory->getValidator().validate(/*compilation=*/nullptr, /*placeholder*/ IOType::INPUT,
+                                         index, nullptr, offset, length)) {
         return ANEURALNETWORKS_BAD_DATA;
     }
     operand.lifetime = Operand::LifeTime::CONSTANT_REFERENCE;
@@ -366,33 +375,18 @@ int ModelBuilder::addOperation(ANeuralNetworksOperationType type, uint32_t input
         }
     }
 
-    auto isValidSubgraphReference = [this](const Operand& modelOperand) -> bool {
-        NN_RET_CHECK_EQ(modelOperand.type, OperandType::SUBGRAPH)
-                << "Unexpected operand type: " << modelOperand.type;
-        NN_RET_CHECK_LT(modelOperand.location.offset, referencedModelCount())
-                << "Invalid subgraph model reference";
-        return true;
+    NN_VALIDATE_NULL_OR_SIZED("addOperation", inputs, inputCount);
+    NN_VALIDATE_NULL_OR_SIZED("addOperation", outputs, outputCount);
+    Operation operation = {
+            .type = operationType,
+            .inputs = makeVector(inputs, inputCount),
+            .outputs = makeVector(outputs, outputCount),
     };
-    auto getInputCount = [this](const Operand& modelOperand) -> uint32_t {
-        return getReferencedModel(modelOperand)->inputCount();
-    };
-    auto getOutputCount = [this](const Operand& modelOperand) -> uint32_t {
-        return getReferencedModel(modelOperand)->outputCount();
-    };
-    auto getInputOperand = [this](const Operand& modelOperand, uint32_t index) -> const Operand* {
-        return &getReferencedModel(modelOperand)->getInputOperand(index);
-    };
-    auto getOutputOperand = [this](const Operand& modelOperand, uint32_t index) -> const Operand* {
-        return &getReferencedModel(modelOperand)->getOutputOperand(index);
-    };
-    NN_RETURN_IF_ERROR(validateOperation(
-            type, inputCount, inputs, outputCount, outputs, mOperands, HalVersion::LATEST,
-            {.isValidSubgraphReference = isValidSubgraphReference,
-             .getSubgraphInputCount = getInputCount,
-             .getSubgraphOutputCount = getOutputCount,
-             .getSubgraphInputOperand = getInputOperand,
-             .getSubgraphOutputOperand = getOutputOperand,
-             .allowControlFlowOperationWithOperandOfUnknownSize = true}));
+    if (auto result = validateOperation(operation, mOperands, mReferencedSubgraphsForValidation);
+        !result.ok()) {
+        LOG(ERROR) << "Invalid Operation: " << result.error();
+        return ANEURALNETWORKS_BAD_DATA;
+    }
 
     uint32_t operationIndex = operationCount();
     if (operationIndex >= MAX_NUMBER_OF_OPERATIONS) {
@@ -400,11 +394,7 @@ int ModelBuilder::addOperation(ANeuralNetworksOperationType type, uint32_t input
         return ANEURALNETWORKS_BAD_DATA;
     }
 
-    mOperations.push_back({
-            .type = operationType,
-            .inputs = std::vector<uint32_t>(inputs, inputs + inputCount),
-            .outputs = std::vector<uint32_t>(outputs, outputs + outputCount),
-    });
+    mOperations.push_back(std::move(operation));
     mHasOEMOperation |= (operationType == OperationType::OEM_OPERATION);
     mHasExtensionOperation |= isExtension(operationType);
 
@@ -417,15 +407,19 @@ int ModelBuilder::identifyInputsAndOutputs(uint32_t inputCount, const uint32_t* 
         return ANEURALNETWORKS_BAD_STATE;
     }
 
-    int n = validateOperandList(inputCount, inputs, operandCount(),
-                                "ANeuralNetworksModel_identifyInputsAndOutputs inputs");
-    if (n != ANEURALNETWORKS_NO_ERROR) {
-        return n;
+    NN_VALIDATE_NULL_OR_SIZED("identifyInputsAndOutputs", inputs, inputCount);
+    if (auto result = validateOperandList(makeVector(inputs, inputCount), operandCount(),
+                                          "ANeuralNetworksModel_identifyInputsAndOutputs inputs");
+        !result.ok()) {
+        LOG(ERROR) << result.error();
+        return ANEURALNETWORKS_BAD_DATA;
     }
-    n = validateOperandList(outputCount, outputs, operandCount(),
-                            "ANeuralNetworksModel_identifyInputsAndOutputs outputs");
-    if (n != ANEURALNETWORKS_NO_ERROR) {
-        return n;
+    NN_VALIDATE_NULL_OR_SIZED("identifyInputsAndOutputs", outputs, outputCount);
+    if (auto result = validateOperandList(makeVector(outputs, outputCount), operandCount(),
+                                          "ANeuralNetworksModel_identifyInputsAndOutputs outputs");
+        !result.ok()) {
+        LOG(ERROR) << result.error();
+        return ANEURALNETWORKS_BAD_DATA;
     }
 
     // Makes a copy of the index list, validates the arguments, and changes
@@ -511,15 +505,15 @@ int ModelBuilder::finish() {
         return ANEURALNETWORKS_BAD_DATA;
     }
 
-    // TODO: Modify validation so that it can be called without creating a HAL Model.
+    // TODO: Modify validation so that it can be called without creating a Model.
     // NOTE: Must sortIntoRunOrder() before validation; validator expects operations
     //       to have been sorted.
     // NOTE: Must copyLargeValuesToSharedMemory() before validation; otherwise,
     //       a CONSTANT_REFERENCE operand will not have correct .poolIndex, and
     //       validation will not work properly.
     const Model modelForValidation = makeModel();
-    if (!validateModel(convertToV1_3(modelForValidation), ValidationMode::RUNTIME)) {
-        LOG(ERROR) << "ANeuralNetworksModel_finish called on invalid model";
+    if (auto result = validate(modelForValidation); !result.ok()) {
+        LOG(ERROR) << "ANeuralNetworksModel_finish called on invalid model: " << result.error();
         mInvalidModel = true;
         return ANEURALNETWORKS_BAD_DATA;
     }
@@ -900,7 +894,7 @@ Model ModelBuilder::ModelMaker::makeModel(const ModelBuilder* mainModel) {
     model.operandValues = std::move(mOperandValues);
     model.pools.resize(mMemories.size());
     std::transform(mMemories.begin(), mMemories.end(), model.pools.begin(),
-                   [](const RuntimeMemory* m) { return uncheckedConvert(m->getHidlMemory()); });
+                   [](const RuntimeMemory* m) { return m->getMemory(); });
     model.relaxComputationFloat32toFloat16 = mainModel->mRelaxComputationFloat32toFloat16;
     model.extensionNameToPrefix = std::move(mExtensionNameToPrefix);
     return model;
@@ -973,6 +967,8 @@ void ModelBuilder::ModelMaker::addExtensionWithPrefix(uint16_t prefix) {
             .prefix = prefix,
     });
 }
+
+#undef NN_VALIDATE_NULL_OR_SIZED
 
 }  // namespace nn
 }  // namespace android

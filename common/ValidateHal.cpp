@@ -871,12 +871,12 @@ bool validateMemoryDesc(const V1_3::BufferDesc& desc,
                         const hardware::hidl_vec<V1_3::BufferRole>& inputRoles,
                         const hardware::hidl_vec<V1_3::BufferRole>& outputRoles,
                         std::function<const V1_3::Model*(const sp<V1_3::IPreparedModel>&)> getModel,
-                        std::set<PreparedModelRole>* preparedModelRoles,
+                        std::set<HalPreparedModelRole>* preparedModelRoles,
                         V1_3::Operand* combinedOperand) {
     NN_RET_CHECK(preparedModels.size() != 0);
     NN_RET_CHECK(inputRoles.size() != 0 || outputRoles.size() != 0);
 
-    std::set<PreparedModelRole> roles;
+    std::set<HalPreparedModelRole> roles;
     std::vector<V1_3::Operand> operands;
     operands.reserve(inputRoles.size() + outputRoles.size());
     for (const auto& role : inputRoles) {

@@ -21,6 +21,10 @@
 #include <android-base/scopeguard.h>
 #include <android/hardware_buffer.h>
 #include <cutils/native_handle.h>
+#include <hidl/HidlSupport.h>
+#include <nnapi/SharedMemory.h>
+#include <nnapi/TypeUtils.h>
+#include <nnapi/Types.h>
 #include <vndk/hardware_buffer.h>
 
 #include <algorithm>
@@ -30,21 +34,15 @@
 #include <utility>
 #include <vector>
 
-#include <nnapi/TypeUtils.h>
-#include <nnapi/Types.h>
 #include "CompilationBuilder.h"
 #include "CpuExecutor.h"
 #include "ExecutionBurstController.h"
 #include "Manager.h"
-#include "MemoryUtils.h"
 #include "TypeManager.h"
 #include "Utils.h"
 
 namespace android {
 namespace nn {
-
-using ::android::hidl::memory::V1_0::IMemory;
-
 namespace {
 
 // The validator for a client-managed single-dimensional memory pool with a known size.
@@ -185,16 +183,14 @@ class DeviceMemoryValidator : public MemoryValidatorBase {
 
 }  // namespace
 
-RuntimeMemory::RuntimeMemory(hardware::hidl_memory memory)
-    : kHidlMemory(std::move(memory)),
-      mValidator(std::make_unique<SizedMemoryValidator>(kHidlMemory.size())) {}
+RuntimeMemory::RuntimeMemory(Memory memory)
+    : kMemory(std::move(memory)),
+      mValidator(std::make_unique<SizedMemoryValidator>(kMemory.size)) {}
 
-RuntimeMemory::RuntimeMemory(hardware::hidl_memory memory,
-                             std::unique_ptr<MemoryValidatorBase> validator)
-    : kHidlMemory(std::move(memory)), mValidator(std::move(validator)) {}
+RuntimeMemory::RuntimeMemory(Memory memory, std::unique_ptr<MemoryValidatorBase> validator)
+    : kMemory(std::move(memory)), mValidator(std::move(validator)) {}
 
-RuntimeMemory::RuntimeMemory(sp<V1_3::IBuffer> buffer, uint32_t token)
-    : kBuffer(std::move(buffer)), kToken(token) {}
+RuntimeMemory::RuntimeMemory(SharedBuffer buffer) : kBuffer(std::move(buffer)) {}
 
 RuntimeMemory::~RuntimeMemory() {
     for (const auto& [ptr, weakBurst] : mUsedBy) {
@@ -204,20 +200,17 @@ RuntimeMemory::~RuntimeMemory() {
     }
 }
 
-V1_3::Request::MemoryPool RuntimeMemory::getMemoryPool() const {
-    V1_3::Request::MemoryPool pool;
-    if (kToken > 0) {
-        pool.token(kToken);
-    } else {
-        pool.hidlMemory(kHidlMemory);
+Request::MemoryPool RuntimeMemory::getMemoryPool() const {
+    if (kBuffer != nullptr) {
+        return kBuffer->getToken();
     }
-    return pool;
+    return kMemory;
 }
 
 std::optional<RunTimePoolInfo> RuntimeMemory::getRunTimePoolInfo() const {
     std::lock_guard<std::mutex> guard(mMutex);
     if (!mHasCachedRunTimePoolInfo) {
-        mCachedRunTimePoolInfo = RunTimePoolInfo::createFromMemory(uncheckedConvert(kHidlMemory));
+        mCachedRunTimePoolInfo = RunTimePoolInfo::createFromMemory(kMemory);
         mHasCachedRunTimePoolInfo = true;
     }
     return mCachedRunTimePoolInfo;
@@ -249,33 +242,33 @@ static int copyHidlMemories(const std::optional<RunTimePoolInfo>& src,
     return ANEURALNETWORKS_NO_ERROR;
 }
 
-int copyIBufferToHidlMemory(const sp<V1_3::IBuffer>& src, const hardware::hidl_memory& dst) {
+int copyIBufferToMemory(const SharedBuffer& src, const Memory& dst) {
     const auto ret = src->copyTo(dst);
-    if (!ret.isOk()) {
-        LOG(ERROR) << "ANeuralNetworksMemory_copy failure: " << ret.description();
-        return ANEURALNETWORKS_OP_FAILED;
+    if (!ret.has_value()) {
+        LOG(ERROR) << "ANeuralNetworksMemory_copy failure: " << ret.error().message;
+        return convertErrorStatusToResultCode(ret.error().code);
     }
-    return convertErrorStatusToResultCode(static_cast<V1_3::ErrorStatus>(ret));
+    return ANEURALNETWORKS_NO_ERROR;
 }
 
-int copyHidlMemoryToIBuffer(const hardware::hidl_memory& src, const sp<V1_3::IBuffer>& dst,
-                            const std::vector<uint32_t>& dimensions) {
+int copyMemoryToIBuffer(const Memory& src, const SharedBuffer& dst,
+                        const std::vector<uint32_t>& dimensions) {
     const auto ret = dst->copyFrom(src, dimensions);
-    if (!ret.isOk()) {
-        LOG(ERROR) << "ANeuralNetworksMemory_copy failure: " << ret.description();
-        return ANEURALNETWORKS_OP_FAILED;
+    if (!ret.has_value()) {
+        LOG(ERROR) << "ANeuralNetworksMemory_copy failure: " << ret.error().message;
+        return convertErrorStatusToResultCode(ret.error().code);
     }
-    return convertErrorStatusToResultCode(static_cast<V1_3::ErrorStatus>(ret));
+    return ANEURALNETWORKS_NO_ERROR;
 }
 
-static int copyIBuffers(const sp<V1_3::IBuffer>& src, const sp<V1_3::IBuffer>& dst,
+static int copyIBuffers(const SharedBuffer& src, const SharedBuffer& dst,
                         const MemoryValidatorBase::Metadata& srcMetadata) {
-    const auto [n, memory] = MemoryRuntimeAHWB::create(srcMetadata.logicalSize);
+    const auto [n, memoryAHWB] = MemoryRuntimeAHWB::create(srcMetadata.logicalSize);
     NN_RETURN_IF_ERROR(n);
-    const hardware::hidl_memory& hidlMemory = memory->getHidlMemory();
-    if (!hidlMemory.valid()) return ANEURALNETWORKS_OUT_OF_MEMORY;
-    NN_RETURN_IF_ERROR(copyIBufferToHidlMemory(src, hidlMemory));
-    NN_RETURN_IF_ERROR(copyHidlMemoryToIBuffer(hidlMemory, dst, srcMetadata.dimensions));
+    const Memory& memory = memoryAHWB->getMemory();
+    if (!validate(memory).ok()) return ANEURALNETWORKS_OUT_OF_MEMORY;
+    NN_RETURN_IF_ERROR(copyIBufferToMemory(src, memory));
+    NN_RETURN_IF_ERROR(copyMemoryToIBuffer(memory, dst, srcMetadata.dimensions));
     return ANEURALNETWORKS_NO_ERROR;
 }
 
@@ -293,19 +286,18 @@ static int copyInternal(const RuntimeMemory& src, const RuntimeMemory& dst) {
         return ANEURALNETWORKS_BAD_DATA;
     }
 
-    bool srcHasHidlMemory = src.getHidlMemory().valid();
-    bool dstHasHidlMemory = dst.getHidlMemory().valid();
+    bool srcHasMemory = validate(src.getMemory()).ok();
+    bool dstHasMemory = validate(dst.getMemory()).ok();
     bool srcHasIBuffer = src.getIBuffer() != nullptr;
     bool dstHasIBuffer = dst.getIBuffer() != nullptr;
     if (srcHasIBuffer && dstHasIBuffer) {
         return copyIBuffers(src.getIBuffer(), dst.getIBuffer(), srcMetadata);
-    } else if (srcHasHidlMemory && dstHasHidlMemory) {
+    } else if (srcHasMemory && dstHasMemory) {
         return copyHidlMemories(src.getRunTimePoolInfo(), dst.getRunTimePoolInfo());
-    } else if (srcHasHidlMemory && dstHasIBuffer) {
-        return copyHidlMemoryToIBuffer(src.getHidlMemory(), dst.getIBuffer(),
-                                       srcMetadata.dimensions);
-    } else if (srcHasIBuffer && dstHasHidlMemory) {
-        return copyIBufferToHidlMemory(src.getIBuffer(), dst.getHidlMemory());
+    } else if (srcHasMemory && dstHasIBuffer) {
+        return copyMemoryToIBuffer(src.getMemory(), dst.getIBuffer(), srcMetadata.dimensions);
+    } else if (srcHasIBuffer && dstHasMemory) {
+        return copyIBufferToMemory(src.getIBuffer(), dst.getMemory());
     }
     return ANEURALNETWORKS_OP_FAILED;
 }
@@ -524,86 +516,56 @@ std::pair<int, std::unique_ptr<RuntimeMemory>> MemoryBuilder::allocate() const {
 }
 
 std::pair<int, std::unique_ptr<MemoryAshmem>> MemoryAshmem::create(uint32_t size) {
-    hardware::hidl_memory hidlMemory = allocateSharedMemory(size);
-    sp<IMemory> mapped = mapMemory(hidlMemory);
-    if (mapped == nullptr || mapped->getPointer() == nullptr) {
-        LOG(ERROR) << "RuntimeMemory::create failed";
-        return {ANEURALNETWORKS_OUT_OF_MEMORY, nullptr};
+    auto memory = createSharedMemory(size);
+    if (!memory.has_value()) {
+        LOG(ERROR) << "RuntimeMemory::create() failed: " << memory.error().message;
+        return {convertErrorStatusToResultCode(memory.error().code), nullptr};
+    }
+    auto mapping = map(memory.value());
+    if (!mapping.has_value()) {
+        LOG(ERROR) << "RuntimeMemory::create() map failed: " << mapping.error().message;
+        return {convertErrorStatusToResultCode(mapping.error().code), nullptr};
     }
     return {ANEURALNETWORKS_NO_ERROR,
-            std::make_unique<MemoryAshmem>(std::move(mapped), std::move(hidlMemory))};
+            std::make_unique<MemoryAshmem>(std::move(memory).value(), std::move(mapping).value())};
 }
 
 uint8_t* MemoryAshmem::getPointer() const {
-    return static_cast<uint8_t*>(static_cast<void*>(kMappedMemory->getPointer()));
+    return static_cast<uint8_t*>(std::get<void*>(kMapping.pointer));
 }
 
-MemoryAshmem::MemoryAshmem(sp<IMemory> mapped, hardware::hidl_memory memory)
-    : RuntimeMemory(std::move(memory)), kMappedMemory(std::move(mapped)) {}
+MemoryAshmem::MemoryAshmem(Memory memory, Mapping mapping)
+    : RuntimeMemory(std::move(memory)), kMapping(std::move(mapping)) {}
 
 std::pair<int, std::unique_ptr<MemoryFd>> MemoryFd::create(size_t size, int prot, int fd,
                                                            size_t offset) {
-    if (size == 0 || fd < 0) {
-        LOG(ERROR) << "Invalid size or fd";
-        return {ANEURALNETWORKS_BAD_DATA, nullptr};
+    auto memory = createSharedMemoryFromFd(size, prot, fd, offset);
+    if (!memory.has_value()) {
+        LOG(ERROR) << "Failed to create memory from fd: " << memory.error().message;
+        return {convertErrorStatusToResultCode(memory.error().code), nullptr};
     }
-
-    // Duplicate the file descriptor so MemoryFd owns its own version.
-    int dupfd = dup(fd);
-    if (dupfd == -1) {
-        LOG(ERROR) << "Failed to dup the fd";
-        // TODO(b/120417090): is ANEURALNETWORKS_UNEXPECTED_NULL the correct
-        // error to return here?
-        return {ANEURALNETWORKS_UNEXPECTED_NULL, nullptr};
-    }
-
-    // Create a temporary native handle to own the dupfd.
-    native_handle_t* nativeHandle = native_handle_create(1, 3);
-    if (nativeHandle == nullptr) {
-        LOG(ERROR) << "Failed to create native_handle";
-        close(dupfd);
-        // TODO(b/120417090): is ANEURALNETWORKS_UNEXPECTED_NULL the correct
-        // error to return here?
-        return {ANEURALNETWORKS_UNEXPECTED_NULL, nullptr};
-    }
-    nativeHandle->data[0] = dupfd;
-    nativeHandle->data[1] = prot;
-    const uint64_t bits = static_cast<uint64_t>(offset);
-    nativeHandle->data[2] = (int32_t)(uint32_t)(bits & 0xffffffff);
-    nativeHandle->data[3] = (int32_t)(uint32_t)(bits >> 32);
-
-    // Create a hidl_handle which owns the native handle and fd so that we don't
-    // have to manually clean either the native handle or the fd.
-    hardware::hidl_handle hidlHandle;
-    hidlHandle.setTo(nativeHandle, /*shouldOwn=*/true);
-
-    // Push the hidl_handle into a hidl_memory object. The hidl_memory object is
-    // responsible for cleaning the hidl_handle, the native handle, and the fd.
-    hardware::hidl_memory hidlMemory =
-            hardware::hidl_memory("mmap_fd", std::move(hidlHandle), size);
-
-    return {ANEURALNETWORKS_NO_ERROR, std::make_unique<MemoryFd>(std::move(hidlMemory))};
+    return {ANEURALNETWORKS_NO_ERROR, std::make_unique<MemoryFd>(std::move(memory).value())};
 }
 
-MemoryFd::MemoryFd(hardware::hidl_memory memory) : RuntimeMemory(std::move(memory)) {}
+MemoryFd::MemoryFd(Memory memory) : RuntimeMemory(std::move(memory)) {}
 
 std::pair<int, std::unique_ptr<MemoryAHWB>> MemoryAHWB::create(const AHardwareBuffer& ahwb) {
-    AHardwareBuffer_Desc bufferDesc;
-    AHardwareBuffer_describe(&ahwb, &bufferDesc);
-    const native_handle_t* handle = AHardwareBuffer_getNativeHandle(&ahwb);
-    hardware::hidl_memory hidlMemory;
+    auto memory = createSharedMemoryFromAHWB(ahwb);
+    if (!memory.has_value()) {
+        LOG(ERROR) << "Failed to create memory from AHWB: " << memory.error().message;
+        return {convertErrorStatusToResultCode(memory.error().code), nullptr};
+    }
+
     std::unique_ptr<MemoryValidatorBase> validator;
-    if (bufferDesc.format == AHARDWAREBUFFER_FORMAT_BLOB) {
-        hidlMemory = hardware::hidl_memory("hardware_buffer_blob", handle, bufferDesc.width);
-        validator = std::make_unique<SizedMemoryValidator>(bufferDesc.width);
+    if (memory.value().name == "hardware_buffer_blob") {
+        validator = std::make_unique<SizedMemoryValidator>(memory.value().size);
     } else {
-        // memory size is not used.
-        hidlMemory = hardware::hidl_memory("hardware_buffer", handle, 0);
         validator = std::make_unique<AHardwareBufferNonBlobValidator>();
     }
-    auto memory = std::make_unique<MemoryAHWB>(std::move(hidlMemory), std::move(validator));
-    return {ANEURALNETWORKS_NO_ERROR, std::move(memory)};
-};
+
+    auto memoryAHWB = std::make_unique<MemoryAHWB>(std::move(memory).value(), std::move(validator));
+    return {ANEURALNETWORKS_NO_ERROR, std::move(memoryAHWB)};
+}
 
 std::pair<int, std::unique_ptr<MemoryRuntimeAHWB>> MemoryRuntimeAHWB::create(uint32_t size) {
     AHardwareBuffer* ahwb = nullptr;
@@ -621,58 +583,43 @@ std::pair<int, std::unique_ptr<MemoryRuntimeAHWB>> MemoryRuntimeAHWB::create(uin
         LOG(ERROR) << "Failed to allocate BLOB mode AHWB.";
         return {ANEURALNETWORKS_OP_FAILED, nullptr};
     }
-    auto allocateGuard = base::make_scope_guard([&ahwb]() { AHardwareBuffer_release(ahwb); });
+    auto ahwbGuard = base::make_scope_guard([ahwb]() { AHardwareBuffer_release(ahwb); });
 
-    void* buffer = nullptr;
-    err = AHardwareBuffer_lock(ahwb, usage, -1, nullptr, &buffer);
-    if (err != 0 || buffer == nullptr) {
-        LOG(ERROR) << "Failed to lock BLOB mode AHWB.";
-        return {ANEURALNETWORKS_OP_FAILED, nullptr};
+    auto memory = createSharedMemoryFromAHWB(*ahwb);
+    if (!memory.has_value()) {
+        LOG(ERROR) << "Failed to allocate BLOB mode AHWB: " << memory.error().message;
+        return {convertErrorStatusToResultCode(memory.error().code), nullptr};
     }
-    auto lockGuard = base::make_scope_guard([&ahwb]() { AHardwareBuffer_unlock(ahwb, nullptr); });
-
-    const native_handle_t* handle = AHardwareBuffer_getNativeHandle(ahwb);
-    if (handle == nullptr) {
-        LOG(ERROR) << "Failed to retrieve the native handle from the AHWB.";
-        return {ANEURALNETWORKS_OP_FAILED, nullptr};
+    auto mapping = map(memory.value());
+    if (!mapping.has_value()) {
+        LOG(ERROR) << "Failed to map BLOB mode AHWB: " << mapping.error().message;
+        return {convertErrorStatusToResultCode(mapping.error().code), nullptr};
     }
-
-    hardware::hidl_memory hidlMemory =
-            hardware::hidl_memory("hardware_buffer_blob", handle, desc.width);
-    auto memory = std::make_unique<MemoryRuntimeAHWB>(std::move(hidlMemory), ahwb,
-                                                      static_cast<uint8_t*>(buffer));
-    allocateGuard.Disable();
-    lockGuard.Disable();
-    return {ANEURALNETWORKS_NO_ERROR, std::move(memory)};
+    auto memoryAHWB = std::make_unique<MemoryRuntimeAHWB>(
+            std::move(memory).value(), std::move(ahwbGuard), std::move(mapping).value());
+    return {ANEURALNETWORKS_NO_ERROR, std::move(memoryAHWB)};
 }
 
-MemoryRuntimeAHWB::MemoryRuntimeAHWB(hardware::hidl_memory memory, AHardwareBuffer* ahwb,
-                                     uint8_t* buffer)
-    : RuntimeMemory(std::move(memory)), mAhwb(ahwb), mBuffer(buffer) {
-    CHECK(mAhwb != nullptr);
-    CHECK(mBuffer != nullptr);
+uint8_t* MemoryRuntimeAHWB::getPointer() const {
+    return static_cast<uint8_t*>(std::get<void*>(kMapping.pointer));
 }
 
-MemoryRuntimeAHWB::~MemoryRuntimeAHWB() {
-    AHardwareBuffer_unlock(mAhwb, nullptr);
-    AHardwareBuffer_release(mAhwb);
-}
+MemoryRuntimeAHWB::MemoryRuntimeAHWB(Memory memory,
+                                     base::ScopeGuard<std::function<void()>> ahwbScopeGuard,
+                                     Mapping mapping)
+    : RuntimeMemory(std::move(memory)),
+      kAhwbScopeGuard(std::move(ahwbScopeGuard)),
+      kMapping(std::move(mapping)) {}
 
-std::pair<int, std::unique_ptr<MemoryFromDevice>> MemoryFromDevice::create(sp<V1_3::IBuffer> buffer,
-                                                                           uint32_t token) {
+std::pair<int, std::unique_ptr<MemoryFromDevice>> MemoryFromDevice::create(SharedBuffer buffer) {
     if (buffer == nullptr) {
         LOG(ERROR) << "nullptr IBuffer for device memory.";
         return {ANEURALNETWORKS_OP_FAILED, nullptr};
     }
-    if (token <= 0) {
-        LOG(ERROR) << "Invalid token for device memory: " << token;
-        return {ANEURALNETWORKS_OP_FAILED, nullptr};
-    }
-    return {ANEURALNETWORKS_NO_ERROR, std::make_unique<MemoryFromDevice>(std::move(buffer), token)};
-};
+    return {ANEURALNETWORKS_NO_ERROR, std::make_unique<MemoryFromDevice>(std::move(buffer))};
+}
 
-MemoryFromDevice::MemoryFromDevice(sp<V1_3::IBuffer> buffer, uint32_t token)
-    : RuntimeMemory(std::move(buffer), token) {}
+MemoryFromDevice::MemoryFromDevice(SharedBuffer buffer) : RuntimeMemory(std::move(buffer)) {}
 
 }  // namespace nn
 }  // namespace android

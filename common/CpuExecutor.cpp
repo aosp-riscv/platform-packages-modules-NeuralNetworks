@@ -18,13 +18,13 @@
 
 #include "CpuExecutor.h"
 
-#include <android/hardware_buffer.h>
 #include <android-base/scopeguard.h>
-
+#include <android/hardware_buffer.h>
 #include <sys/mman.h>
 #include <vndk/hardware_buffer.h>
 
 #include <Eigen/Core>
+#include <limits>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -34,19 +34,18 @@
 #include <omp.h>
 #endif  // NNAPI_OPENMP
 
+#include <nnapi/SharedMemory.h>
+#include <nnapi/TypeUtils.h>
+
 #include "ControlFlow.h"
 #include "NeuralNetworks.h"
 #include "OperationResolver.h"
 #include "Operations.h"
 #include "OperationsUtils.h"
 #include "Tracing.h"
-#include "nnapi/TypeUtils.h"
 
 namespace android {
 namespace nn {
-
-using ::android::hidl::memory::V1_0::IMemory;
-
 namespace {
 
 class OperationExecutionContext : public IOperationExecutionContext {
@@ -273,159 +272,60 @@ bool OperationExecutionContext::checkNoZeroSizedInput() const {
 // when the RunTimePoolInfo is destroyed or is assigned to.
 class RunTimePoolInfo::RunTimePoolInfoImpl {
    public:
-    RunTimePoolInfoImpl(const hardware::hidl_memory& hidlMemory, uint8_t* buffer,
-                        const sp<IMemory>& memory, AHardwareBuffer* hardwareBuffer, uint32_t size);
+    RunTimePoolInfoImpl(Memory memory, Mapping mapping);
 
-    // rule of five...
-    ~RunTimePoolInfoImpl();
-    RunTimePoolInfoImpl(const RunTimePoolInfoImpl&) = delete;
-    RunTimePoolInfoImpl(RunTimePoolInfoImpl&&) noexcept = delete;
-    RunTimePoolInfoImpl& operator=(const RunTimePoolInfoImpl&) = delete;
-    RunTimePoolInfoImpl& operator=(RunTimePoolInfoImpl&&) noexcept = delete;
-
-    uint8_t* getBuffer() const { return mBuffer; }
-    uint32_t getSize() const { return mSize; }
+    uint8_t* getBuffer() const;
+    uint32_t getSize() const;
 
     bool flush() const;
 
-    const hardware::hidl_memory& getHidlMemory() const { return mHidlMemory; }
+    const Memory& getMemory() const { return mMemory; }
 
    private:
-    const hardware::hidl_memory mHidlMemory;  // always used
-    uint8_t* const mBuffer = nullptr;  // always used
-    const sp<IMemory> mMemory;         // only used when hidlMemory.name() == "ashmem"
-    AHardwareBuffer*
-            mAHardwareBuffer;  // only used when hidlMemory.name() == "hardware_buffer_blob"
-    const uint32_t mSize;
+    const Memory mMemory;
+    const Mapping mMapping;
 };
 
-RunTimePoolInfo::RunTimePoolInfoImpl::RunTimePoolInfoImpl(const hardware::hidl_memory& hidlMemory,
-                                                          uint8_t* buffer,
-                                                          const sp<IMemory>& memory,
-                                                          AHardwareBuffer* hardwareBuffer,
-                                                          uint32_t size)
-    : mHidlMemory(hidlMemory),
-      mBuffer(buffer),
-      mMemory(memory),
-      mAHardwareBuffer(hardwareBuffer),
-      mSize(size) {}
+RunTimePoolInfo::RunTimePoolInfoImpl::RunTimePoolInfoImpl(Memory memory, Mapping mapping)
+    : mMemory(std::move(memory)), mMapping(std::move(mapping)) {}
 
-RunTimePoolInfo::RunTimePoolInfoImpl::~RunTimePoolInfoImpl() {
-    if (mBuffer == nullptr) {
-        return;
-    }
+uint8_t* RunTimePoolInfo::RunTimePoolInfoImpl::getBuffer() const {
+    return std::visit(
+            [](auto* pointer) {
+                // Writing to a const buffer may lead to undefined behavior.
+                // TODO: Refactor the code to avoid the const_cast.
+                return static_cast<uint8_t*>(const_cast<void*>(pointer));
+            },
+            mMapping.pointer);
+}
 
-    const auto& memType = mHidlMemory.name();
-    if (memType == "ashmem") {
-        // nothing to do
-    } else if (memType == "mmap_fd") {
-        const size_t size = mHidlMemory.size();
-        if (munmap(mBuffer, size)) {
-            LOG(ERROR) << "RunTimePoolInfoImpl::~RunTimePoolInfo(): Can't munmap";
-        }
-    } else if (memType == "hardware_buffer_blob") {
-        AHardwareBuffer_unlock(mAHardwareBuffer, nullptr);
-    } else if (memType == "") {
-        // Represents a POINTER argument; nothing to do
-    } else {
-        LOG(ERROR) << "RunTimePoolInfoImpl::~RunTimePoolInfoImpl(): unsupported hidl_memory type";
-    }
-
-    if (mAHardwareBuffer != nullptr) {
-        AHardwareBuffer_release(mAHardwareBuffer);
-    }
+uint32_t RunTimePoolInfo::RunTimePoolInfoImpl::getSize() const {
+    CHECK_LE(mMapping.size, std::numeric_limits<uint32_t>::max());
+    return static_cast<uint32_t>(mMapping.size);
 }
 
 // Making sure the output data are correctly updated after execution.
 bool RunTimePoolInfo::RunTimePoolInfoImpl::flush() const {
-    const auto& memType = mHidlMemory.name();
-    if (memType == "mmap_fd") {
-        const int prot = mHidlMemory.handle()->data[1];
-        if (prot & PROT_WRITE) {
-            const size_t size = mHidlMemory.size();
-            return msync(mBuffer, size, MS_SYNC) == 0;
-        }
-    }
-    // No-op for other types of memory.
-    return true;
+    return nn::flush(mMapping);
 }
 
 // TODO: short term, make share memory mapping and updating a utility function.
 // TODO: long term, implement mmap_fd as a hidl IMemory service.
-std::optional<RunTimePoolInfo> RunTimePoolInfo::createFromMemory(const Memory& canonicalMemory) {
-    hardware::hidl_memory hidlMemory = convertToV1_0(canonicalMemory);
-    uint8_t* buffer = nullptr;
-    sp<IMemory> memory;
-    AHardwareBuffer* hardwareBuffer = nullptr;
-
-    const auto& memType = hidlMemory.name();
-    if (memType == "ashmem") {
-        memory = mapMemory(hidlMemory);
-        if (memory == nullptr) {
-            LOG(ERROR) << "Can't map shared memory.";
-            return std::nullopt;
-        }
-        buffer = static_cast<uint8_t*>(static_cast<void*>(memory->getPointer()));
-        if (buffer == nullptr) {
-            LOG(ERROR) << "Can't access shared memory.";
-            return std::nullopt;
-        }
-    } else if (memType == "mmap_fd") {
-        size_t size = hidlMemory.size();
-        int fd = hidlMemory.handle()->data[0];
-        int prot = hidlMemory.handle()->data[1];
-        size_t offset = getSizeFromInts(hidlMemory.handle()->data[2], hidlMemory.handle()->data[3]);
-        buffer = static_cast<uint8_t*>(mmap(nullptr, size, prot, MAP_SHARED, fd, offset));
-        if (buffer == MAP_FAILED) {
-            LOG(ERROR) << "RunTimePoolInfo::set(): Can't mmap the file descriptor.";
-            return std::nullopt;
-        }
-    } else if (memType == "hardware_buffer_blob") {
-        auto handle = hidlMemory.handle();
-        auto format = AHARDWAREBUFFER_FORMAT_BLOB;
-        auto usage = AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN | AHARDWAREBUFFER_USAGE_CPU_WRITE_OFTEN;
-        const uint32_t width = hidlMemory.size();
-        const uint32_t height = 1;  // height is always 1 for BLOB mode AHardwareBuffer.
-        const uint32_t layers = 1;  // layers is always 1 for BLOB mode AHardwareBuffer.
-        const uint32_t stride = hidlMemory.size();
-
-        AHardwareBuffer_Desc desc{
-                .width = width,
-                .height = height,
-                .layers = layers,
-                .format = format,
-                .usage = usage,
-                .stride = stride,
-        };
-        status_t status = AHardwareBuffer_createFromHandle(
-                &desc, handle, AHARDWAREBUFFER_CREATE_FROM_HANDLE_METHOD_CLONE, &hardwareBuffer);
-        if (status != NO_ERROR) {
-            LOG(ERROR) << "RunTimePoolInfo Can't create AHardwareBuffer from handle. Error: "
-                       << status;
-            return std::nullopt;
-        }
-        void* gBuffer = nullptr;
-        status = AHardwareBuffer_lock(hardwareBuffer, usage, -1, nullptr, &gBuffer);
-        if (status != NO_ERROR) {
-            AHardwareBuffer_release(hardwareBuffer);
-            LOG(ERROR) << "RunTimePoolInfo Can't lock the AHardwareBuffer. Error: " << status;
-            return std::nullopt;
-        }
-        buffer = static_cast<uint8_t*>(gBuffer);
-    } else {
-        LOG(ERROR) << "RunTimePoolInfo::set(): unsupported hidl_memory type";
+std::optional<RunTimePoolInfo> RunTimePoolInfo::createFromMemory(const Memory& memory) {
+    auto mapping = map(memory);
+    if (!mapping.has_value()) {
+        LOG(ERROR) << "Can't map shared memory: " << mapping.error().message;
         return std::nullopt;
     }
-
-    const auto impl = std::make_shared<const RunTimePoolInfoImpl>(
-            hidlMemory, buffer, memory, hardwareBuffer, hidlMemory.size());
-    return {RunTimePoolInfo(impl)};
+    const auto impl =
+            std::make_shared<const RunTimePoolInfoImpl>(memory, std::move(mapping).value());
+    return RunTimePoolInfo(impl);
 }
 
 RunTimePoolInfo RunTimePoolInfo::createFromExistingBuffer(uint8_t* buffer, uint32_t size) {
-    const auto impl = std::make_shared<const RunTimePoolInfoImpl>(hardware::hidl_memory{}, buffer,
-                                                                  nullptr, nullptr, size);
-    return {impl};
+    auto mapping = Mapping{.pointer = buffer, .size = size};
+    const auto impl = std::make_shared<const RunTimePoolInfoImpl>(Memory{}, std::move(mapping));
+    return RunTimePoolInfo(impl);
 }
 
 RunTimePoolInfo::RunTimePoolInfo(const std::shared_ptr<const RunTimePoolInfoImpl>& impl)
@@ -443,8 +343,8 @@ bool RunTimePoolInfo::flush() const {
     return mImpl->flush();
 }
 
-Memory RunTimePoolInfo::getMemory() const {
-    return uncheckedConvert(mImpl->getHidlMemory());
+const Memory& RunTimePoolInfo::getMemory() const {
+    return mImpl->getMemory();
 }
 
 bool setRunTimePoolInfosFromCanonicalMemories(std::vector<RunTimePoolInfo>* poolInfos,
@@ -1813,22 +1713,21 @@ int CpuExecutor::executeWhileOperation(const Operation& operation, RunTimeOperan
 
     // Ensure objects are freed
     auto cleanupGuard = base::make_scope_guard(
-        [&tmp1, &tmp2, &condOperands, &bodyOperands, &operation, &operands] {
-            auto freeLoopOutputs = [](const std::vector<uint8_t*>& tmp) {
-                for (auto buffer : tmp) {
-                    if (buffer != nullptr) {
-                        delete[] buffer;
+            [&tmp1, &tmp2, &condOperands, &bodyOperands, &operation, &operands] {
+                auto freeLoopOutputs = [](const std::vector<uint8_t*>& tmp) {
+                    for (auto buffer : tmp) {
+                        if (buffer != nullptr) {
+                            delete[] buffer;
+                        }
                     }
-                }
-            };
+                };
 
-            freeLoopOutputs(tmp1);
-            freeLoopOutputs(tmp2);
-            freeUnusedSubgraphOperands(&condOperands);
-            freeUnusedSubgraphOperands(&bodyOperands);
-            consumeOperationInputs(operation.inputs, operands);
-        }
-    );
+                freeLoopOutputs(tmp1);
+                freeLoopOutputs(tmp2);
+                freeUnusedSubgraphOperands(&condOperands);
+                freeUnusedSubgraphOperands(&bodyOperands);
+                consumeOperationInputs(operation.inputs, operands);
+            });
 
     // For body outputs with unknown shape, we skip double buffering and
     // allocate on each iteration instead. This allows growing output tensors

@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#define LOG_TAG "SharedMemoryHost"
+
 #include <android-base/logging.h>
 #include <android-base/mapped_file.h>
 #include <cutils/ashmem.h>

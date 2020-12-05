@@ -17,6 +17,8 @@
 #ifndef ANDROID_FRAMEWORKS_ML_NN_RUNTIME_EVENT_H
 #define ANDROID_FRAMEWORKS_ML_NN_RUNTIME_EVENT_H
 
+#include <nnapi/IPreparedModel.h>
+
 #include <utility>
 
 #include "Callbacks.h"
@@ -48,10 +50,10 @@ class CallbackEvent : public IEvent {
     const sp<ExecutionCallback> kExecutionCallback;
 };
 
-// The SyncFenceEvent wraps sync fence and IFencedExecutionCallback
+// The SyncFenceEvent wraps sync fence and ExecuteFencedInfoCallback
 class SyncFenceEvent : public IEvent {
    public:
-    SyncFenceEvent(int sync_fence_fd, const sp<V1_3::IFencedExecutionCallback>& callback)
+    SyncFenceEvent(int sync_fence_fd, const ExecuteFencedInfoCallback& callback)
         : kFencedExecutionCallback(callback) {
         if (sync_fence_fd > 0) {
             // Dup the provided file descriptor
@@ -75,12 +77,11 @@ class SyncFenceEvent : public IEvent {
             error = ErrorStatus::GENERAL_FAILURE;
             // If there is a callback available, use the callback to get the error code.
             if (kFencedExecutionCallback != nullptr) {
-                const hardware::Return<void> ret = kFencedExecutionCallback->getExecutionInfo(
-                        [&error](V1_3::ErrorStatus status, V1_2::Timing, V1_2::Timing) {
-                            error = uncheckedConvert(status);
-                        });
-                if (!ret.isOk()) {
-                    error = ErrorStatus::GENERAL_FAILURE;
+                auto result = kFencedExecutionCallback();
+                if (!result.has_value()) {
+                    LOG(ERROR) << "Fenced execution callback failed: " << result.error().message;
+                    error = result.error().code;
+                    CHECK_NE(error, ErrorStatus::NONE);
                 }
             }
         }
@@ -102,7 +103,7 @@ class SyncFenceEvent : public IEvent {
    private:
     // TODO(b/148423931): used android::base::unique_fd instead.
     int mSyncFenceFd = -1;
-    const sp<V1_3::IFencedExecutionCallback> kFencedExecutionCallback;
+    const ExecuteFencedInfoCallback kFencedExecutionCallback;
 };
 
 }  // namespace android::nn

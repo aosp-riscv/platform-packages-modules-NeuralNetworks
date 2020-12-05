@@ -18,6 +18,10 @@
 #define ANDROID_FRAMEWORKS_ML_NN_RUNTIME_MEMORY_H
 
 #include <android-base/macros.h>
+#include <android-base/scopeguard.h>
+#include <nnapi/IBuffer.h>
+#include <nnapi/SharedMemory.h>
+#include <nnapi/Validation.h>
 #include <sys/mman.h>
 #include <vndk/hardware_buffer.h>
 
@@ -32,14 +36,11 @@
 #include <vector>
 
 #include "CpuExecutor.h"
-#include "HalInterfaces.h"
 #include "NeuralNetworks.h"
 #include "Utils.h"
 
 namespace android {
 namespace nn {
-
-using ::android::hidl::memory::V1_0::IMemory;
 
 class CompilationBuilder;
 class Device;
@@ -160,10 +161,10 @@ class MemoryValidatorBase {
     virtual bool isInitialized() const { return true; }
 };
 
-int copyIBufferToHidlMemory(const sp<V1_3::IBuffer>& src, const hardware::hidl_memory& dst);
+int copyIBufferToMemory(const SharedBuffer& src, const Memory& dst);
 
-int copyHidlMemoryToIBuffer(const hardware::hidl_memory& src, const sp<V1_3::IBuffer>& dst,
-                            const std::vector<uint32_t>& dimensions);
+int copyMemoryToIBuffer(const Memory& src, const SharedBuffer& dst,
+                        const std::vector<uint32_t>& dimensions);
 
 // Represents a memory region.
 class RuntimeMemory {
@@ -175,10 +176,10 @@ class RuntimeMemory {
     // this memory that it is being freed.
     virtual ~RuntimeMemory();
 
-    V1_3::Request::MemoryPool getMemoryPool() const;
-    const hardware::hidl_memory& getHidlMemory() const { return kHidlMemory; }
-    const sp<V1_3::IBuffer>& getIBuffer() const { return kBuffer; }
-    virtual uint32_t getSize() const { return getHidlMemory().size(); }
+    Request::MemoryPool getMemoryPool() const;
+    const Memory& getMemory() const { return kMemory; }
+    const SharedBuffer& getIBuffer() const { return kBuffer; }
+    virtual uint32_t getSize() const { return getMemory().size; }
     virtual std::optional<RunTimePoolInfo> getRunTimePoolInfo() const;
 
     MemoryValidatorBase& getValidator() const {
@@ -201,15 +202,14 @@ class RuntimeMemory {
     static int copy(const RuntimeMemory& src, const RuntimeMemory& dst);
 
    protected:
-    RuntimeMemory(hardware::hidl_memory memory);
-    RuntimeMemory(hardware::hidl_memory memory, std::unique_ptr<MemoryValidatorBase> validator);
-    RuntimeMemory(sp<V1_3::IBuffer> buffer, uint32_t token);
+    RuntimeMemory(Memory memory);
+    RuntimeMemory(Memory memory, std::unique_ptr<MemoryValidatorBase> validator);
+    RuntimeMemory(SharedBuffer buffer);
 
-    // The HIDL representation for this memory.  We will use one of the following values
-    // when communicating with the drivers.
-    const hardware::hidl_memory kHidlMemory;
-    const sp<V1_3::IBuffer> kBuffer;
-    const uint32_t kToken = 0;
+    // The canonical representation for this memory.  We will use one of the
+    // following values when communicating with the drivers.
+    const Memory kMemory;
+    const SharedBuffer kBuffer;
 
     std::unique_ptr<MemoryValidatorBase> mValidator;
 
@@ -290,21 +290,20 @@ class MemoryAshmem : public RuntimeMemory {
     uint8_t* getPointer() const;
 
     std::optional<RunTimePoolInfo> getRunTimePoolInfo() const override {
-        return RunTimePoolInfo::createFromExistingBuffer(getPointer(), kHidlMemory.size());
+        return RunTimePoolInfo::createFromExistingBuffer(getPointer(), kMemory.size);
     }
 
     // prefer using MemoryAshmem::create
-    MemoryAshmem(sp<IMemory> mapped, hardware::hidl_memory memory);
+    MemoryAshmem(Memory memory, Mapping mapped);
 
    private:
-    const sp<IMemory> kMappedMemory;
+    const Mapping kMapping;
 };
 
 class MemoryFd : public RuntimeMemory {
    public:
-    // Create a memory object based on input size, prot, and fd that can be sent
-    // across HIDL. This function duplicates the provided fd, and owns the
-    // duplicate.
+    // Create a memory object based on input size, prot, and fd. This function
+    // duplicates the provided fd, and owns the duplicate.
     //
     // On success, returns ANEURALNETWORKS_NO_ERROR and a memory object.
     // On error, returns the appropriate NNAPI error code and nullptr.
@@ -312,7 +311,7 @@ class MemoryFd : public RuntimeMemory {
                                                             size_t offset);
 
     // prefer using MemoryFd::create
-    MemoryFd(hardware::hidl_memory memory);
+    MemoryFd(Memory memory);
 };
 
 class MemoryAHWB : public RuntimeMemory {
@@ -325,7 +324,7 @@ class MemoryAHWB : public RuntimeMemory {
     static std::pair<int, std::unique_ptr<MemoryAHWB>> create(const AHardwareBuffer& ahwb);
 
     // prefer using MemoryAHWB::create
-    MemoryAHWB(hardware::hidl_memory memory, std::unique_ptr<MemoryValidatorBase> validator)
+    MemoryAHWB(Memory memory, std::unique_ptr<MemoryValidatorBase> validator)
         : RuntimeMemory(std::move(memory), std::move(validator)) {}
 };
 
@@ -342,19 +341,19 @@ class MemoryRuntimeAHWB : public RuntimeMemory {
     // Get a pointer to the content of the memory. The returned pointer is
     // valid for the lifetime of the MemoryRuntimeAHWB object. This call always
     // returns non-null because it was validated during MemoryRuntimeAHWB::create.
-    uint8_t* getPointer() const { return mBuffer; }
+    uint8_t* getPointer() const;
 
     std::optional<RunTimePoolInfo> getRunTimePoolInfo() const override {
-        return RunTimePoolInfo::createFromExistingBuffer(getPointer(), kHidlMemory.size());
+        return RunTimePoolInfo::createFromExistingBuffer(getPointer(), kMemory.size);
     }
 
     // prefer using MemoryRuntimeAHWB::create
-    MemoryRuntimeAHWB(hardware::hidl_memory memory, AHardwareBuffer* ahwb, uint8_t* buffer);
-    ~MemoryRuntimeAHWB();
+    MemoryRuntimeAHWB(Memory memory, base::ScopeGuard<std::function<void()>> ahwbScopeGuard,
+                      Mapping mapping);
 
    private:
-    AHardwareBuffer* const mAhwb;
-    uint8_t* const mBuffer;
+    const base::ScopeGuard<std::function<void()>> kAhwbScopeGuard;
+    const Mapping kMapping;
 };
 
 class MemoryFromDevice : public RuntimeMemory {
@@ -364,11 +363,10 @@ class MemoryFromDevice : public RuntimeMemory {
     //
     // On success, returns ANEURALNETWORKS_NO_ERROR and a memory object.
     // On error, returns the appropriate NNAPI error code and nullptr.
-    static std::pair<int, std::unique_ptr<MemoryFromDevice>> create(sp<V1_3::IBuffer> buffer,
-                                                                    uint32_t token);
+    static std::pair<int, std::unique_ptr<MemoryFromDevice>> create(SharedBuffer buffer);
 
     // prefer using MemoryFromDevice::create
-    MemoryFromDevice(sp<V1_3::IBuffer> buffer, uint32_t token);
+    MemoryFromDevice(SharedBuffer buffer);
 };
 
 using MemoryTracker = ObjectTracker<RuntimeMemory>;

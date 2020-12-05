@@ -157,7 +157,7 @@ static ANeuralNetworksMemory* createDeviceMemoryForInput(const Compilation& comp
               ANEURALNETWORKS_NO_ERROR);
     EXPECT_EQ(ANeuralNetworksMemoryDesc_finish(desc), ANEURALNETWORKS_NO_ERROR);
     ANeuralNetworksMemory* memory = nullptr;
-    ANeuralNetworksMemory_createFromDesc(desc, &memory);
+    EXPECT_EQ(ANeuralNetworksMemory_createFromDesc(desc, &memory), ANEURALNETWORKS_NO_ERROR);
     ANeuralNetworksMemoryDesc_free(desc);
     return memory;
 }
@@ -170,7 +170,7 @@ static ANeuralNetworksMemory* createDeviceMemoryForOutput(const Compilation& com
               ANEURALNETWORKS_NO_ERROR);
     EXPECT_EQ(ANeuralNetworksMemoryDesc_finish(desc), ANEURALNETWORKS_NO_ERROR);
     ANeuralNetworksMemory* memory = nullptr;
-    ANeuralNetworksMemory_createFromDesc(desc, &memory);
+    EXPECT_EQ(ANeuralNetworksMemory_createFromDesc(desc, &memory), ANEURALNETWORKS_NO_ERROR);
     ANeuralNetworksMemoryDesc_free(desc);
     return memory;
 }

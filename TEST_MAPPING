@@ -1,9 +1,6 @@
 {
   "presubmit": [
     {
-      "name": "CtsNNAPITestCases"
-    },
-    {
       "name": "NeuralNetworksTest_static",
       "options": [
         {
@@ -22,6 +19,11 @@
     },
     {
       "name": "NeuralNetworksTest_utils"
+    }
+  ],
+  "presubmit-large": [
+    {
+      "name": "CtsNNAPITestCases"
     }
   ],
   "imports": [

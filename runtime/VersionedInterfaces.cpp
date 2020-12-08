@@ -421,8 +421,7 @@ static std::pair<V1_3::ErrorStatus, V1_3::Capabilities> getCapabilitiesFunction(
 
 static GeneralResult<std::pair<Timing, Timing>> convertFencedExecutionCallbackResults(
         const V1_2::Timing& timingLaunched, const V1_2::Timing& timingFenced) {
-    return std::make_pair(NN_TRY(V1_3::utils::validatedConvertToCanonical(timingLaunched)),
-                          NN_TRY(V1_3::utils::validatedConvertToCanonical(timingFenced)));
+    return std::make_pair(NN_TRY(nn::convert(timingLaunched)), NN_TRY(nn::convert(timingFenced)));
 }
 
 std::tuple<int, SyncFence, ExecuteFencedInfoCallback, Timing>
@@ -488,8 +487,7 @@ VersionedIPreparedModel::executeFenced(const Request& request,
                                 const V1_2::Timing& timingFenced) {
                 if (status != V1_3::ErrorStatus::NONE) {
                     const auto canonical =
-                            V1_3::utils::validatedConvertToCanonical(status).value_or(
-                                    ErrorStatus::GENERAL_FAILURE);
+                            nn::convert(status).value_or(ErrorStatus::GENERAL_FAILURE);
                     result = NN_ERROR(canonical)
                              << "getExecutionInfo failed with " << toString(status);
                 } else {
@@ -1048,6 +1046,12 @@ std::pair<ErrorStatus, std::vector<bool>> VersionedIDevice::getSupportedOperatio
                 }
                 return std::make_pair(status, std::move(remappedSupported));
             };
+
+    // Verify that the model is compliant with 1.3 / Android R drivers.
+    const auto minimumSupportedVersion = validate(model).value();
+    if (minimumSupportedVersion > Version::ANDROID_R) {
+        return noneSupported();
+    }
 
     // version 1.3 HAL
     const V1_3::Model model13 = convertToV1_3(model);

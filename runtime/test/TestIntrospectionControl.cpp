@@ -31,6 +31,7 @@
 #include "CompilationBuilder.h"
 #include "ExecutionBurstServer.h"
 #include "HalInterfaces.h"
+#include "HalUtils.h"
 #include "Manager.h"
 #include "NeuralNetworks.h"
 #include "NeuralNetworksOEM.h"
@@ -677,12 +678,7 @@ class TestDriver13 : public SampleDriver {
 
     hardware::Return<void> getCapabilities_1_3(getCapabilities_1_3_cb _hidl_cb) override {
         android::nn::initVLogMask();
-        const V1_0::PerformanceInfo kPerf = {.execTime = 0.75f, .powerUsage = 0.75f};
-        V1_3::Capabilities capabilities = {
-                .relaxedFloat32toFloat16PerformanceScalar = kPerf,
-                .relaxedFloat32toFloat16PerformanceTensor = kPerf,
-                .operandPerformance =
-                        nn::nonExtensionOperandPerformance<nn::HalVersion::V1_3>(kPerf)};
+        V1_3::Capabilities capabilities = nn::makeCapabilities(0.75f);
         _hidl_cb(V1_3::ErrorStatus::NONE, capabilities);
         return hardware::Void();
     }

@@ -103,8 +103,8 @@ std::ostream& operator<<(std::ostream& os, const Request& request);
 std::ostream& operator<<(std::ostream& os, const SyncFence::FenceState& fenceState);
 std::ostream& operator<<(std::ostream& os, const TimePoint& timePoint);
 std::ostream& operator<<(std::ostream& os, const OptionalTimePoint& optionalTimePoint);
-std::ostream& operator<<(std::ostream& os, const TimeoutDuration& timeoutDuration);
-std::ostream& operator<<(std::ostream& os, const OptionalTimeoutDuration& optionalTimeoutDuration);
+std::ostream& operator<<(std::ostream& os, const Duration& timeoutDuration);
+std::ostream& operator<<(std::ostream& os, const OptionalDuration& optionalTimeoutDuration);
 std::ostream& operator<<(std::ostream& os, const Version& version);
 std::ostream& operator<<(std::ostream& os, const HalVersion& halVersion);
 

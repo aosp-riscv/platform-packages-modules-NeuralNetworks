@@ -371,9 +371,6 @@ int ExecutionBuilder::getDuration(int32_t durationCode, uint64_t* duration) cons
         return ANEURALNETWORKS_BAD_STATE;
     }
 
-    // NOTE: At the HAL level, timing is in microseconds. At the NDK level, nanoseconds.
-    const uint64_t kNanoPerMicro = 1000;
-
     if (!mMeasureTiming) {
         *duration = UINT64_MAX;
         return ANEURALNETWORKS_BAD_STATE;
@@ -390,24 +387,29 @@ int ExecutionBuilder::getDuration(int32_t durationCode, uint64_t* duration) cons
         }
         std::tie(timingLaunched, timingFenced) = std::move(result).value();
     }
-    uint64_t microDuration = UINT64_MAX;
-    switch (durationCode) {
-        case ANEURALNETWORKS_DURATION_ON_HARDWARE:
-            microDuration = timingLaunched.timeOnDevice;
-            break;
-        case ANEURALNETWORKS_DURATION_IN_DRIVER:
-            microDuration = timingLaunched.timeInDriver;
-            break;
-        case ANEURALNETWORKS_FENCED_DURATION_ON_HARDWARE:
-            microDuration = timingFenced.timeOnDevice;
-            break;
-        case ANEURALNETWORKS_FENCED_DURATION_IN_DRIVER:
-            microDuration = timingFenced.timeInDriver;
-            break;
-        default:
-            CHECK(!"unexpected");
+    const OptionalDuration selectedDuration = [durationCode, &timingLaunched,
+                                               &timingFenced]() -> OptionalDuration {
+        switch (durationCode) {
+            case ANEURALNETWORKS_DURATION_ON_HARDWARE:
+                return timingLaunched.timeOnDevice;
+            case ANEURALNETWORKS_DURATION_IN_DRIVER:
+                return timingLaunched.timeInDriver;
+            case ANEURALNETWORKS_FENCED_DURATION_ON_HARDWARE:
+                return timingFenced.timeOnDevice;
+            case ANEURALNETWORKS_FENCED_DURATION_IN_DRIVER:
+                return timingFenced.timeInDriver;
+            default:
+                LOG(FATAL) << "unexpected";
+                return std::nullopt;
+        }
+    }();
+    if (selectedDuration.has_value()) {
+        constexpr uint64_t kMaxTiming = std::numeric_limits<uint64_t>::max() - 1;
+        *duration = std::min(selectedDuration.value().count(), kMaxTiming);
+    } else {
+        constexpr uint64_t kNoTiming = std::numeric_limits<uint64_t>::max();
+        *duration = kNoTiming;
     }
-    *duration = (microDuration == UINT64_MAX) ? UINT64_MAX : kNanoPerMicro * microDuration;
 
     VLOG(EXECUTION) << "getDuration(" << durationCode << "): " << *duration;
     return ANEURALNETWORKS_NO_ERROR;
@@ -549,8 +551,7 @@ cpuFallbackPartial(const ExecutionPlan& plan,
 static void asyncStartComputePartitioned(ExecutionBuilder* executionBuilder,
                                          const ExecutionPlan& plan,
                                          std::shared_ptr<ExecutionPlan::Controller> controller,
-                                         bool allowCpuFallback,
-                                         const std::optional<Deadline>& deadline,
+                                         bool allowCpuFallback, const OptionalTimePoint& deadline,
                                          const sp<ExecutionCallback>& executionCallback) {
     CHECK(executionBuilder != nullptr);
     VLOG(EXECUTION) << "ExecutionBuilder::compute (from plan, iteratively)";
@@ -742,7 +743,7 @@ static void asyncStartComputePartitioned(ExecutionBuilder* executionBuilder,
 static std::tuple<int, int, ExecuteFencedInfoCallback> startComputeFenced(
         ExecutionBuilder* executionBuilder, const ExecutionPlan& plan,
         std::shared_ptr<ExecutionPlan::Controller> controller, const std::vector<int>& waitFor,
-        uint64_t timeoutDurationAfterFence, const std::optional<Deadline>& deadline,
+        uint64_t timeoutDurationAfterFence, const OptionalTimePoint& deadline,
         bool allowCpuFallback) {
     // We should have detected this earlier in the call chain and fallen back to
     // non-fenced execution.  This is an implementation limitation: In order to
@@ -1353,13 +1354,13 @@ bool StepExecutor::isCpu() const {
 }
 
 std::tuple<int, std::vector<OutputShape>, Timing> StepExecutor::compute(
-        const std::optional<Deadline>& deadline,
+        const OptionalTimePoint& deadline,
         const std::shared_ptr<ExecutionBurstController>& burstController) {
     return computeWithMemories(deadline, mMemories.getObjects(), burstController);
 }
 
 std::tuple<int, std::vector<OutputShape>, Timing> StepExecutor::computeWithMemories(
-        const std::optional<Deadline>& deadline, const std::vector<const RuntimeMemory*>& memories,
+        const OptionalTimePoint& deadline, const std::vector<const RuntimeMemory*>& memories,
         const std::shared_ptr<ExecutionBurstController>& burstController) {
     CHECK(mPreparedModel != nullptr);
 
@@ -1369,7 +1370,7 @@ std::tuple<int, std::vector<OutputShape>, Timing> StepExecutor::computeWithMemor
     }
 
     const MeasureTiming measure = measureTiming(mExecutionBuilder);
-    const OptionalTimeoutDuration loopTimeoutDuration =
+    const OptionalDuration loopTimeoutDuration =
             makeTimeoutDuration(mExecutionBuilder->getLoopTimeoutDuration());
     const auto [n, outputShapes, timing] = mPreparedModel->execute(
             mInputs, mOutputs, memories, burstController, measure, deadline, loopTimeoutDuration);
@@ -1380,7 +1381,7 @@ std::tuple<int, std::vector<OutputShape>, Timing> StepExecutor::computeWithMemor
 
 std::tuple<int, int, ExecuteFencedInfoCallback> StepExecutor::computeFenced(
         const std::vector<int>& waitFor, uint64_t timeoutDurationAfterFence,
-        const std::optional<Deadline>& deadline) {
+        const OptionalTimePoint& deadline) {
     CHECK(mPreparedModel != nullptr);
 
     if (VLOG_IS_ON(EXECUTION)) {
@@ -1389,9 +1390,9 @@ std::tuple<int, int, ExecuteFencedInfoCallback> StepExecutor::computeFenced(
     }
 
     const MeasureTiming measure = measureTiming(mExecutionBuilder);
-    const OptionalTimeoutDuration loopTimeoutDuration =
+    const OptionalDuration loopTimeoutDuration =
             makeTimeoutDuration(mExecutionBuilder->getLoopTimeoutDuration());
-    OptionalTimeoutDuration optionalTimeoutDurationAfterFence;
+    OptionalDuration optionalTimeoutDurationAfterFence;
     if (timeoutDurationAfterFence > 0) {
         optionalTimeoutDurationAfterFence = makeTimeoutDuration(timeoutDurationAfterFence);
     }

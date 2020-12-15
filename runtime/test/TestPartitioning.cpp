@@ -152,7 +152,6 @@ namespace V1_1 = ::android::hardware::neuralnetworks::V1_1;
 namespace V1_2 = ::android::hardware::neuralnetworks::V1_2;
 namespace V1_3 = ::android::hardware::neuralnetworks::V1_3;
 using CompilationBuilder = ::android::nn::CompilationBuilder;
-using Deadline = ::android::nn::Deadline;
 using Device = ::android::nn::Device;
 using DeviceManager = ::android::nn::DeviceManager;
 using ExecutePreference = ::android::nn::test_wrapper::ExecutePreference;
@@ -166,6 +165,7 @@ using LogicalStep = ::android::nn::LogicalStep;
 using ModelBuilder = ::android::nn::ModelBuilder;
 using Operand = ::android::nn::Operand;
 using Operation = ::android::nn::Operation;
+using OptionalTimePoint = ::android::nn::OptionalTimePoint;
 using Result = ::android::nn::test_wrapper::Result;
 using SampleDriver = ::android::nn::sample_driver::SampleDriver;
 using WrapperCompilation = ::android::nn::test_wrapper::Compilation;
@@ -803,7 +803,7 @@ class PartitioningModel : private WrapperModel {
     // Run the partitioning algorithm to create an ExecutionPlan.
     int partitionTheWork(const std::vector<std::shared_ptr<Device>>& devices,
                          ExecutePreference preference, ExecutePriority priority,
-                         const std::optional<Deadline>& deadline, ExecutionPlan* plan) {
+                         const OptionalTimePoint& deadline, ExecutionPlan* plan) {
         return reinterpret_cast<ModelBuilder*>(getHandle())
                 ->partitionTheWork(devices, static_cast<uint32_t>(preference),
                                    static_cast<int32_t>(priority), deadline, plan);

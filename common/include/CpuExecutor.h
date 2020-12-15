@@ -164,7 +164,7 @@ class CpuExecutor {
         return mOutputShapes;
     }
 
-    void setDeadline(const Deadline& deadline) { mDeadline = deadline; }
+    void setDeadline(const TimePoint& deadline) { mDeadline = deadline; }
     void setLoopTimeout(uint64_t duration) { mLoopTimeoutDuration = duration; }
 
    private:
@@ -201,7 +201,7 @@ class CpuExecutor {
     // The deadline hint for the maximum amount of time the client expects the
     // execution will take. If this deadline is exceeded, the CpuExecutor will
     // abort the execution if there are remaining ops to execute.
-    std::optional<Deadline> mDeadline;
+    OptionalTimePoint mDeadline;
 
     // The maximum amount of time in nanoseconds that can be spent executing a
     // WHILE loop.

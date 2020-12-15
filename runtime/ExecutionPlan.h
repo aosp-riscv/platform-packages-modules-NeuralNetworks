@@ -526,7 +526,7 @@ struct WhileState {
     // loop.
     uint64_t iteration = kOutsideLoop;
     // Time point when the loop started executing.
-    std::chrono::time_point<std::chrono::steady_clock> startTime;
+    TimePoint startTime;
 };
 
 struct ConstantCopyLocation {
@@ -682,8 +682,8 @@ class ExecutionPlan {
     void becomeSingleStep(const std::shared_ptr<Device> device, const ModelBuilder* model);
 
     // simulateFailureResultCode == ANEURALNETWORKS_NO_ERROR means behave normally.
-    int finish(int32_t executionPreference, int32_t priority,
-               const std::optional<Deadline>& deadline, int simulateFailureResultCode);
+    int finish(int32_t executionPreference, int32_t priority, const OptionalTimePoint& deadline,
+               int simulateFailureResultCode);
 
     void recordOutputDef(SourceOperandIndex sourceOperandIndex, uint32_t stepIndex);
     void recordTemporaryDef(SourceOperandIndex sourceOperandIndex, uint32_t stepIndex);
@@ -793,7 +793,7 @@ class ExecutionPlan {
         virtual ~Body() {}
         virtual void dump() const = 0;
         virtual int finish(const SourceModels* sourceModels, int32_t executionPreference,
-                           int32_t priority, const std::optional<Deadline>& deadline,
+                           int32_t priority, const OptionalTimePoint& deadline,
                            int simulateFailureResultCode) = 0;
         virtual bool hasDynamicTemporaries() const = 0;
         virtual void forEachStepRoleOfInput(uint32_t index,
@@ -810,7 +810,7 @@ class ExecutionPlan {
 
         void dump() const override;
         int finish(const SourceModels* sourceModels, int32_t executionPreference, int32_t priority,
-                   const std::optional<Deadline>& deadline, int simulateFailureResultCode) override;
+                   const OptionalTimePoint& deadline, int simulateFailureResultCode) override;
         bool hasDynamicTemporaries() const override { return false; }
         void forEachStepRoleOfInput(uint32_t index,
                                     const StepRoleCallback& callback) const override;
@@ -828,7 +828,7 @@ class ExecutionPlan {
     struct CompoundBody : Body {
         void dump() const override;
         int finish(const SourceModels* sourceModels, int32_t executionPreference, int32_t priority,
-                   const std::optional<Deadline>& deadline, int simulateFailureResultCode) override;
+                   const OptionalTimePoint& deadline, int simulateFailureResultCode) override;
         bool hasDynamicTemporaries() const override { return mHasDynamicTemporaries; }
         void forEachStepRoleOfInput(uint32_t index,
                                     const StepRoleCallback& callback) const override;

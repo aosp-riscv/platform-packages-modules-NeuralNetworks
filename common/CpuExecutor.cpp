@@ -1751,7 +1751,7 @@ int CpuExecutor::executeWhileOperation(const Operation& operation, RunTimeOperan
     condOutput.length = sizeof(condValue);
 
     std::chrono::nanoseconds timeoutDuration(mLoopTimeoutDuration);
-    const auto startTime = std::chrono::steady_clock::now();
+    const auto startTime = Clock::now();
     for (uint32_t iteration = 0;; ++iteration) {
         VLOG(CPUEXE) << "CpuExecutor::executeWhileOperation: iteration " << iteration;
         if (iteration != 0) {
@@ -1768,7 +1768,7 @@ int CpuExecutor::executeWhileOperation(const Operation& operation, RunTimeOperan
             break;
         }
 
-        const auto duration = std::chrono::steady_clock::now() - startTime;
+        const auto duration = Clock::now() - startTime;
         if (duration > timeoutDuration) {
             LOG(ERROR) << "CpuExecutor::executeWhileOperation: timed out after "
                        << std::chrono::duration_cast<std::chrono::milliseconds>(duration).count()

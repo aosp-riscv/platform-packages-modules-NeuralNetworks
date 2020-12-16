@@ -604,18 +604,8 @@ std::ostream& operator<<(std::ostream& os, const OutputShape& outputShape) {
 }
 
 std::ostream& operator<<(std::ostream& os, const Timing& timing) {
-    constexpr auto printTime = [](std::ostream& os, uint64_t nanoseconds) {
-        if (nanoseconds == std::numeric_limits<uint64_t>::max()) {
-            os << "<no time information provided>";
-        } else {
-            os << nanoseconds << "ns";
-        }
-    };
-    os << "Timing{.timeOnDevice=";
-    printTime(os, timing.timeOnDevice);
-    os << ", .timeInDriver=";
-    printTime(os, timing.timeInDriver);
-    return os << "}";
+    return os << "Timing{.timeOnDevice=" << timing.timeOnDevice
+              << ", .timeInDriver=" << timing.timeInDriver << "}";
 }
 
 std::ostream& operator<<(std::ostream& os, const Capabilities::PerformanceInfo& performanceInfo) {
@@ -778,10 +768,6 @@ std::ostream& operator<<(std::ostream& os, const Request& request) {
               << ", .pools=" << request.pools << "}";
 }
 
-std::ostream& operator<<(std::ostream& os, const TimePoint& timePoint) {
-    return os << timePoint.time_since_epoch().count() << "ns since epoch";
-}
-
 std::ostream& operator<<(std::ostream& os, const SyncFence::FenceState& fenceState) {
     switch (fenceState) {
         case SyncFence::FenceState::ACTIVE:
@@ -796,6 +782,10 @@ std::ostream& operator<<(std::ostream& os, const SyncFence::FenceState& fenceSta
     return os << "SyncFence::FenceState{" << underlyingType(fenceState) << "}";
 }
 
+std::ostream& operator<<(std::ostream& os, const TimePoint& timePoint) {
+    return os << timePoint.time_since_epoch() << " since epoch";
+}
+
 std::ostream& operator<<(std::ostream& os, const OptionalTimePoint& optionalTimePoint) {
     if (!optionalTimePoint.has_value()) {
         return os << "<no time point>";
@@ -803,13 +793,13 @@ std::ostream& operator<<(std::ostream& os, const OptionalTimePoint& optionalTime
     return os << optionalTimePoint.value();
 }
 
-std::ostream& operator<<(std::ostream& os, const TimeoutDuration& timeoutDuration) {
+std::ostream& operator<<(std::ostream& os, const Duration& timeoutDuration) {
     return os << timeoutDuration.count() << "ns";
 }
 
-std::ostream& operator<<(std::ostream& os, const OptionalTimeoutDuration& optionalTimeoutDuration) {
+std::ostream& operator<<(std::ostream& os, const OptionalDuration& optionalTimeoutDuration) {
     if (!optionalTimeoutDuration.has_value()) {
-        return os << "<no timeout duration>";
+        return os << "<no duration>";
     }
     return os << optionalTimeoutDuration.value();
 }

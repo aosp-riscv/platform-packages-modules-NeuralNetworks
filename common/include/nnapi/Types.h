@@ -44,7 +44,6 @@ class IPreparedModel;
 
 // Default values
 
-constexpr uint64_t kNoTiming = std::numeric_limits<uint64_t>::max();
 constexpr float kDefaultExecTime = std::numeric_limits<float>::max();
 constexpr float kDefaultPowerUsage = std::numeric_limits<float>::max();
 constexpr uint32_t kByteSizeOfCacheToken = 32;
@@ -150,11 +149,6 @@ struct ExecutionError {
 
 template <typename Type>
 using ExecutionResult = base::expected<Type, ExecutionError>;
-
-struct Timing {
-    uint64_t timeOnDevice = kNoTiming;
-    uint64_t timeInDriver = kNoTiming;
-};
 
 struct Capabilities {
     struct PerformanceInfo {
@@ -346,11 +340,16 @@ class SyncFence {
 
 using Clock = std::chrono::steady_clock;
 
-using TimePoint = std::chrono::time_point<Clock, std::chrono::nanoseconds>;
+using Duration = std::chrono::duration<uint64_t, std::nano>;
+using OptionalDuration = std::optional<Duration>;
+
+using TimePoint = std::chrono::time_point<Clock, Duration>;
 using OptionalTimePoint = std::optional<TimePoint>;
 
-using TimeoutDuration = std::chrono::nanoseconds;
-using OptionalTimeoutDuration = std::optional<TimeoutDuration>;
+struct Timing {
+    OptionalDuration timeOnDevice;
+    OptionalDuration timeInDriver;
+};
 
 enum class Version { ANDROID_OC_MR1, ANDROID_P, ANDROID_Q, ANDROID_R, CURRENT_RUNTIME };
 

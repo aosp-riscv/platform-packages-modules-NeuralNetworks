@@ -39,27 +39,15 @@ namespace nn {
 
 constexpr V1_0::PerformanceInfo kNoPerformanceInfo = {.execTime = FLT_MAX, .powerUsage = FLT_MAX};
 
-static uint64_t getMaxNanosecondsSinceEpoch() {
-    const auto maxTime =
-            std::chrono::time_point<std::chrono::steady_clock, std::chrono::nanoseconds>::max();
-    return maxTime.time_since_epoch().count();
+template <typename Type>
+static Type handleError(GeneralResult<Type> result) {
+    CHECK(result.has_value()) << "Unhandled error (" << result.error().code
+                              << "): " << result.error().message;
+    return std::move(result).value();
 }
 
-std::optional<Deadline> makeDeadline(const V1_3::OptionalTimePoint& timePoint) {
-    using Discriminator = V1_3::OptionalTimePoint::hidl_discriminator;
-    if (timePoint.getDiscriminator() == Discriminator::none) {
-        return std::nullopt;
-    }
-    const uint64_t nanosecondsSinceEpoch = timePoint.nanosecondsSinceEpoch();
-    const uint64_t maxNanosecondsSinceEpoch = getMaxNanosecondsSinceEpoch();
-
-    // Clamp time point to max.
-    if (nanosecondsSinceEpoch >= maxNanosecondsSinceEpoch) {
-        return Deadline::max();
-    }
-
-    // Return provided time point.
-    return Deadline{std::chrono::nanoseconds{nanosecondsSinceEpoch}};
+OptionalTimePoint makeDeadline(const V1_3::OptionalTimePoint& timePoint) {
+    return handleError(convert(timePoint));
 }
 
 bool isExtensionOperandType(V1_3::OperandType type) {
@@ -1447,13 +1435,6 @@ V1_3::Request convertToV1_3(const V1_3::Request& request) {
     return request;
 }
 
-template <typename Type>
-static Type handleError(GeneralResult<Type> result) {
-    CHECK(result.has_value()) << "Unhandled error (" << result.error().code
-                              << "): " << result.error().message;
-    return std::move(result).value();
-}
-
 ErrorStatus uncheckedConvert(V1_0::ErrorStatus status) {
     return handleError(convert(status));
 }
@@ -1569,7 +1550,7 @@ Extension::OperandTypeInformation uncheckedConvert(
     return handleError(unvalidatedConvert(info));
 }
 
-OptionalTimeoutDuration uncheckedConvert(const V1_3::OptionalTimeoutDuration& timeoutDuration) {
+OptionalDuration uncheckedConvert(const V1_3::OptionalTimeoutDuration& timeoutDuration) {
     return handleError(convert(timeoutDuration));
 }
 
@@ -1698,7 +1679,7 @@ V1_3::OptionalTimePoint convertToV1_3(const OptionalTimePoint& timePoint) {
     return handleError(V1_3::utils::convert(timePoint));
 }
 
-V1_3::OptionalTimeoutDuration convertToV1_3(const OptionalTimeoutDuration& timeoutDuration) {
+V1_3::OptionalTimeoutDuration convertToV1_3(const OptionalDuration& timeoutDuration) {
     return handleError(V1_3::utils::convert(timeoutDuration));
 }
 

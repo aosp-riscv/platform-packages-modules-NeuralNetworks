@@ -21,6 +21,7 @@
 #include <android-base/logging.h>
 #include <android-base/properties.h>
 #include <hidl/LegacySupport.h>
+#include <nnapi/Types.h>
 
 #include <algorithm>
 #include <chrono>
@@ -47,14 +48,9 @@ namespace sample_driver {
 
 namespace {
 
-using time_point = std::chrono::steady_clock::time_point;
-
-auto now() {
-    return std::chrono::steady_clock::now();
-};
-
-auto microsecondsDuration(decltype(now()) end, decltype(now()) start) {
-    return std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+uint64_t microsecondsDuration(TimePoint end, TimePoint start) {
+    using Microseconds = std::chrono::duration<uint64_t, std::micro>;
+    return std::chrono::duration_cast<Microseconds>(end - start).count();
 };
 
 }  // namespace
@@ -459,11 +455,10 @@ static V1_3::ErrorStatus updateDeviceMemories(
 }
 
 template <typename T_IExecutionCallback>
-void asyncExecute(const V1_3::Request& request, V1_2::MeasureTiming measure, time_point driverStart,
+void asyncExecute(const V1_3::Request& request, V1_2::MeasureTiming measure, TimePoint driverStart,
                   const V1_3::Model& model, const SampleDriver& driver,
                   const SamplePreparedModel* preparedModel,
-                  const std::vector<RunTimePoolInfo>& poolInfos,
-                  const std::optional<Deadline>& deadline,
+                  const std::vector<RunTimePoolInfo>& poolInfos, const OptionalTimePoint& deadline,
                   const V1_3::OptionalTimeoutDuration& loopTimeoutDuration,
                   const sp<T_IExecutionCallback>& callback) {
     NNTRACE_FULL(NNTRACE_LAYER_DRIVER, NNTRACE_PHASE_INPUTS_AND_OUTPUTS,
@@ -486,11 +481,11 @@ void asyncExecute(const V1_3::Request& request, V1_2::MeasureTiming measure, tim
     if (deadline.has_value()) {
         executor.setDeadline(*deadline);
     }
-    time_point driverEnd, deviceStart, deviceEnd;
-    if (measure == V1_2::MeasureTiming::YES) deviceStart = now();
+    TimePoint driverEnd, deviceStart, deviceEnd;
+    if (measure == V1_2::MeasureTiming::YES) deviceStart = Clock::now();
     int n = executor.run(uncheckedConvert(model), uncheckedConvert(request), poolInfos,
                          requestPoolInfos);
-    if (measure == V1_2::MeasureTiming::YES) deviceEnd = now();
+    if (measure == V1_2::MeasureTiming::YES) deviceEnd = Clock::now();
     VLOG(DRIVER) << "executor.run returned " << n;
     V1_3::ErrorStatus executionStatus = convertResultCodeToHalErrorStatus(n);
     hardware::hidl_vec<V1_2::OutputShape> outputShapes = convertToV1_2(executor.getOutputShapes());
@@ -504,7 +499,7 @@ void asyncExecute(const V1_3::Request& request, V1_2::MeasureTiming measure, tim
     }
 
     if (measure == V1_2::MeasureTiming::YES && executionStatus == V1_3::ErrorStatus::NONE) {
-        driverEnd = now();
+        driverEnd = Clock::now();
         V1_2::Timing timing = {
                 .timeOnDevice = uint64_t(microsecondsDuration(deviceEnd, deviceStart)),
                 .timeInDriver = uint64_t(microsecondsDuration(driverEnd, driverStart))};
@@ -526,8 +521,8 @@ V1_3::ErrorStatus executeBase(const V1_3::Request& request, V1_2::MeasureTiming 
     NNTRACE_FULL(NNTRACE_LAYER_DRIVER, NNTRACE_PHASE_EXECUTION, "SampleDriver::executeBase");
     VLOG(DRIVER) << "executeBase(" << SHOW_IF_DEBUG(toString(request)) << ")";
 
-    time_point driverStart;
-    if (measure == V1_2::MeasureTiming::YES) driverStart = now();
+    TimePoint driverStart;
+    if (measure == V1_2::MeasureTiming::YES) driverStart = Clock::now();
 
     if (callback.get() == nullptr) {
         LOG(ERROR) << "invalid callback passed to executeBase";
@@ -590,8 +585,8 @@ executeSynchronouslyBase(const V1_3::Request& request, V1_2::MeasureTiming measu
                  "SampleDriver::executeSynchronouslyBase");
     VLOG(DRIVER) << "executeSynchronouslyBase(" << SHOW_IF_DEBUG(toString(request)) << ")";
 
-    time_point driverStart, driverEnd, deviceStart, deviceEnd;
-    if (measure == V1_2::MeasureTiming::YES) driverStart = now();
+    TimePoint driverStart, driverEnd, deviceStart, deviceEnd;
+    if (measure == V1_2::MeasureTiming::YES) driverStart = Clock::now();
 
     if (!validateRequest(request, model)) {
         return {V1_3::ErrorStatus::INVALID_ARGUMENT, {}, kNoTiming};
@@ -619,10 +614,10 @@ executeSynchronouslyBase(const V1_3::Request& request, V1_2::MeasureTiming measu
     if (deadline.has_value()) {
         executor.setDeadline(*deadline);
     }
-    if (measure == V1_2::MeasureTiming::YES) deviceStart = now();
+    if (measure == V1_2::MeasureTiming::YES) deviceStart = Clock::now();
     int n = executor.run(uncheckedConvert(model), uncheckedConvert(request), poolInfos,
                          requestPoolInfos);
-    if (measure == V1_2::MeasureTiming::YES) deviceEnd = now();
+    if (measure == V1_2::MeasureTiming::YES) deviceEnd = Clock::now();
     VLOG(DRIVER) << "executor.run returned " << n;
     V1_3::ErrorStatus executionStatus = convertResultCodeToHalErrorStatus(n);
     hardware::hidl_vec<V1_2::OutputShape> outputShapes = convertToV1_2(executor.getOutputShapes());
@@ -635,7 +630,7 @@ executeSynchronouslyBase(const V1_3::Request& request, V1_2::MeasureTiming measu
     }
 
     if (measure == V1_2::MeasureTiming::YES && executionStatus == V1_3::ErrorStatus::NONE) {
-        driverEnd = now();
+        driverEnd = Clock::now();
         V1_2::Timing timing = {
                 .timeOnDevice = uint64_t(microsecondsDuration(deviceEnd, deviceStart)),
                 .timeInDriver = uint64_t(microsecondsDuration(driverEnd, driverStart))};
@@ -674,8 +669,8 @@ hardware::Return<void> SamplePreparedModel::executeFenced(
                  "SamplePreparedModel::executeFenced");
     VLOG(DRIVER) << "executeFenced(" << SHOW_IF_DEBUG(toString(request)) << ")";
 
-    time_point driverStart, driverEnd, deviceStart, deviceEnd;
-    if (measure == V1_2::MeasureTiming::YES) driverStart = now();
+    TimePoint driverStart, driverEnd, deviceStart, deviceEnd;
+    if (measure == V1_2::MeasureTiming::YES) driverStart = Clock::now();
 
     if (!validateRequest(request, mModel, /*allowUnspecifiedOutput=*/false)) {
         cb(V1_3::ErrorStatus::INVALID_ARGUMENT, hardware::hidl_handle(nullptr), nullptr);
@@ -710,8 +705,8 @@ hardware::Return<void> SamplePreparedModel::executeFenced(
         }
     }
 
-    time_point driverStartAfterFence;
-    if (measure == V1_2::MeasureTiming::YES) driverStartAfterFence = now();
+    TimePoint driverStartAfterFence;
+    if (measure == V1_2::MeasureTiming::YES) driverStartAfterFence = Clock::now();
 
     NNTRACE_FULL_SWITCH(NNTRACE_LAYER_DRIVER, NNTRACE_PHASE_INPUTS_AND_OUTPUTS,
                         "SamplePreparedModel::executeFenced");
@@ -732,10 +727,10 @@ hardware::Return<void> SamplePreparedModel::executeFenced(
     if (closestDeadline.has_value()) {
         executor.setDeadline(*closestDeadline);
     }
-    if (measure == V1_2::MeasureTiming::YES) deviceStart = now();
+    if (measure == V1_2::MeasureTiming::YES) deviceStart = Clock::now();
     int n = executor.run(uncheckedConvert(mModel), uncheckedConvert(request), mPoolInfos,
                          requestPoolInfos);
-    if (measure == V1_2::MeasureTiming::YES) deviceEnd = now();
+    if (measure == V1_2::MeasureTiming::YES) deviceEnd = Clock::now();
     VLOG(DRIVER) << "executor.run returned " << n;
     V1_3::ErrorStatus executionStatus = convertResultCodeToHalErrorStatus(n);
     if (executionStatus != V1_3::ErrorStatus::NONE) {
@@ -757,7 +752,7 @@ hardware::Return<void> SamplePreparedModel::executeFenced(
     V1_2::Timing timingSinceLaunch = {.timeOnDevice = UINT64_MAX, .timeInDriver = UINT64_MAX};
     V1_2::Timing timingAfterFence = {.timeOnDevice = UINT64_MAX, .timeInDriver = UINT64_MAX};
     if (measure == V1_2::MeasureTiming::YES) {
-        driverEnd = now();
+        driverEnd = Clock::now();
         timingSinceLaunch = {
                 .timeOnDevice = uint64_t(microsecondsDuration(deviceEnd, deviceStart)),
                 .timeInDriver = uint64_t(microsecondsDuration(driverEnd, driverStart))};
@@ -801,8 +796,8 @@ class BurstExecutorWithCache : public ExecutionBurstServer::IBurstExecutorWithCa
         NNTRACE_FULL(NNTRACE_LAYER_DRIVER, NNTRACE_PHASE_EXECUTION,
                      "BurstExecutorWithCache::execute");
 
-        time_point driverStart, driverEnd, deviceStart, deviceEnd;
-        if (measure == V1_2::MeasureTiming::YES) driverStart = now();
+        TimePoint driverStart, driverEnd, deviceStart, deviceEnd;
+        if (measure == V1_2::MeasureTiming::YES) driverStart = Clock::now();
 
         // ensure all relevant pools are valid
         if (!std::all_of(slots.begin(), slots.end(),
@@ -836,16 +831,16 @@ class BurstExecutorWithCache : public ExecutionBurstServer::IBurstExecutorWithCa
         // because burst does not support HAL 1.3 and hence does not support
         // WHILE loops.
         CpuExecutor executor = mDriver->getExecutor();
-        if (measure == V1_2::MeasureTiming::YES) deviceStart = now();
+        if (measure == V1_2::MeasureTiming::YES) deviceStart = Clock::now();
         int n = executor.run(uncheckedConvert(mModel), uncheckedConvert(fullRequest),
                              mModelPoolInfos, requestPoolInfos);
-        if (measure == V1_2::MeasureTiming::YES) deviceEnd = now();
+        if (measure == V1_2::MeasureTiming::YES) deviceEnd = Clock::now();
         VLOG(DRIVER) << "executor.run returned " << n;
         V1_0::ErrorStatus executionStatus = convertToV1_0(convertResultCodeToHalErrorStatus(n));
         hardware::hidl_vec<V1_2::OutputShape> outputShapes =
                 convertToV1_2(executor.getOutputShapes());
         if (measure == V1_2::MeasureTiming::YES && executionStatus == V1_0::ErrorStatus::NONE) {
-            driverEnd = now();
+            driverEnd = Clock::now();
             V1_2::Timing timing = {
                     .timeOnDevice = uint64_t(microsecondsDuration(deviceEnd, deviceStart)),
                     .timeInDriver = uint64_t(microsecondsDuration(driverEnd, driverStart))};

@@ -67,9 +67,8 @@ constexpr uint32_t kMainModelInSourceModels = 0;
 // operation indices to be executed (COMPOUND body). The token will be re-hashed further by the
 // device name, device version string, and the execution preference in this function.
 int compile(const Device& device, const ModelBuilder& model, int executionPreference,
-            int compilationPriority, const std::optional<Deadline>& deadline,
-            const std::string& cacheDir, TokenHasher* token,
-            std::shared_ptr<RuntimePreparedModel>* preparedModel) {
+            int compilationPriority, const OptionalTimePoint& deadline, const std::string& cacheDir,
+            TokenHasher* token, std::shared_ptr<RuntimePreparedModel>* preparedModel) {
     CHECK(token != nullptr);
     CHECK(preparedModel != nullptr);
     *preparedModel = nullptr;
@@ -782,7 +781,7 @@ void LogicalStep::dump() const {
 
 int ExecutionPlan::CompoundBody::finish(const SourceModels* sourceModels,
                                         int32_t executionPreference, int32_t priority,
-                                        const std::optional<Deadline>& deadline,
+                                        const OptionalTimePoint& deadline,
                                         int simulateFailureResultCode) {
     CHECK(!mSuccessfulFinish);
     CHECK(!deadline.has_value());
@@ -893,7 +892,7 @@ void ExecutionPlan::CompoundBody::findControlFlowBoundaryConstants(
 }
 
 int ExecutionPlan::SimpleBody::finish(const SourceModels*, int32_t executionPreference,
-                                      int32_t priority, const std::optional<Deadline>& deadline,
+                                      int32_t priority, const OptionalTimePoint& deadline,
                                       int simulateFailureResultCode) {
     CHECK(!mSuccessfulFinish);
     CHECK(mDevice != nullptr);
@@ -910,7 +909,7 @@ int ExecutionPlan::SimpleBody::finish(const SourceModels*, int32_t executionPref
 }
 
 int ExecutionPlan::finish(int32_t executionPreference, int32_t priority,
-                          const std::optional<Deadline>& deadline, int simulateFailureResultCode) {
+                          const OptionalTimePoint& deadline, int simulateFailureResultCode) {
     CHECK(mBody != nullptr);
     return mBody->finish(&getSourceModels(), executionPreference, priority, deadline,
                          simulateFailureResultCode);
@@ -1531,7 +1530,7 @@ int ExecutionPlan::nextCompound(const WhileStep* step, std::shared_ptr<Controlle
         controller->mNextStepIndex = step->condStepIndex;
 
         if (state.iteration == 0) {
-            state.startTime = std::chrono::steady_clock::now();
+            state.startTime = Clock::now();
         }
 
         // iteration = 0   cond inputs = outer inputs
@@ -1556,7 +1555,7 @@ int ExecutionPlan::nextCompound(const WhileStep* step, std::shared_ptr<Controlle
     CHECK(state.stage == WhileState::EVALUATE_BODY);
     std::chrono::nanoseconds timeoutDuration(
             controller->mExecutionBuilder->getLoopTimeoutDuration());
-    auto duration = std::chrono::steady_clock::now() - state.startTime;
+    auto duration = Clock::now() - state.startTime;
     if (duration > timeoutDuration) {
         LOG(ERROR) << "WHILE loop timed out after "
                    << std::chrono::duration_cast<std::chrono::milliseconds>(duration).count()
@@ -1865,7 +1864,7 @@ void ExecutionPlan::forEachDynamicTemporary(
 
 int ModelBuilder::partitionTheWork(const std::vector<std::shared_ptr<Device>>& devices,
                                    uint32_t preference, uint32_t priority,
-                                   const std::optional<Deadline>& deadline, ExecutionPlan* plan,
+                                   const OptionalTimePoint& deadline, ExecutionPlan* plan,
                                    int simulateFailureResultCode) const {
     uint32_t sourceModelIndex = plan->getSourceModels().addModel(this);
     NN_RETURN_IF_ERROR(partitionTheWorkInternal(sourceModelIndex, devices, preference, priority,
@@ -1882,7 +1881,7 @@ int ModelBuilder::partitionTheWork(const std::vector<std::shared_ptr<Device>>& d
 int ModelBuilder::partitionTheWorkInternal(uint32_t sourceModelIndex,
                                            const std::vector<std::shared_ptr<Device>>& devices,
                                            uint32_t preference, uint32_t priority,
-                                           const std::optional<Deadline>& deadline,
+                                           const OptionalTimePoint& deadline,
                                            ExecutionPlan* plan) const {
     // This function uses a heuristic approach to partitioning the graph.
     // It should be good enough for the first release.

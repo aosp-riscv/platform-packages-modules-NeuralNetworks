@@ -60,8 +60,8 @@ class RuntimePreparedModel {
             const std::vector<ModelArgumentInfo>& outputs,
             const std::vector<const RuntimeMemory*>& memories,
             const std::shared_ptr<ExecutionBurstController>& burstController, MeasureTiming measure,
-            const std::optional<Deadline>& deadline,
-            const OptionalTimeoutDuration& loopTimeoutDuration) const = 0;
+            const OptionalTimePoint& deadline,
+            const OptionalDuration& loopTimeoutDuration) const = 0;
 
     // Perform fenced computation with given input/output argument info and memory pools.
     // The returned timing information is only valid if the callback is nullptr.
@@ -70,9 +70,9 @@ class RuntimePreparedModel {
             const std::vector<ModelArgumentInfo>& inputs,
             const std::vector<ModelArgumentInfo>& outputs,
             const std::vector<const RuntimeMemory*>& memories, const std::vector<int>& waitFor,
-            MeasureTiming measure, const std::optional<Deadline>& deadline,
-            const OptionalTimeoutDuration& loopTimeoutDuration,
-            const OptionalTimeoutDuration& timeoutDurationAfterFence) const = 0;
+            MeasureTiming measure, const OptionalTimePoint& deadline,
+            const OptionalDuration& loopTimeoutDuration,
+            const OptionalDuration& timeoutDurationAfterFence) const = 0;
 
     virtual std::shared_ptr<ExecutionBurstController> configureExecutionBurst(
             bool preferPowerOverLatency) const = 0;
@@ -108,7 +108,7 @@ class Device {
 
     virtual std::pair<int, std::shared_ptr<RuntimePreparedModel>> prepareModel(
             const ModelFactory& makeModel, ExecutionPreference preference, Priority priority,
-            const std::optional<Deadline>& deadline, const std::string& cacheDir,
+            const OptionalTimePoint& deadline, const std::string& cacheDir,
             const std::optional<CacheToken>& maybeToken) const = 0;
 
     // The caller is responsible for making sure the MemoryDescriptor only contains

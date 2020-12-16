@@ -91,20 +91,13 @@ void initVLogMask() {
     }
 }
 
-TimeoutDuration makeTimeoutDuration(uint64_t nanoseconds) {
-    // According to the standard, std::chrono::nanoseconds::rep is a signed
-    // integer type of at least 64 bits. This check prevents an overflow when
-    // rep is exactly 64 bits.
-    if constexpr (sizeof(std::chrono::nanoseconds::rep) == sizeof(int64_t)) {
-        nanoseconds = std::min(nanoseconds,
-                               static_cast<uint64_t>(std::chrono::nanoseconds::max().count()));
-    }
-    return std::chrono::nanoseconds{nanoseconds};
+Duration makeTimeoutDuration(uint64_t nanoseconds) {
+    return Duration{nanoseconds};
 }
 
-Deadline makeDeadline(TimeoutDuration duration) {
-    const auto maxTime = Deadline::max();
-    const auto currentTime = std::chrono::steady_clock::now();
+TimePoint makeDeadline(Duration duration) {
+    const auto maxTime = TimePoint::max();
+    const auto currentTime = Clock::now();
 
     // If there would be an overflow, use the max value.
     if (duration > maxTime - currentTime) {
@@ -113,18 +106,18 @@ Deadline makeDeadline(TimeoutDuration duration) {
     return currentTime + duration;
 }
 
-bool hasDeadlinePassed(const std::optional<Deadline>& deadline) {
+bool hasDeadlinePassed(const OptionalTimePoint& deadline) {
     if (!deadline.has_value()) {
         return false;
     }
-    return std::chrono::steady_clock::now() >= *deadline;
+    return Clock::now() >= *deadline;
 }
 
-static OptionalTimePoint makeTimePoint(const Deadline& deadline) {
+static OptionalTimePoint makeTimePoint(const TimePoint& deadline) {
     return deadline;
 }
 
-OptionalTimePoint makeTimePoint(const std::optional<Deadline>& deadline) {
+OptionalTimePoint makeTimePoint(const OptionalTimePoint& deadline) {
     return deadline.has_value() ? makeTimePoint(*deadline) : OptionalTimePoint{};
 }
 
@@ -1812,8 +1805,7 @@ int convertErrorStatusToResultCode(ErrorStatus status) {
 
 std::tuple<int, std::vector<OutputShape>, Timing> getExecutionResult(
         ErrorStatus status, std::vector<OutputShape> outputShapes, Timing timing) {
-    constexpr Timing kNoTiming = {std::numeric_limits<uint64_t>::max(),
-                                  std::numeric_limits<uint64_t>::max()};
+    constexpr Timing kNoTiming = {};
     const int n = convertErrorStatusToResultCode(status);
     if (status != ErrorStatus::NONE && status != ErrorStatus::OUTPUT_INSUFFICIENT_SIZE &&
         !outputShapes.empty()) {

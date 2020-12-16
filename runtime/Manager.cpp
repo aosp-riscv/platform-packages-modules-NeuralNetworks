@@ -93,7 +93,7 @@ class DriverDevice : public Device {
 
     std::pair<int, std::shared_ptr<RuntimePreparedModel>> prepareModel(
             const ModelFactory& makeModel, ExecutionPreference preference, Priority priority,
-            const std::optional<Deadline>& deadline, const std::string& cacheDir,
+            const OptionalTimePoint& deadline, const std::string& cacheDir,
             const std::optional<CacheToken>& maybeToken) const override;
 
     std::pair<int, std::unique_ptr<RuntimeMemory>> allocate(const MemoryDescriptor& desc,
@@ -129,16 +129,16 @@ class DriverPreparedModel : public RuntimePreparedModel {
             const std::vector<ModelArgumentInfo>& outputs,
             const std::vector<const RuntimeMemory*>& memories,
             const std::shared_ptr<ExecutionBurstController>& burstController, MeasureTiming measure,
-            const std::optional<Deadline>& deadline,
-            const OptionalTimeoutDuration& loopTimeoutDuration) const override;
+            const OptionalTimePoint& deadline,
+            const OptionalDuration& loopTimeoutDuration) const override;
 
     std::tuple<int, int, ExecuteFencedInfoCallback, Timing> executeFenced(
             const std::vector<ModelArgumentInfo>& inputs,
             const std::vector<ModelArgumentInfo>& outputs,
             const std::vector<const RuntimeMemory*>& memories, const std::vector<int>& waitFor,
-            MeasureTiming measure, const std::optional<Deadline>& deadline,
-            const OptionalTimeoutDuration& loopTimeoutDuration,
-            const OptionalTimeoutDuration& timeoutDurationAfterFence) const override;
+            MeasureTiming measure, const OptionalTimePoint& deadline,
+            const OptionalDuration& loopTimeoutDuration,
+            const OptionalDuration& timeoutDurationAfterFence) const override;
 
     std::shared_ptr<ExecutionBurstController> configureExecutionBurst(
             bool preferPowerOverLatency) const override {
@@ -236,7 +236,7 @@ std::vector<bool> DriverDevice::getSupportedOperations(const MetaModel& metaMode
 
 std::pair<int, std::shared_ptr<RuntimePreparedModel>> DriverDevice::prepareModel(
         const ModelFactory& makeModel, ExecutionPreference preference, Priority priority,
-        const std::optional<Deadline>& deadline, const std::string& cacheDir,
+        const OptionalTimePoint& deadline, const std::string& cacheDir,
         const std::optional<CacheToken>& maybeToken) const {
     const auto [n, preparedModel] = kInterface->prepareModel(makeModel, preference, priority,
                                                              deadline, cacheDir, maybeToken);
@@ -324,8 +324,7 @@ std::tuple<int, std::vector<OutputShape>, Timing> DriverPreparedModel::execute(
         const std::vector<ModelArgumentInfo>& inputs, const std::vector<ModelArgumentInfo>& outputs,
         const std::vector<const RuntimeMemory*>& memories,
         const std::shared_ptr<ExecutionBurstController>& burstController, MeasureTiming measure,
-        const std::optional<Deadline>& deadline,
-        const OptionalTimeoutDuration& loopTimeoutDuration) const {
+        const OptionalTimePoint& deadline, const OptionalDuration& loopTimeoutDuration) const {
     NNTRACE_RT(NNTRACE_PHASE_INPUTS_AND_OUTPUTS, "DriverPreparedModel::execute");
 
     // Make a copy of the memory tracker as we will append memory pools for pointer arguments.
@@ -434,9 +433,9 @@ std::tuple<int, std::vector<OutputShape>, Timing> DriverPreparedModel::execute(
 std::tuple<int, int, ExecuteFencedInfoCallback, Timing> DriverPreparedModel::executeFenced(
         const std::vector<ModelArgumentInfo>& inputs, const std::vector<ModelArgumentInfo>& outputs,
         const std::vector<const RuntimeMemory*>& memories, const std::vector<int>& waitFor,
-        MeasureTiming measure, const std::optional<Deadline>& deadline,
-        const OptionalTimeoutDuration& loopTimeoutDuration,
-        const OptionalTimeoutDuration& timeoutDurationAfterFence) const {
+        MeasureTiming measure, const OptionalTimePoint& deadline,
+        const OptionalDuration& loopTimeoutDuration,
+        const OptionalDuration& timeoutDurationAfterFence) const {
     NNTRACE_RT(NNTRACE_PHASE_INPUTS_AND_OUTPUTS, "DriverPreparedModel::executeFenced");
     CHECK(std::all_of(waitFor.begin(), waitFor.end(), [](int fd) { return fd > 0; }));
     // Make a copy of the memory tracker as we will append memory pools for pointer arguments.
@@ -569,7 +568,7 @@ class CpuDevice : public Device {
 
     std::pair<int, std::shared_ptr<RuntimePreparedModel>> prepareModel(
             const ModelFactory& makeModel, ExecutionPreference preference, Priority priority,
-            const std::optional<Deadline>& deadline, const std::string& cacheDir,
+            const OptionalTimePoint& deadline, const std::string& cacheDir,
             const std::optional<CacheToken>& maybeToken) const override;
 
     std::pair<int, std::unique_ptr<RuntimeMemory>> allocate(const MemoryDescriptor& desc,
@@ -602,8 +601,8 @@ class CpuPreparedModel : public RuntimePreparedModel {
             const std::vector<ModelArgumentInfo>& outputs,
             const std::vector<const RuntimeMemory*>& memories,
             const std::shared_ptr<ExecutionBurstController>& burstController, MeasureTiming measure,
-            const std::optional<Deadline>& deadline,
-            const OptionalTimeoutDuration& loopTimeoutDuration) const override;
+            const OptionalTimePoint& deadline,
+            const OptionalDuration& loopTimeoutDuration) const override;
 
     std::shared_ptr<ExecutionBurstController> configureExecutionBurst(
             bool /*preferPowerOverLatency*/) const override {
@@ -614,9 +613,9 @@ class CpuPreparedModel : public RuntimePreparedModel {
             const std::vector<ModelArgumentInfo>& inputs,
             const std::vector<ModelArgumentInfo>& outputs,
             const std::vector<const RuntimeMemory*>& memories, const std::vector<int>& wait_for,
-            MeasureTiming measure, const std::optional<Deadline>& deadline,
-            const OptionalTimeoutDuration& loopTimeoutDuration,
-            const OptionalTimeoutDuration& timeoutDurationAfterFence) const override;
+            MeasureTiming measure, const OptionalTimePoint& deadline,
+            const OptionalDuration& loopTimeoutDuration,
+            const OptionalDuration& timeoutDurationAfterFence) const override;
 
     // Prefer to use CpuPreparedModel::create.
     CpuPreparedModel(Model model, std::vector<RunTimePoolInfo> poolInfos)
@@ -643,7 +642,7 @@ std::vector<bool> CpuDevice::getSupportedOperations(const MetaModel& metaModel) 
 
 std::pair<int, std::shared_ptr<RuntimePreparedModel>> CpuDevice::prepareModel(
         const ModelFactory& makeModel, ExecutionPreference preference, Priority priority,
-        const std::optional<Deadline>& deadline, const std::string& /*cacheDir*/,
+        const OptionalTimePoint& deadline, const std::string& /*cacheDir*/,
         const std::optional<CacheToken>& maybeToken) const {
     CHECK(!maybeToken.has_value())
             << "Should never call prepareModel with cache information on CpuDevice";
@@ -692,9 +691,8 @@ std::pair<int, std::shared_ptr<RuntimePreparedModel>> CpuPreparedModel::create(M
 static std::tuple<int, std::vector<OutputShape>, Timing> computeOnCpu(
         const Model& model, const Request& request,
         const std::vector<RunTimePoolInfo>& modelPoolInfos,
-        const std::vector<RunTimePoolInfo>& requestPoolInfos,
-        const std::optional<Deadline>& deadline,
-        const OptionalTimeoutDuration& loopTimeoutDuration) {
+        const std::vector<RunTimePoolInfo>& requestPoolInfos, const OptionalTimePoint& deadline,
+        const OptionalDuration& loopTimeoutDuration) {
     NNTRACE_RT(NNTRACE_PHASE_EXECUTION, "computeOnCpu");
     CpuExecutor executor;
     if (loopTimeoutDuration.has_value()) {
@@ -711,9 +709,8 @@ static std::tuple<int, std::vector<OutputShape>, Timing> computeOnCpu(
 std::tuple<int, int, ExecuteFencedInfoCallback, Timing> CpuPreparedModel::executeFenced(
         const std::vector<ModelArgumentInfo>& inputs, const std::vector<ModelArgumentInfo>& outputs,
         const std::vector<const RuntimeMemory*>& memories, const std::vector<int>& waitFor,
-        MeasureTiming measure, const std::optional<Deadline>& deadline,
-        const OptionalTimeoutDuration& loopTimeoutDuration,
-        const OptionalTimeoutDuration& duration) const {
+        MeasureTiming measure, const OptionalTimePoint& deadline,
+        const OptionalDuration& loopTimeoutDuration, const OptionalDuration& duration) const {
     VLOG(EXECUTION)
             << "CpuPreparedModel::executeFenced wait for sync fences to signal before execution";
     for (int syncFd : waitFor) {
@@ -721,7 +718,7 @@ std::tuple<int, int, ExecuteFencedInfoCallback, Timing> CpuPreparedModel::execut
             auto r = syncWait(syncFd, -1);
             if (r != FenceState::SIGNALED) {
                 LOG(ERROR) << "sync wait failed, fd: " << syncFd;
-                return {ANEURALNETWORKS_OP_FAILED, -1, nullptr, {UINT64_MAX, UINT64_MAX}};
+                return {ANEURALNETWORKS_OP_FAILED, -1, nullptr, {}};
             }
         }
     }
@@ -751,8 +748,8 @@ std::tuple<int, std::vector<OutputShape>, Timing> CpuPreparedModel::execute(
         const std::vector<ModelArgumentInfo>& inputs, const std::vector<ModelArgumentInfo>& outputs,
         const std::vector<const RuntimeMemory*>& memories,
         const std::shared_ptr<ExecutionBurstController>& /*burstController*/,
-        MeasureTiming /*measure*/, const std::optional<Deadline>& deadline,
-        const OptionalTimeoutDuration& loopTimeoutDuration) const {
+        MeasureTiming /*measure*/, const OptionalTimePoint& deadline,
+        const OptionalDuration& loopTimeoutDuration) const {
     if (hasDeadlinePassed(deadline)) {
         return {ANEURALNETWORKS_MISSED_DEADLINE_PERSISTENT, {}, {}};
     }

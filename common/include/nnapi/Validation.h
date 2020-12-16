@@ -49,7 +49,7 @@ Result<Version> validate(const BufferDesc& bufferDesc);
 Result<Version> validate(const BufferRole& bufferRole);
 Result<Version> validate(const Request& request);
 Result<Version> validate(const OptionalTimePoint& optionalTimePoint);
-Result<Version> validate(const OptionalTimeoutDuration& optionalTimeoutDuration);
+Result<Version> validate(const OptionalDuration& optionalTimeoutDuration);
 
 Result<Version> validate(const std::vector<OutputShape>& outputShapes);
 Result<Version> validate(const std::vector<Extension>& extensions);

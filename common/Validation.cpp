@@ -260,8 +260,19 @@ Result<Version> validateOutputShape(const OutputShape& /*outputShape*/) {
 }
 
 Result<Version> validateTiming(const Timing& timing) {
-    if (timing.timeInDriver != kNoTiming && timing.timeOnDevice != kNoTiming) {
-        NN_VALIDATE_LE(timing.timeOnDevice, timing.timeInDriver);
+    if (timing.timeInDriver.has_value() && timing.timeOnDevice.has_value()) {
+        // `lazyMessage` is a lazy function to produce the timing validation error message.
+        // Currently, the code is not able to inline the message in NN_VALIDATE due to a
+        // argument-dependent lookup issue with nn::detail::ErrorBuilder interacting with std types
+        // such as std::chrono::duration, so this function uses an indirection through
+        // std::ostringstream.
+        const auto lazyMessage = [&timing]() -> std::string {
+            std::ostringstream oss;
+            oss << "Timing::timeOnDevice (" << timing.timeOnDevice.value()
+                << ") must not exceed Timing::timeInDriver (" << timing.timeInDriver.value() << ")";
+            return oss.str();
+        };
+        NN_VALIDATE(timing.timeOnDevice.value() <= timing.timeInDriver.value()) << lazyMessage();
     }
     return Version::ANDROID_Q;
 }
@@ -1008,18 +1019,12 @@ Result<Version> validateRequest(const Request& request) {
     return version;
 }
 
-Result<Version> validateOptionalTimePoint(const OptionalTimePoint& optionalTimePoint) {
-    if (optionalTimePoint.has_value()) {
-        NN_VALIDATE_GE(optionalTimePoint.value().time_since_epoch().count(), 0);
-    }
+Result<Version> validateOptionalTimePoint(const OptionalTimePoint& /*optionalTimePoint*/) {
     return Version::ANDROID_R;
 }
 
 Result<Version> validateOptionalTimeoutDuration(
-        const OptionalTimeoutDuration& optionalTimeoutDuration) {
-    if (optionalTimeoutDuration.has_value()) {
-        NN_VALIDATE_GE(optionalTimeoutDuration.value().count(), 0);
-    }
+        const OptionalDuration& /*optionalTimeoutDuration*/) {
     return Version::ANDROID_R;
 }
 
@@ -2600,7 +2605,7 @@ Result<Version> validate(const OptionalTimePoint& optionalTimePoint) {
     return validateOptionalTimePoint(optionalTimePoint);
 }
 
-Result<Version> validate(const OptionalTimeoutDuration& optionalTimeoutDuration) {
+Result<Version> validate(const OptionalDuration& optionalTimeoutDuration) {
     return validateOptionalTimeoutDuration(optionalTimeoutDuration);
 }
 

@@ -170,7 +170,7 @@ ErrorStatus ManagedBuffer::validateCopyTo(uint32_t size) const {
 
 bool ManagedBuffer::updateDimensions(const std::vector<uint32_t>& dimensions) {
     auto combined = combineDimensions(kInitialDimensions, dimensions);
-    if (!combined) {
+    if (!combined.has_value()) {
         LOG(ERROR) << "ManagedBuffer::updateDimensions -- incompatible dimensions ("
                    << toString(kInitialDimensions) << " vs " << toString(dimensions) << ")";
         return false;

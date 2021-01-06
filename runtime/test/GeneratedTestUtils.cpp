@@ -25,8 +25,12 @@
 #include <utility>
 #include <vector>
 
-#include "TestHarness.h"
+#ifdef NNTEST_SLTS
+#include "SupportLibraryTestWrapper.h"
+#else
 #include "TestNeuralNetworksWrapper.h"
+#endif
+#include "TestHarness.h"
 
 namespace android::nn::generated_tests {
 using namespace test_wrapper;
@@ -49,7 +53,11 @@ static OperandType getOperandType(const TestOperand& op, bool testDynamicOutputS
 // A Memory object that owns AHardwareBuffer
 class MemoryAHWB : public Memory {
    public:
+#ifdef NNTEST_SLTS
+    static std::unique_ptr<MemoryAHWB> create(const NnApiSupportLibrary* nnapi, uint32_t size) {
+#else
     static std::unique_ptr<MemoryAHWB> create(uint32_t size) {
+#endif
         const uint64_t usage =
                 AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN | AHARDWAREBUFFER_USAGE_CPU_WRITE_OFTEN;
         AHardwareBuffer_Desc desc = {
@@ -67,7 +75,11 @@ class MemoryAHWB : public Memory {
         EXPECT_EQ(AHardwareBuffer_lock(ahwb, usage, -1, nullptr, &buffer), 0);
         EXPECT_NE(buffer, nullptr);
 
+#ifdef NNTEST_SLTS
+        return std::unique_ptr<MemoryAHWB>(new MemoryAHWB(nnapi, ahwb, buffer));
+#else
         return std::unique_ptr<MemoryAHWB>(new MemoryAHWB(ahwb, buffer));
+#endif
     }
 
     ~MemoryAHWB() override {
@@ -78,13 +90,23 @@ class MemoryAHWB : public Memory {
     void* getPointer() const { return mBuffer; }
 
    private:
+#ifdef NNTEST_SLTS
+    MemoryAHWB(const NnApiSupportLibrary* nnapi, AHardwareBuffer* ahwb, void* buffer)
+        : Memory(nnapi, ahwb), mAhwb(ahwb), mBuffer(buffer) {}
+#else
     MemoryAHWB(AHardwareBuffer* ahwb, void* buffer) : Memory(ahwb), mAhwb(ahwb), mBuffer(buffer) {}
+#endif
 
     AHardwareBuffer* mAhwb;
     void* mBuffer;
 };
 
+#ifdef NNTEST_SLTS
+static std::unique_ptr<MemoryAHWB> createConstantReferenceMemory(const NnApiSupportLibrary* nnapi,
+                                                                 const TestModel& testModel) {
+#else
 static std::unique_ptr<MemoryAHWB> createConstantReferenceMemory(const TestModel& testModel) {
+#endif
     uint32_t size = 0;
 
     auto processSubgraph = [&size](const TestSubgraph& subgraph) {
@@ -99,7 +121,11 @@ static std::unique_ptr<MemoryAHWB> createConstantReferenceMemory(const TestModel
     for (const TestSubgraph& subgraph : testModel.referenced) {
         processSubgraph(subgraph);
     }
+#ifdef NNTEST_SLTS
+    return size == 0 ? nullptr : MemoryAHWB::create(nnapi, size);
+#else
     return size == 0 ? nullptr : MemoryAHWB::create(size);
+#endif
 }
 
 static void createModelFromSubgraph(const TestSubgraph& subgraph, bool testDynamicOutputShape,
@@ -130,6 +156,7 @@ static void createModelFromSubgraph(const TestSubgraph& subgraph, bool testDynam
                 CHECK_LT(refIndex, refSubgraphs.size());
                 const TestSubgraph& refSubgraph = refSubgraphs[refIndex];
                 Model* refModel = &refModels[refIndex];
+
                 if (!refModel->isFinished()) {
                     createModelFromSubgraph(refSubgraph, testDynamicOutputShape, refSubgraphs,
                                             memory, memoryOffset, refModel, refModels);
@@ -155,12 +182,29 @@ static void createModelFromSubgraph(const TestSubgraph& subgraph, bool testDynam
     model->identifyInputsAndOutputs(subgraph.inputIndexes, subgraph.outputIndexes);
 }
 
+#ifdef NNTEST_SLTS
+void createModel(const NnApiSupportLibrary* nnapi, const TestModel& testModel,
+                 bool testDynamicOutputShape, GeneratedModel* model) {
+#else
 void createModel(const TestModel& testModel, bool testDynamicOutputShape, GeneratedModel* model) {
+#endif
     ASSERT_NE(nullptr, model);
 
+#ifdef NNTEST_SLTS
+    std::unique_ptr<MemoryAHWB> memory = createConstantReferenceMemory(nnapi, testModel);
+#else
     std::unique_ptr<MemoryAHWB> memory = createConstantReferenceMemory(testModel);
+#endif
     uint32_t memoryOffset = 0;
+#ifdef NNTEST_SLTS
+    std::vector<Model> refModels;
+    refModels.reserve(testModel.referenced.size());
+    for (int i = 0; i < testModel.referenced.size(); ++i) {
+        refModels.push_back(Model(nnapi));
+    }
+#else
     std::vector<Model> refModels(testModel.referenced.size());
+#endif
     createModelFromSubgraph(testModel.main, testDynamicOutputShape, testModel.referenced, memory,
                             &memoryOffset, model, refModels.data());
     model->setRefModels(std::move(refModels));

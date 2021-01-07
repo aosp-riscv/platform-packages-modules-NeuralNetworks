@@ -26,33 +26,31 @@
 #include <utility>
 #include <vector>
 
-#include "HalInterfaces.h"
-#include "Utils.h"
 #include "nnapi/Types.h"
 
 namespace android::nn {
 
 // The MetaModel class encapsulates a Model and provides machinery to create
 // from that original Model a "slice" of that Model consisting of:
-// - the subset of operations that is compliant with a particular HAL version; and
+// - the subset of operations that is compliant with a particular version; and
 // - a mechanism for mapping operations from the slice back to operations of the
 //   original Model.
-// The slice is intended to be passed to IDevice::getSupportedOperations*(),
+// The slice is intended to be passed to IDevice::getSupportedOperations(),
 // with the mapping used to translate the results of that call from the slice's
 // operations to the original Model's operations.  The slice has no other
 // purpose (for example, it is not guaranteed to have the same topology as a
 // subgraph of the original model).
 //
-// When a getSlice*() method is called, a slice is created and cached, if
-// necessary; and then the cached slice is returned.
+// When getSlice() is called, a slice is created and cached, if necessary; and
+// then the cached slice is returned.
 //
-// The meaning of the return value of the getSlice*() methods is explained by
-// the following example:
+// The meaning of the return value of getSlice() is explained by the following
+// example:
 //
 //     const MetaModel& metaModel = ...;
-//     auto ret = metaModel.getSliceV1_0();  // getSliceV1_1() is similar
+//     auto ret = metaModel.getSlice(Version::ANDROID_OC_MR1);
 //     if (ret.has_value()) {
-//         const V1_0::Model model = ret->first;  // the slice
+//         const Model model = ret->first;  // the slice
 //         auto mapper = ret->second;
 //         // mapper is a functor that takes an operation index in the
 //         // slice and returns the corresponding operation index in the
@@ -60,34 +58,31 @@ namespace android::nn {
 //         // of the MetaModel.
 //     } else {
 //         // Could not obtain a slice.  For example, perhaps none of the
-//         // original model's operations are compliant with V1_0.
+//         // original model's operations are compliant with
+//         // Version::ANDROID_OC_MR1.
 //     }
 //
 class MetaModel {
    public:
     using Mapper = std::function<uint32_t(uint32_t)>;
 
-    template <class T_Model>
-    using ReturnedSlice = std::optional<std::pair<T_Model, Mapper>>;
+    using ReturnedSlice = std::optional<std::pair<Model, Mapper>>;
 
-    MetaModel(Model model, bool strictSlicing)
-        : mModel(std::move(model)), mStrictSlicing(strictSlicing) {}
+    // Precondition: validate(model).has_value()
+    MetaModel(Model model, bool strictSlicing);
 
     const Model& getModel() const { return mModel; }
 
-    ReturnedSlice<V1_0::Model> getSliceV1_0() const { return getSlice(&mSliceV1_0); }
-    ReturnedSlice<V1_1::Model> getSliceV1_1() const { return getSlice(&mSliceV1_1); }
-    ReturnedSlice<V1_2::Model> getSliceV1_2() const { return getSlice(&mSliceV1_2); }
-    ReturnedSlice<V1_3::Model> getSliceV1_3() const { return getSlice(&mSliceV1_3); }
+    ReturnedSlice getSlice(Version version) const;
 
     // Disallowing copy constructor and assignment operator is for efficiency,
     // not for correctness.  The default copy constructor and assignment
     // operator would work fine.  However, they could be surprisingly expensive
-    // if the mSlice* members get copied: Up to three Model instances and two
-    // std::vector instances could be copied.  We could choose to accept this
-    // expense; or we could write custom copy and assign that do not copy the
-    // mSlice* members but instead set the destination mSlice* members to
-    // SliceState::UNINITIALIZED.
+    // if the mCachedSlices member gets copied: Up to one Model instance and
+    // one std::vector instance per version could be copied.  We could choose
+    // to accept this expense; or we could write custom copy and assign that do
+    // not copy the mCachedSlices member but instead set the destination
+    // mCachedSlices Slice::mState members to SliceState::UNINITIALIZED.
     //
     // There are no such issues with move constructor and move assignment.
     MetaModel(const MetaModel&) = delete;
@@ -97,57 +92,38 @@ class MetaModel {
 
    private:
     Model mModel;
+    Version mModelMinimumSupportedVersion;
 
     // mStrictSlicing controls validity checking.  If the slicing algorithm
     // produces an invalid model (because something has gone wrong with the
-    // algorithm or with a utility function it depends on), getSlice*() can
+    // algorithm or with a utility function it depends on), getSlice() can
     // return an std::optional<> for which has_value() returns false, signifying
     // that no slice is available.  However, if mStrictSlicing is true,
-    // getSlice*() cause a CHECK*() to fail.  This can be used in debugging to
+    // getSlice() cause a CHECK*() to fail.  This can be used in debugging to
     // find situations where slicing has failed unexpectedly.
     bool mStrictSlicing;
 
     enum class SliceState { UNINITIALIZED, INVALID, NORMAL };
-    template <class T_SlicedModel>
     struct Slice {
         SliceState mState = SliceState::UNINITIALIZED;
-        T_SlicedModel mHidlModel;
+        Model mModel;
         std::vector<uint32_t> mSlicedOperationIndexToOrigIndex;
-
-        using Operand = typename decltype(mHidlModel.operands)::value_type;
-        using Operation = typename decltype(mHidlModel.operations)::value_type;
-        using OperationType = decltype(Operation::type);
     };
-    template <>
-    struct Slice<V1_3::Model> {  // Trivial slice.
-        SliceState mState = SliceState::UNINITIALIZED;
-        V1_3::Model mHidlModel;
-    };
-    mutable Slice<V1_0::Model> mSliceV1_0;
-    mutable Slice<V1_1::Model> mSliceV1_1;
-    mutable Slice<V1_2::Model> mSliceV1_2;
-    mutable Slice<V1_3::Model> mSliceV1_3;
 
-    template <class T_SlicedModel>
-    ReturnedSlice<T_SlicedModel> getSlice(Slice<T_SlicedModel>* slice) const;
-    template <>
-    ReturnedSlice<V1_3::Model> getSlice(Slice<V1_3::Model>* slice) const;
+    mutable std::map<Version, Slice> mCachedSlices;
 
-    template <class T_SlicedModel>
-    Slice<T_SlicedModel> makeSlice() const;
+    Slice makeSlice(Version version) const;
+
+    std::set<uint32_t> getNoncompliantOperations(Version version) const;
 
     // Utility class for makeSlice().
-    template <typename T_SlicedOperand>
     class OrigOperandToSlicedInputOperandIndex;
 
     // Utility function for makeSlice(): Walks operations of original
     // model and populates sliced model accordingly.
-    template <class T_SlicedModel>
     void processOperations(
-            Slice<T_SlicedModel>* slice,
-            std::map<uint32_t, uint32_t>* origOperandIndexToSlicedIndex,
-            OrigOperandToSlicedInputOperandIndex<typename Slice<T_SlicedModel>::Operand>*
-                    origOperandToSlicedInputOperandIndex,
+            Slice* slice, std::map<uint32_t, uint32_t>* origOperandIndexToSlicedIndex,
+            OrigOperandToSlicedInputOperandIndex* origOperandToSlicedInputOperandIndex,
             const std::set<uint32_t>& noncompliantOperations,
             const std::set<uint32_t>& inputOperandIndexesOfCompliantOperations) const;
 };

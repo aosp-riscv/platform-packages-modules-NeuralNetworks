@@ -361,9 +361,18 @@ Result<Version> validateExtensions(const std::vector<Extension>& extensions) {
     return version;
 }
 
-Result<Version> validateOperandDataLocation(const Operand& operand, size_t operandValuesSize,
-                                            const std::vector<size_t>& poolSizes,
-                                            size_t subgraphCount) {
+// Forward declaration of subgraph validation function.
+Result<Version> validateModelSubgraph(const Model::Subgraph& subgraph,
+                                      std::optional<size_t> referencedIndex,
+                                      size_t operandValuesSize,
+                                      const std::vector<size_t>& poolSizes,
+                                      const std::vector<Model::Subgraph>& referenced,
+                                      std::vector<std::optional<Version>>* subgraphVersionCache);
+
+Result<Version> validateOperandDataLocation(
+        const Operand& operand, size_t operandValuesSize, const std::vector<size_t>& poolSizes,
+        const std::vector<Model::Subgraph>& subgraphs,
+        std::vector<std::optional<Version>>* subgraphVersionCache) {
     const DataLocation& location = operand.location;
     switch (operand.lifetime) {
         case Operand::LifeTime::CONSTANT_COPY:
@@ -399,16 +408,20 @@ Result<Version> validateOperandDataLocation(const Operand& operand, size_t opera
             NN_VALIDATE_EQ(location.length, 0u) << "Unexpected length " << location.length
                                                 << " for operand of lifetime " << operand.lifetime;
             return Version::ANDROID_OC_MR1;
-        case Operand::LifeTime::SUBGRAPH:
+        case Operand::LifeTime::SUBGRAPH: {
             NN_VALIDATE(location.pointer == kNullptrVariant) << "SUBGRAPH with a non-null pointer";
             NN_VALIDATE_EQ(location.poolIndex, 0u)
                     << "SUBGRAPH with a non-zero poolIndex " << location.poolIndex;
-            NN_VALIDATE_LT(location.offset, subgraphCount)
+            NN_VALIDATE_LT(location.offset, subgraphs.size())
                     << "Subgraph index out of range: " << location.offset
-                    << " >= " << subgraphCount;
+                    << " >= " << subgraphs.size();
             NN_VALIDATE_EQ(location.length, 0u)
                     << "SUBGRAPH with a non-zero length " << location.length;
-            return Version::ANDROID_R;
+            const auto version = NN_TRY(validateModelSubgraph(
+                    subgraphs[location.offset], location.offset, operandValuesSize, poolSizes,
+                    subgraphs, subgraphVersionCache));
+            return combineVersions(version, Version::ANDROID_R);
+        }
         case Operand::LifeTime::POINTER: {
             const bool nonNull =
                     std::visit([](auto* ptr) { return ptr != nullptr; }, location.pointer);
@@ -630,17 +643,19 @@ Result<Version> validateOperandExtraParams(const Operand& operand) {
     NN_VALIDATE_FAIL() << "Invalid OperandType " << operand.type;
 }
 
-Result<Version> validateOperand(const Operand& operand, size_t operandValuesSize,
-                                const std::vector<size_t>& poolSizes, size_t subgraphCount) {
+Result<Version> validateOperandImpl(const Operand& operand, size_t operandValuesSize,
+                                    const std::vector<size_t>& poolSizes,
+                                    const std::vector<Model::Subgraph>& subgraphs,
+                                    std::vector<std::optional<Version>>* subgraphVersionCache) {
     auto version = NN_TRY(validateOperandType(operand.type));
     version = combineVersions(version, NN_TRY(validateOperandLifeTime(operand)));
     version = combineVersions(version, NN_TRY(validateOperandDimensions(operand)));
     version = combineVersions(version, NN_TRY(validateOperandScale(operand)));
     version = combineVersions(version, NN_TRY(validateOperandZeroPoint(operand)));
     version = combineVersions(version, NN_TRY(validateOperandExtraParams(operand)));
-    version =
-            combineVersions(version, NN_TRY(validateOperandDataLocation(operand, operandValuesSize,
-                                                                        poolSizes, subgraphCount)));
+    version = combineVersions(
+            version, NN_TRY(validateOperandDataLocation(operand, operandValuesSize, poolSizes,
+                                                        subgraphs, subgraphVersionCache)));
 
     // For constants, validate that the length is as expected. The other lifetimes
     // expect the length to be 0. Don't validate for OEM types.
@@ -659,31 +674,38 @@ Result<Version> validateOperand(const Operand& operand, size_t operandValuesSize
     return version;
 }
 
-Result<Version> validateOperands(const std::vector<Operand>& operands, size_t operandValuesSize,
-                                 const std::vector<size_t>& poolSizes, size_t subgraphCount) {
-    auto version = Version::ANDROID_OC_MR1;
+Result<std::vector<Version>> validateOperands(
+        const std::vector<Operand>& operands, size_t operandValuesSize,
+        const std::vector<size_t>& poolSizes, const std::vector<Model::Subgraph>& subgraphs,
+        std::vector<std::optional<Version>>* subgraphVersionCache) {
+    std::vector<Version> versions;
+    versions.reserve(operands.size());
     for (size_t i = 0; i < operands.size(); ++i) {
-        auto result = validateOperand(operands[i], operandValuesSize, poolSizes, subgraphCount);
+        auto result = validateOperandImpl(operands[i], operandValuesSize, poolSizes, subgraphs,
+                                          subgraphVersionCache);
         if (!result.has_value()) {
-            return NN_ERROR() << std::move(result).error() << " for operand " << i;
+            return error() << std::move(result).error() << " for operand " << i;
         }
-        version = combineVersions(version, result.value());
+        versions.push_back(result.value());
     }
-    return version;
+    return versions;
 }
 
-Result<Version> validateOperationImpl(const Operation& operation,
-                                      const std::vector<Operand>& operands,
-                                      const std::vector<Model::Subgraph>& subgraphs);
+// Forward declaration.
+Result<Version> validateOperationIncludingOperandVersions(
+        const Operation& operation, const std::vector<Operand>& operands,
+        const std::vector<Version>& operandVersions, const std::vector<Model::Subgraph>& subgraphs);
 
 Result<Version> validateOperations(const std::vector<Operation>& operations,
                                    const std::vector<Operand>& operands,
+                                   const std::vector<Version>& operandVersions,
                                    const std::vector<Model::Subgraph>& subgraphs) {
     auto version = Version::ANDROID_OC_MR1;
     for (size_t i = 0; i < operations.size(); ++i) {
-        auto result = validateOperationImpl(operations[i], operands, subgraphs);
+        auto result = validateOperationIncludingOperandVersions(operations[i], operands,
+                                                                operandVersions, subgraphs);
         if (!result.has_value()) {
-            return NN_ERROR() << std::move(result).error() << " for operation " << i;
+            return error() << std::move(result).error() << " for operation " << i;
         }
         version = combineVersions(version, result.value());
     }
@@ -783,7 +805,7 @@ Result<void> validateExecutionOrder(const Model::Subgraph& subgraph) {
 
         for (size_t j = 0; j < operation.outputs.size(); ++j) {
             const uint32_t k = operation.outputs[j];
-            // Assuming validateOperations() has returned true, we know that this output is
+            // Assuming validateOperations() has not returned an error, we know that this output is
             // TEMPORARY_VARIABLE or MODEL_OUTPUT, and so the only way operandValueKnown[k] can be
             // true is if we've already seen a writer for this operand.
             NN_VALIDATE(!operandValueKnown[k]) << "Operation " << i << " output " << j
@@ -802,19 +824,43 @@ Result<void> validateExecutionOrder(const Model::Subgraph& subgraph) {
     return {};
 }
 
-Result<Version> validateModelSubgraph(const Model::Subgraph& subgraph, size_t operandValuesSize,
+// Validate a subgraph, ensuring all subgraphs it depends on are also validated.
+//
+// `referencedIndex` is empty if the subgraph being validated is the main subgraph, otherwise it is
+// the index of the referenced subgraph being validated.
+//
+// referenced[i] and (*subgraphVersionCache)[i] correspond to the same subgraph, and therefore
+// `referenced` and `subgraphVersionCache` must have the same length.
+Result<Version> validateModelSubgraph(const Model::Subgraph& subgraph,
+                                      std::optional<size_t> referencedIndex,
+                                      size_t operandValuesSize,
                                       const std::vector<size_t>& poolSizes,
-                                      const std::vector<Model::Subgraph>& referenced) {
+                                      const std::vector<Model::Subgraph>& referenced,
+                                      std::vector<std::optional<Version>>* subgraphVersionCache) {
+    CHECK(subgraphVersionCache != nullptr);
+    CHECK_EQ(referenced.size(), subgraphVersionCache->size());
+
+    // Quickly return if the current subgraph has already been checked for its version.
+    if (referencedIndex.has_value()) {
+        if (auto version = subgraphVersionCache->at(*referencedIndex)) {
+            return *version;
+        }
+    }
+
     NN_VALIDATE(!subgraph.operands.empty());
     NN_VALIDATE(!subgraph.operations.empty());
     // TODO(b/173780642): Clarify whether subgraphs with no inputs or outputs are valid.
     // NN_VALIDATE(!subgraph.inputIndexes.empty());
     // NN_VALIDATE(!subgraph.outputIndexes.empty());
 
-    auto version = NN_TRY(
-            validateOperands(subgraph.operands, operandValuesSize, poolSizes, referenced.size()));
-    version = combineVersions(version, NN_TRY(validateOperations(subgraph.operations,
-                                                                 subgraph.operands, referenced)));
+    const auto operandVersions = NN_TRY(validateOperands(
+            subgraph.operands, operandValuesSize, poolSizes, referenced, subgraphVersionCache));
+    const auto operationsVersion = NN_TRY(validateOperations(subgraph.operations, subgraph.operands,
+                                                             operandVersions, referenced));
+
+    // Accumulate the versions from all operands and operations.
+    const auto version = std::accumulate(operandVersions.begin(), operandVersions.end(),
+                                         operationsVersion, combineVersions);
 
     NN_TRY(validateModelSubgraphInputOutputs(subgraph.inputIndexes, subgraph.operands,
                                              Operand::LifeTime::SUBGRAPH_INPUT));
@@ -823,6 +869,11 @@ Result<Version> validateModelSubgraph(const Model::Subgraph& subgraph, size_t op
 
     NN_TRY(validateExecutionOrder(subgraph));
 
+    // Mark the current subgraph as having already been validated so the caller can quickly return
+    // if this subgraph is checked again.
+    if (referencedIndex.has_value()) {
+        subgraphVersionCache->at(*referencedIndex) = version;
+    }
     return version;
 }
 
@@ -862,24 +913,56 @@ Result<Version> validateModelExtensionNamesAndPrefixes(
 }
 
 // Makes sure the model does not contain subgraph reference cycles.
-Result<void> checkNoReferenceCycles(const Model& model, const Model::Subgraph& subgraph,
-                                    std::set<const Model::Subgraph*>* path) {
-    const auto [_, isNew] = path->insert(&subgraph);
-    NN_VALIDATE(isNew) << "Model contains a circular subgraph reference";
-    // TODO(b/165154824): It looks like this functions is doing a lot of redundant work.
+//
+// This function verifies that referencedSubgraphs[subgraphIndex] and any subgraphs it refences do
+// not contain any reference cycles. `path` is used to keep track of which referenced subgraphs have
+// already been visited in the current recursive reference path. `verified` is a cache to keep track
+// of which referenced subgraphs have already been verified not to form reference cycles.
+//
+// referencedSubgraphs[i], (*path)[i], and (*verified)[i] all correspond to the same subgraph, and
+// therefore `referencedSubgraphs`, `path`, and `verified` must all have the same length.
+Result<void> checkNoReferenceCycles(const std::vector<Model::Subgraph>& referencedSubgraphs,
+                                    uint32_t subgraphIndex, std::vector<bool>* path,
+                                    std::vector<bool>* verified) {
+    CHECK(path != nullptr);
+    CHECK(verified != nullptr);
+    CHECK_EQ(referencedSubgraphs.size(), path->size());
+    CHECK_EQ(referencedSubgraphs.size(), verified->size());
+    const auto& subgraph = referencedSubgraphs.at(subgraphIndex);
+
+    // Quickly return if the current subgraph has already been verified to have no reference cycles.
+    if ((*verified)[subgraphIndex]) {
+        return {};
+    }
+
+    // Add the current subgraph to the path (making sure that it is not already part of the path),
+    // and verify that all subgraphs this subgraph references do not contain cycles. The current
+    // subgraph is removed from the path only after all subgraphs this subgraph references have been
+    // checked.
+    NN_VALIDATE((*path)[subgraphIndex] == false) << "Model contains a circular subgraph reference";
+    (*path)[subgraphIndex] = true;
     for (const Operand& operand : subgraph.operands) {
         if (operand.lifetime == Operand::LifeTime::SUBGRAPH) {
             const uint32_t refSubgraphIndex = operand.location.offset;
-            NN_TRY(checkNoReferenceCycles(model, model.referenced[refSubgraphIndex], path));
+            NN_TRY(checkNoReferenceCycles(referencedSubgraphs, refSubgraphIndex, path, verified));
         }
     }
-    path->erase(&subgraph);
+    (*path)[subgraphIndex] = false;
+
+    // Mark the current subgraph as having already been verified so the caller can quickly return if
+    // this subgraph is checked again.
+    (*verified)[subgraphIndex] = true;
     return {};
 }
 
-Result<void> checkNoReferenceCycles(const Model& model) {
-    std::set<const Model::Subgraph*> path;
-    return checkNoReferenceCycles(model, model.main, &path);
+Result<void> checkNoReferenceCycles(const std::vector<Model::Subgraph>& referencedSubgraphs) {
+    const size_t count = referencedSubgraphs.size();
+    std::vector<bool> path(count);
+    std::vector<bool> verified(count);
+    for (size_t i = 0; i < count; ++i) {
+        NN_TRY(checkNoReferenceCycles(referencedSubgraphs, i, &path, &verified));
+    }
+    return {};
 }
 
 Result<Version> validateModel(const Model& model) {
@@ -896,33 +979,27 @@ Result<Version> validateModel(const Model& model) {
             hasReferencedModels ? Version::ANDROID_R : Version::ANDROID_OC_MR1;
     version = combineVersions(version, referenceModelVersion);
 
-    // Get memory sizes.
-    std::vector<size_t> poolSizes;
-    poolSizes.reserve(model.pools.size());
-    std::transform(model.pools.begin(), model.pools.end(), std::back_inserter(poolSizes),
-                   [](const Memory& memory) { return memory.size; });
-    const size_t operandValuesSize = model.operandValues.size();
+    // Ensure that there are no cycles formed by the subgraphs.
+    NN_TRY(checkNoReferenceCycles(model.referenced));
 
-    // Validate main subgraph.
-    auto result = validateModelSubgraph(model.main, operandValuesSize, poolSizes, model.referenced);
-    if (!result.has_value()) {
-        return NN_ERROR() << std::move(result).error() << " for main subgraph";
-    }
-    version = combineVersions(version, result.value());
+    // Get memory sizes.
+    const auto [operandValuesSize, poolSizes] = getMemorySizes(model);
 
     // Validate referenced subgraphs.
-    for (size_t i = 0; i < model.referenced.size(); ++i) {
-        const auto& subgraph = model.referenced[i];
-        auto result =
-                validateModelSubgraph(subgraph, operandValuesSize, poolSizes, model.referenced);
-        if (!result.has_value()) {
-            return NN_ERROR() << std::move(result).error() << " for referenced subgraph" << i;
-        }
-        version = combineVersions(version, result.value());
+    auto subgraphVersionCache = std::vector<std::optional<Version>>(model.referenced.size());
+    for (size_t referencedIndex = 0; referencedIndex < model.referenced.size(); ++referencedIndex) {
+        const auto& subgraph = model.referenced[referencedIndex];
+        const auto subgraphVersion =
+                NN_TRY(validateModelSubgraph(subgraph, referencedIndex, operandValuesSize,
+                                             poolSizes, model.referenced, &subgraphVersionCache));
+        version = combineVersions(version, subgraphVersion);
     }
 
-    // Ensure that there are no references formed by calling the subgraphs.
-    NN_TRY(checkNoReferenceCycles(model));
+    // Validate main subgraph.
+    const auto subgraphVersion =
+            NN_TRY(validateModelSubgraph(model.main, std::nullopt, operandValuesSize, poolSizes,
+                                         model.referenced, &subgraphVersionCache));
+    version = combineVersions(version, subgraphVersion);
 
     return version;
 }
@@ -1003,7 +1080,7 @@ Result<Version> validateRequest(const Request& request) {
         const auto& input = request.inputs[i];
         auto result = validateRequestArgument(input, memorySizes, /*isOutput=*/false);
         if (!result.has_value()) {
-            return NN_ERROR() << std::move(result).error() << " for input RequestArgument " << i;
+            return error() << std::move(result).error() << " for input RequestArgument " << i;
         }
         version = combineVersions(version, result.value());
     }
@@ -1011,7 +1088,7 @@ Result<Version> validateRequest(const Request& request) {
         const auto& output = request.outputs[i];
         auto result = validateRequestArgument(output, memorySizes, /*isOutput=*/true);
         if (!result.has_value()) {
-            return NN_ERROR() << std::move(result).error() << " for output RequestArgument " << i;
+            return error() << std::move(result).error() << " for output RequestArgument " << i;
         }
         version = combineVersions(version, result.value());
     }
@@ -1493,8 +1570,8 @@ Result<Version> validateIfOperation(const std::vector<uint32_t>& inputs,
     auto validateBranchOperand = [&](const Operand& branchModelOperand) -> Result<void> {
         auto result = validateSubgraphReference(subgraphs, branchModelOperand);
         if (!result.has_value()) {
-            return NN_ERROR() << std::move(result).error()
-                              << "Operand is not a valid subgraph reference";
+            return error() << std::move(result).error()
+                           << " -- Operand is not a valid subgraph reference";
         }
         const uint32_t branchModelInputCount = getInputCount(subgraphs, branchModelOperand);
         const uint32_t branchModelOutputCount = getOutputCount(subgraphs, branchModelOperand);
@@ -1514,16 +1591,15 @@ Result<Version> validateIfOperation(const std::vector<uint32_t>& inputs,
     };
     auto result = validateConditionOperand(operands[inputs[op::kCondBoolOperand]]);
     if (!result.has_value()) {
-        return NN_ERROR() << std::move(result).error()
-                          << "Validation failed for IF condition operand";
+        return error() << std::move(result).error() << " for IF condition operand";
     }
     result = validateBranchOperand(operands[inputs[op::kThenModelOperand]]);
     if (!result.has_value()) {
-        return NN_ERROR() << std::move(result).error() << "Validation failed for IF then model";
+        return error() << std::move(result).error() << " for IF then model";
     }
     result = validateBranchOperand(operands[inputs[op::kElseModelOperand]]);
     if (!result.has_value()) {
-        return NN_ERROR() << std::move(result).error() << "Validation failed for IF else model";
+        return error() << std::move(result).error() << " for IF else model";
     }
     return Version::ANDROID_R;
 }
@@ -1556,8 +1632,8 @@ Result<Version> validateWhileOperation(const std::vector<uint32_t>& inputs,
         Version version = Version::ANDROID_R;
         auto result = validateSubgraphReference(subgraphs, condModelOperand);
         if (!result.has_value()) {
-            return NN_ERROR() << std::move(result).error()
-                              << "Operand is not a valid subgraph reference";
+            return error() << std::move(result).error()
+                           << " -- Operand is not a valid subgraph reference";
         }
         const uint32_t condModelInputCount = getInputCount(subgraphs, condModelOperand);
         const uint32_t condModelOutputCount = getOutputCount(subgraphs, condModelOperand);
@@ -1579,8 +1655,8 @@ Result<Version> validateWhileOperation(const std::vector<uint32_t>& inputs,
         Version version = Version::ANDROID_R;
         auto result = validateSubgraphReference(subgraphs, bodyModelOperand);
         if (!result.has_value()) {
-            return NN_ERROR() << std::move(result).error()
-                              << "Operand is not a valid subgraph reference";
+            return error() << std::move(result).error()
+                           << " -- Operand is not a valid subgraph reference";
         }
         const uint32_t bodyModelInputCount = getInputCount(subgraphs, bodyModelOperand);
         const uint32_t bodyModelOutputCount = getOutputCount(subgraphs, bodyModelOperand);
@@ -1617,21 +1693,20 @@ Result<Version> validateWhileOperation(const std::vector<uint32_t>& inputs,
     };
     auto result = validateCondOperand(operands[inputs[op::kCondModelOperand]]);
     if (!result.has_value()) {
-        return NN_ERROR() << std::move(result).error()
-                          << "Validation failed for WHILE condition model";
+        return error() << std::move(result).error() << " for WHILE condition model";
     }
     auto version = result.value();
     result = validateBodyOperand(operands[inputs[op::kBodyModelOperand]]);
     if (!result.has_value()) {
-        return NN_ERROR() << std::move(result).error() << "Validation failed for WHILE body model";
+        return error() << std::move(result).error() << " for WHILE body model";
     }
     version = combineVersions(version, result.value());
     return version;
 }
 
-Result<Version> validateOperationImpl(const Operation& operation,
-                                      const std::vector<Operand>& operands,
-                                      const std::vector<Model::Subgraph>& subgraphs) {
+Result<Version> validateOperationButNotOperandsImpl(const Operation& operation,
+                                                    const std::vector<Operand>& operands,
+                                                    const std::vector<Model::Subgraph>& subgraphs) {
     const auto opType = operation.type;
     const auto& inputIndexes = operation.inputs;
     const auto& outputIndexes = operation.outputs;
@@ -2527,7 +2602,27 @@ Result<Version> validateOperationImpl(const Operation& operation,
     }
 }
 
+Result<Version> validateOperationIncludingOperandVersions(
+        const Operation& operation, const std::vector<Operand>& operands,
+        const std::vector<Version>& operandVersions,
+        const std::vector<Model::Subgraph>& subgraphs) {
+    auto version = NN_TRY(validateOperationButNotOperandsImpl(operation, operands, subgraphs));
+    for (uint32_t index : operation.inputs) {
+        version = combineVersions(version, operandVersions[index]);
+    }
+    for (uint32_t index : operation.outputs) {
+        version = combineVersions(version, operandVersions[index]);
+    }
+    return version;
+}
+
 }  // anonymous namespace
+
+// Below this point are all the functions that are declared in Validation.h. The convention of this
+// file is to keep the function bodies of the functions declared in Validation.h minimal, meaning
+// that most functions below simply redirect to one of the functions defined above in the anonymous
+// namespace. If there is a function name clash between one of the functions below and one of the
+// functions above, the function in the anonymous namespace is appended with "Impl".
 
 Version combineVersions(Version lhs, Version rhs) {
     return std::max<Version>(lhs, rhs);
@@ -2655,9 +2750,55 @@ Result<void> validateOperandList(const std::vector<uint32_t>& list, size_t opera
     return validateOperandListImpl(list, operandCount, tag);
 }
 
-Result<Version> validateOperation(const Operation& operation, const std::vector<Operand>& operands,
-                                  const std::vector<Model::Subgraph>& subgraphs) {
-    return validateOperationImpl(operation, operands, subgraphs);
+Result<void> validateOperationButNotOperands(const Operation& operation,
+                                             const std::vector<Operand>& operands,
+                                             const std::vector<Model::Subgraph>& subgraphs) {
+    NN_TRY(validateOperationButNotOperandsImpl(operation, operands, subgraphs));
+    return {};
+}
+
+struct SubgraphVersionCache {
+    std::vector<std::optional<Version>> cache;
+};
+
+std::unique_ptr<SubgraphVersionCache, void (*)(SubgraphVersionCache*)> createSubgraphVersionCache(
+        size_t referencedSubgraphCount) {
+    auto subgraphVersionCache = std::make_unique<SubgraphVersionCache>();
+    subgraphVersionCache->cache.resize(referencedSubgraphCount);
+    constexpr auto deleter = [](SubgraphVersionCache* ptr) { delete ptr; };
+    return {subgraphVersionCache.release(), deleter};
+}
+
+Result<Version> validateOperationAndAnythingItDependsOn(
+        const Operation& operation, const std::vector<Operand>& operands, size_t operandValuesSize,
+        const std::vector<size_t>& poolSizes, const std::vector<Model::Subgraph>& subgraphs,
+        SubgraphVersionCache* subgraphVersionCache) {
+    CHECK(subgraphVersionCache != nullptr);
+    std::vector<Version> operandVersions(operands.size(), Version::ANDROID_OC_MR1);
+    for (uint32_t index : operation.inputs) {
+        NN_VALIDATE_LT(index, operands.size());
+        const Operand& operand = operands[index];
+        operandVersions[index] = NN_TRY(validateOperandAndAnythingItDependsOn(
+                operand, operandValuesSize, poolSizes, subgraphs, subgraphVersionCache));
+    }
+    for (uint32_t index : operation.outputs) {
+        NN_VALIDATE_LT(index, operands.size());
+        const Operand& operand = operands[index];
+        operandVersions[index] = NN_TRY(validateOperandAndAnythingItDependsOn(
+                operand, operandValuesSize, poolSizes, subgraphs, subgraphVersionCache));
+    }
+    return validateOperationIncludingOperandVersions(operation, operands, operandVersions,
+                                                     subgraphs);
+}
+
+Result<Version> validateOperandAndAnythingItDependsOn(const Operand& operand,
+                                                      size_t operandValuesSize,
+                                                      const std::vector<size_t>& poolSizes,
+                                                      const std::vector<Model::Subgraph>& subgraphs,
+                                                      SubgraphVersionCache* subgraphVersionCache) {
+    CHECK(subgraphVersionCache != nullptr);
+    return validateOperandImpl(operand, operandValuesSize, poolSizes, subgraphs,
+                               &subgraphVersionCache->cache);
 }
 
 }  // namespace android::nn

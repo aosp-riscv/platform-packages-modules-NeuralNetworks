@@ -50,27 +50,20 @@ static uint64_t allowedPasses = ~uint64_t(0);
 // non-public DeviceManager::setUseCpuOnly(); we assume the setting is always
 // false, and if we are asked to set it to true, we return 0 ("success") without
 // running tests.
-//
-// EXCEPTION: If NNTEST_ONLY_PUBLIC_API is defined, then we cannot call
-// non-public DeviceManager::setSyncExecHal(); we assume the setting is always
-// true, and if we are asked to set it to false, we return 0 ("success") without
-// running tests.
-static int test(bool useCpuOnly, Execution::ComputeMode computeMode, bool allowSyncExecHal = true) {
+static int test(bool useCpuOnly, Execution::ComputeMode computeMode) {
     // NOTE: The test mapping configuration (packages/modules/NeuralNetworks/TEST_MAPPING) uses
-    // the value of 1024 to only run pass 10 of the test, corresponding to
-    // "useCpuOnly = 0, computeMode = ComputeMode::ASYNC, allowSyncExecHal = 1".
+    // the value of 4 to only run pass 2 of the test, corresponding to
+    // "useCpuOnly = 0, computeMode = ComputeMode::ASYNC".
     // If you change the bit representation here, also make the corresponding
     // change to the TEST_MAPPING file to run the equivalent pass of the test.
-    uint32_t passIndex =
-            (useCpuOnly << 0) + (static_cast<uint32_t>(computeMode) << 1) + (allowSyncExecHal << 3);
+    uint32_t passIndex = (useCpuOnly << 0) + (static_cast<uint32_t>(computeMode) << 1);
 
 #ifdef NNTEST_ONLY_PUBLIC_API
-    if (useCpuOnly || !allowSyncExecHal) {
+    if (useCpuOnly) {
         return 0;
     }
 #else
     android::nn::DeviceManager::get()->setUseCpuOnly(useCpuOnly);
-    android::nn::DeviceManager::get()->setSyncExecHal(allowSyncExecHal);
 #endif
 
     Execution::setComputeMode(computeMode);
@@ -91,7 +84,7 @@ static int test(bool useCpuOnly, Execution::ComputeMode computeMode, bool allowS
 
     std::stringstream stream;
     stream << "useCpuOnly = " << useCpuOnly << ", computeMode = " << computeModeText()
-           << ", allowSyncExecHal = " << allowSyncExecHal << "  // pass " << passIndex;
+           << "  // pass " << passIndex;
     const std::string message = stream.str();
     LOG(INFO) << message;
     std::cout << "[**********] " << message << std::endl;
@@ -135,19 +128,11 @@ int main(int argc, char** argv) {
             test(/*useCpuOnly=*/true, Execution::ComputeMode::ASYNC) |
             test(/*useCpuOnly=*/true, Execution::ComputeMode::SYNC);
 
-    // Now try disabling use of synchronous execution HAL.
-    //
-    // Whether or not the use of synchronous execution HAL is enabled should make no
-    // difference when useCpuOnly = true; we already ran test(true, *, true) above,
-    // so there's no reason to run test(true, *, false) now.
-    n |= test(/*useCpuOnly=*/false, Execution::ComputeMode::ASYNC, /*allowSyncExecHal=*/false) |
-         test(/*useCpuOnly=*/false, Execution::ComputeMode::SYNC, /*allowSyncExecHal=*/false);
-
     // Now try execution using a burst.
     //
     // The burst path is off by default in these tests. This is the first case
-    // where it is turned on. Both "useCpuOnly" and "allowSyncExecHal" are
-    // irrelevant here because the burst path is separate from both.
+    // where it is turned on. "useCpuOnly" is irrelevant here because the burst
+    // path is separate.
     n |= test(/*useCpuOnly=*/false, Execution::ComputeMode::BURST);
 
     return n;

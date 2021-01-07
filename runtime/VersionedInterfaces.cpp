@@ -24,7 +24,10 @@
 #include <android-base/thread_annotations.h>
 #include <cutils/native_handle.h>
 #include <fcntl.h>
-#include <nnapi/hal/1.3/Utils.h>
+#include <nnapi/hal/1.0/Conversions.h>
+#include <nnapi/hal/1.1/Conversions.h>
+#include <nnapi/hal/1.2/Conversions.h>
+#include <nnapi/hal/1.3/Conversions.h>
 #include <nnapi/hal/CommonUtils.h>
 #include <nnapi/hal/HandleError.h>
 
@@ -144,6 +147,44 @@ class DeathHandler : public hardware::hidl_death_recipient {
     std::mutex mMutex;
     std::vector<sp<Callback>> mCallbacks GUARDED_BY(mMutex);
 };
+
+struct HalVersion {
+    Version canonical;
+    int64_t android;
+};
+
+constexpr auto kHalVersionV1_0 =
+        HalVersion{.canonical = Version::ANDROID_OC_MR1, .android = __ANDROID_API_O_MR1__};
+constexpr auto kHalVersionV1_1 =
+        HalVersion{.canonical = Version::ANDROID_P, .android = __ANDROID_API_P__};
+constexpr auto kHalVersionV1_2 =
+        HalVersion{.canonical = Version::ANDROID_Q, .android = __ANDROID_API_Q__};
+constexpr auto kHalVersionV1_3 =
+        HalVersion{.canonical = Version::ANDROID_R, .android = __ANDROID_API_R__};
+
+template <class T_Model>
+using ReturnedSlice = std::optional<std::pair<T_Model, MetaModel::Mapper>>;
+
+ReturnedSlice<V1_0::Model> getSliceV1_0(const MetaModel& metaModel) {
+    auto [model, mapping] = NN_TRY(metaModel.getSlice(kHalVersionV1_0.canonical));
+    return std::make_pair(hardware::neuralnetworks::V1_0::utils::convert(model).value(),
+                          std::move(mapping));
+}
+ReturnedSlice<V1_1::Model> getSliceV1_1(const MetaModel& metaModel) {
+    auto [model, mapping] = NN_TRY(metaModel.getSlice(kHalVersionV1_1.canonical));
+    return std::make_pair(hardware::neuralnetworks::V1_1::utils::convert(model).value(),
+                          std::move(mapping));
+}
+ReturnedSlice<V1_2::Model> getSliceV1_2(const MetaModel& metaModel) {
+    auto [model, mapping] = NN_TRY(metaModel.getSlice(kHalVersionV1_2.canonical));
+    return std::make_pair(hardware::neuralnetworks::V1_2::utils::convert(model).value(),
+                          std::move(mapping));
+}
+ReturnedSlice<V1_3::Model> getSliceV1_3(const MetaModel& metaModel) {
+    auto [model, mapping] = NN_TRY(metaModel.getSlice(kHalVersionV1_3.canonical));
+    return std::make_pair(hardware::neuralnetworks::V1_3::utils::convert(model).value(),
+                          std::move(mapping));
+}
 
 }  // anonymous namespace
 
@@ -1047,21 +1088,19 @@ std::pair<ErrorStatus, std::vector<bool>> VersionedIDevice::getSupportedOperatio
                 return std::make_pair(status, std::move(remappedSupported));
             };
 
-    // Verify that the model is compliant with 1.3 / Android R drivers.
-    const auto minimumSupportedVersion = validate(model).value();
-    if (minimumSupportedVersion > Version::ANDROID_R) {
-        return noneSupported();
-    }
-
     // version 1.3 HAL
-    const V1_3::Model model13 = convertToV1_3(model);
     if (getDevice<V1_3::IDevice>() != nullptr) {
+        const auto slice = getSliceV1_3(metaModel);
+        if (!slice.has_value()) {
+            return noneSupported();
+        }
+        const auto& [model, slicedModelOperationIndexToModelOperationIndex] = *slice;
         NNTRACE_FULL(NNTRACE_LAYER_IPC, NNTRACE_PHASE_COMPILATION, "getSupportedOperations_1_3");
         hardware::Return<void> ret = recoverable<void, V1_3::IDevice>(
-                __FUNCTION__, [&model13, &result](const sp<V1_3::IDevice>& device) {
+                __FUNCTION__, [& model = model, &result](const sp<V1_3::IDevice>& device) {
                     return device->getSupportedOperations_1_3(
-                            model13, [&result](V1_3::ErrorStatus error,
-                                               const hardware::hidl_vec<bool>& supported) {
+                            model, [&result](V1_3::ErrorStatus error,
+                                             const hardware::hidl_vec<bool>& supported) {
                                 result = std::make_pair(uncheckedConvert(error), supported);
                             });
                 });
@@ -1069,29 +1108,22 @@ std::pair<ErrorStatus, std::vector<bool>> VersionedIDevice::getSupportedOperatio
             LOG(ERROR) << "getSupportedOperations_1_3 failure: " << ret.description();
             return kFailure;
         }
-        return result;
+        return remappedResult(result, slicedModelOperationIndexToModelOperationIndex);
     }
 
     // version 1.2 HAL
     if (getDevice<V1_2::IDevice>() != nullptr) {
-        const bool compliant = compliantWithV1_2(model13);
-        V1_2::Model model12;
-        MetaModel::Mapper slicedModelOperationIndexToModelOperationIndex;
-        if (compliant) {
-            model12 = convertToV1_2(model13);
-        } else {
-            const auto slice12 = metaModel.getSliceV1_2();
-            if (!slice12.has_value()) {
-                return noneSupported();
-            }
-            std::tie(model12, slicedModelOperationIndexToModelOperationIndex) = *slice12;
+        const auto slice = getSliceV1_2(metaModel);
+        if (!slice.has_value()) {
+            return noneSupported();
         }
+        const auto& [model, slicedModelOperationIndexToModelOperationIndex] = *slice;
         NNTRACE_FULL(NNTRACE_LAYER_IPC, NNTRACE_PHASE_COMPILATION, "getSupportedOperations_1_2");
         hardware::Return<void> ret = recoverable<void, V1_2::IDevice>(
-                __FUNCTION__, [&model12, &result](const sp<V1_2::IDevice>& device) {
+                __FUNCTION__, [& model = model, &result](const sp<V1_2::IDevice>& device) {
                     return device->getSupportedOperations_1_2(
-                            model12, [&result](V1_0::ErrorStatus error,
-                                               const hardware::hidl_vec<bool>& supported) {
+                            model, [&result](V1_0::ErrorStatus error,
+                                             const hardware::hidl_vec<bool>& supported) {
                                 result = std::make_pair(uncheckedConvert(error), supported);
                             });
                 });
@@ -1099,32 +1131,22 @@ std::pair<ErrorStatus, std::vector<bool>> VersionedIDevice::getSupportedOperatio
             LOG(ERROR) << "getSupportedOperations_1_2 failure: " << ret.description();
             return kFailure;
         }
-        if (!compliant) {
-            return remappedResult(result, slicedModelOperationIndexToModelOperationIndex);
-        }
-        return result;
+        return remappedResult(result, slicedModelOperationIndexToModelOperationIndex);
     }
 
     // version 1.1 HAL
     if (getDevice<V1_1::IDevice>() != nullptr) {
-        const bool compliant = compliantWithV1_1(model13);
-        V1_1::Model model11;
-        MetaModel::Mapper slicedModelOperationIndexToModelOperationIndex;
-        if (compliant) {
-            model11 = convertToV1_1(model13);
-        } else {
-            const auto slice11 = metaModel.getSliceV1_1();
-            if (!slice11.has_value()) {
-                return noneSupported();
-            }
-            std::tie(model11, slicedModelOperationIndexToModelOperationIndex) = *slice11;
+        const auto slice = getSliceV1_1(metaModel);
+        if (!slice.has_value()) {
+            return noneSupported();
         }
+        const auto& [model, slicedModelOperationIndexToModelOperationIndex] = *slice;
         NNTRACE_FULL(NNTRACE_LAYER_IPC, NNTRACE_PHASE_COMPILATION, "getSupportedOperations_1_1");
         hardware::Return<void> ret = recoverable<void, V1_1::IDevice>(
-                __FUNCTION__, [&model11, &result](const sp<V1_1::IDevice>& device) {
+                __FUNCTION__, [& model = model, &result](const sp<V1_1::IDevice>& device) {
                     return device->getSupportedOperations_1_1(
-                            model11, [&result](V1_0::ErrorStatus error,
-                                               const hardware::hidl_vec<bool>& supported) {
+                            model, [&result](V1_0::ErrorStatus error,
+                                             const hardware::hidl_vec<bool>& supported) {
                                 result = std::make_pair(uncheckedConvert(error), supported);
                             });
                 });
@@ -1132,32 +1154,22 @@ std::pair<ErrorStatus, std::vector<bool>> VersionedIDevice::getSupportedOperatio
             LOG(ERROR) << "getSupportedOperations_1_1 failure: " << ret.description();
             return kFailure;
         }
-        if (!compliant) {
-            return remappedResult(result, slicedModelOperationIndexToModelOperationIndex);
-        }
-        return result;
+        return remappedResult(result, slicedModelOperationIndexToModelOperationIndex);
     }
 
     // version 1.0 HAL
     if (getDevice<V1_0::IDevice>() != nullptr) {
-        const bool compliant = compliantWithV1_0(model13);
-        V1_0::Model model10;
-        MetaModel::Mapper slicedModelOperationIndexToModelOperationIndex;
-        if (compliant) {
-            model10 = convertToV1_0(model13);
-        } else {
-            const auto slice10 = metaModel.getSliceV1_0();
-            if (!slice10.has_value()) {
-                return noneSupported();
-            }
-            std::tie(model10, slicedModelOperationIndexToModelOperationIndex) = *slice10;
+        const auto slice = getSliceV1_0(metaModel);
+        if (!slice.has_value()) {
+            return noneSupported();
         }
+        const auto& [model, slicedModelOperationIndexToModelOperationIndex] = *slice;
         NNTRACE_FULL(NNTRACE_LAYER_IPC, NNTRACE_PHASE_COMPILATION, "getSupportedOperations");
         hardware::Return<void> ret = recoverable<void, V1_0::IDevice>(
-                __FUNCTION__, [&model10, &result](const sp<V1_0::IDevice>& device) {
+                __FUNCTION__, [& model = model, &result](const sp<V1_0::IDevice>& device) {
                     return device->getSupportedOperations(
-                            model10, [&result](V1_0::ErrorStatus error,
-                                               const hardware::hidl_vec<bool>& supported) {
+                            model, [&result](V1_0::ErrorStatus error,
+                                             const hardware::hidl_vec<bool>& supported) {
                                 result = std::make_pair(uncheckedConvert(error), supported);
                             });
                 });
@@ -1165,10 +1177,7 @@ std::pair<ErrorStatus, std::vector<bool>> VersionedIDevice::getSupportedOperatio
             LOG(ERROR) << "getSupportedOperations failure: " << ret.description();
             return kFailure;
         }
-        if (!compliant) {
-            return remappedResult(result, slicedModelOperationIndexToModelOperationIndex);
-        }
-        return result;
+        return remappedResult(result, slicedModelOperationIndexToModelOperationIndex);
     }
 
     // No device available
@@ -1573,13 +1582,13 @@ int64_t VersionedIDevice::getFeatureLevel() const {
     constexpr int64_t kFailure = -1;
 
     if (getDevice<V1_3::IDevice>() != nullptr) {
-        return __ANDROID_API_R__;
+        return kHalVersionV1_3.android;
     } else if (getDevice<V1_2::IDevice>() != nullptr) {
-        return __ANDROID_API_Q__;
+        return kHalVersionV1_2.android;
     } else if (getDevice<V1_1::IDevice>() != nullptr) {
-        return __ANDROID_API_P__;
+        return kHalVersionV1_1.android;
     } else if (getDevice<V1_0::IDevice>() != nullptr) {
-        return __ANDROID_API_O_MR1__;
+        return kHalVersionV1_0.android;
     } else {
         LOG(ERROR) << "Device not available!";
         return kFailure;

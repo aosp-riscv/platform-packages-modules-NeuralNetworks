@@ -59,6 +59,9 @@ std::vector<uint32_t> countNumberOfConsumers(size_t numberOfOperands,
 // Combine two tensor dimensions, both may have unspecified dimensions or rank.
 Result<Dimensions> combineDimensions(const Dimensions& lhs, const Dimensions& rhs);
 
+// Returns the operandValues's size and a size for each pool in the provided model.
+std::pair<size_t, std::vector<size_t>> getMemorySizes(const Model& model);
+
 // Set of output utility functions.
 std::ostream& operator<<(std::ostream& os, const DeviceStatus& deviceStatus);
 std::ostream& operator<<(std::ostream& os, const ExecutionPreference& executionPreference);

@@ -317,9 +317,6 @@ allocatePointerArgumentsToPool(const std::vector<ModelArgumentInfo>& args,
 // outputs specified by pointers. The input pointer data will be copied to the input pool prior to
 // execution, and the output pointer data will be copied out from the output pool after the
 // execution.
-//
-// The HIDL invocation will choose between sync/async execution according to
-// DeviceManager::mSyncExecHal.
 std::tuple<int, std::vector<OutputShape>, Timing> DriverPreparedModel::execute(
         const std::vector<ModelArgumentInfo>& inputs, const std::vector<ModelArgumentInfo>& outputs,
         const std::vector<const RuntimeMemory*>& memories,
@@ -403,9 +400,8 @@ std::tuple<int, std::vector<OutputShape>, Timing> DriverPreparedModel::execute(
     // (1) burst was not supplied, or
     // (2) the burst execution failed and requested a fallback execution
     if (!burstCompute || burstFallback) {
-        const bool preferSynchronous = DeviceManager::get()->syncExecHal();
         std::tie(n, outputShapes, timing) = mPreparedModel->execute(
-                request, measure, deadline, loopTimeoutDuration, preferSynchronous);
+                request, measure, deadline, loopTimeoutDuration, /*preferSynchronous=*/true);
     }
 
     if (n != ANEURALNETWORKS_NO_ERROR) {
@@ -851,9 +847,6 @@ DeviceManager::DeviceManager() {
     mPartitioning = getProp("debug.nn.partition", kPartitioningDefault);
     mDebugNNCpuOnly = (getProp("debug.nn.cpuonly") != 0);
     mSyncExecCpu = (getProp("debug.nn.syncexec-cpu", 1) != 0);
-    if (!mSyncExecHalSetter) {
-        mSyncExecHal = (getProp("debug.nn.syncexec-hal", 1) != 0);
-    }
     mSyncExecRuntime = (getProp("debug.nn.syncexec-runtime") != 0);
 #endif  // NN_DEBUGGABLE
 }

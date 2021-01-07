@@ -131,13 +131,8 @@ class DeviceManager {
     // For testing only:
     void setUseCpuOnly(bool useCpuOnly) { mSetCpuOnly = useCpuOnly; }
     bool getUseCpuOnly() const { return mSetCpuOnly; }
-    void setSyncExecHal(bool val) {
-        mSyncExecHal = val;
-        mSyncExecHalSetter = true;
-    }
 
     bool syncExecCpu() const { return mSyncExecCpu; }
-    bool syncExecHal() const { return mSyncExecHal; }
     bool syncExecRuntime() const { return mSyncExecRuntime; }
 
     // How to handle graph partitioning?
@@ -212,10 +207,6 @@ class DeviceManager {
 
     // synchronous execution
     bool mSyncExecCpu = true;
-    bool mSyncExecHal = true;         // Call executeSynchronously*() when available on device.
-    bool mSyncExecHalSetter = false;  // Has mSyncExecHal been set by setSyncExecHal()?
-                                      // If so, don't allow the setting to be overridden
-                                      //     by system property debug.nn.syncexec-hal
     bool mSyncExecRuntime = false;
 
     static const uint32_t kPartitioningDefault = kPartitioningWithFallback;

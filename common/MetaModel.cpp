@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <map>
+#include <numeric>
 #include <set>
 #include <sstream>
 #include <type_traits>
@@ -27,127 +28,40 @@
 #include <vector>
 
 #include "GraphDump.h"
-#include "HalInterfaces.h"
 #include "Utils.h"
 #include "ValidateHal.h"
+#include "nnapi/TypeUtils.h"
+#include "nnapi/Types.h"
+#include "nnapi/Validation.h"
 
 namespace android::nn {
 
 namespace {
 
-// Add an element to the end of the vector and return a pair consisting of the
-// index of the new element and a pointer to the new element.
-template <class T>
-std::pair<uint32_t, T*> extend(hardware::hidl_vec<T>* vec) {
-    size_t nextIndex = vec->size();
-    vec->resize(nextIndex + 1);
-    return {nextIndex, &(*vec)[nextIndex]};
-}
-
 // Add an element to the end of the vector, set it to the specified value, and
 // return a pair consisting of the index of the new element and a pointer to the
 // new element.
 template <class T>
-std::pair<uint32_t, T*> extend(hardware::hidl_vec<T>* vec, const T& val) {
-    auto extended = extend(vec);
-    *extended.second = val;
-    return extended;
+std::pair<uint32_t, T*> extend(std::vector<T>* vec, const T& val) {
+    vec->push_back(val);
+    return {vec->size() - 1, &vec->back()};
 }
 
-template <typename T>
-bool operator<(const hardware::hidl_vec<T>& a, const hardware::hidl_vec<T>& b) {
-    return std::lexicographical_compare(a.begin(), a.end(), b.begin(), b.end());
+// Add an element to the end of the vector and return a pair consisting of the
+// index of the new element and a pointer to the new element.
+template <class T>
+std::pair<uint32_t, T*> extend(std::vector<T>* vec) {
+    return extend(vec, {});
 }
 
-// Compile-time mapping from a particular Model type to a name for that type.
-template <class T_Model>
-struct ModelVersion;
-template <>
-struct ModelVersion<V1_0::Model> {
-    static constexpr char name[] = "V1_0";
-};
-template <>
-struct ModelVersion<V1_1::Model> {
-    static constexpr char name[] = "V1_1";
-};
-template <>
-struct ModelVersion<V1_2::Model> {
-    static constexpr char name[] = "V1_2";
-};
-template <>
-struct ModelVersion<V1_3::Model> {
-    static constexpr char name[] = "V1_3";
-};
-
-// Dispatcher mechanism for calling an appropriate uncheckedConvertToV1_*
-// given the desired return type.
-template <typename T_ReturnType>
-T_ReturnType uncheckedConvertTo(OperationType type);
-template <>
-V1_0::OperationType uncheckedConvertTo<V1_0::OperationType>(OperationType type) {
-    return uncheckedConvertToV1_0(convertToV1_3(type));
-}
-template <>
-V1_1::OperationType uncheckedConvertTo<V1_1::OperationType>(OperationType type) {
-    return uncheckedConvertToV1_1(convertToV1_3(type));
-}
-template <>
-V1_2::OperationType uncheckedConvertTo<V1_2::OperationType>(OperationType type) {
-    return uncheckedConvertToV1_2(convertToV1_3(type));
-}
-
-// Dispatcher mechanism for calling an appropriate convertToV1_* given the
-// desired return type.  Note that there is no V1_1::Operand type.
-template <typename T_ReturnType>
-T_ReturnType convertTo(Operand operand);
-template <>
-V1_0::Operand convertTo<V1_0::Operand>(Operand operand) {
-    return convertToV1_0(convertToV1_3(operand));
-}
-template <>
-V1_2::Operand convertTo<V1_2::Operand>(Operand operand) {
-    return convertToV1_2(convertToV1_3(operand));
-}
-
-// Dispatcher mechanism for calling an appropriate convertToV1_* given the
-// desired return type.  Note that there are no V1_[12]::Operand::LifeTime types.
-template <typename T_ReturnType>
-T_ReturnType convertTo(V1_3::OperandLifeTime lifetime);
-template <>
-V1_0::OperandLifeTime convertTo<V1_0::OperandLifeTime>(V1_3::OperandLifeTime lifetime) {
-    return convertToV1_0(lifetime);
-}
-
-// Dispatcher mechanism for calling an appropriate compliantWithV1_* given the
-// desired target model type.
-template <typename T_SlicedModel>
-void getNoncompliantOperations(const V1_3::Model& model,
-                               std::set<uint32_t>* noncompliantOperations);
-template <>
-void getNoncompliantOperations<V1_0::Model>(const V1_3::Model& model,
-                                            std::set<uint32_t>* noncompliantOperations) {
-    compliantWithV1_0(model, noncompliantOperations);
-}
-template <>
-void getNoncompliantOperations<V1_1::Model>(const V1_3::Model& model,
-                                            std::set<uint32_t>* noncompliantOperations) {
-    compliantWithV1_1(model, noncompliantOperations);
-}
-template <>
-void getNoncompliantOperations<V1_2::Model>(const V1_3::Model& model,
-                                            std::set<uint32_t>* noncompliantOperations) {
-    compliantWithV1_2(model, noncompliantOperations);
-}
-
-template <class T_SlicedModel>
-bool invalid(const T_SlicedModel& model, bool strictSlicing) {
+bool invalid(const Model& model, Version version, bool strictSlicing) {
     // A model must have at least one operation.  However, it's possible that a
     // slice has no operations (because no operations from the original model
     // are compliant with the sliced model type).  In this case, the sliced
     // model would be invalid.
-    const bool looksEmpty = (model.operations.size() == 0);
+    const bool looksEmpty = (model.main.operations.size() == 0);
     if (strictSlicing) {
-        CHECK_EQ(looksEmpty, (model.operands.size() == 0));
+        CHECK_EQ(looksEmpty, (model.main.operands.size() == 0));
     }
     if (looksEmpty) return true;
 
@@ -156,14 +70,13 @@ bool invalid(const T_SlicedModel& model, bool strictSlicing) {
     // are data dependent).  A slice might contain only dead operations, and
     // hence have no model outputs.  In this case, the sliced model would be
     // invalid.
-    if (model.outputIndexes.size() == 0) return true;
+    if (model.main.outputIndexes.size() == 0) return true;
 
-    // We shouldn't have to check whether the model is valid.
-    // However, it could be invalid if:
-    // - there is an error in the slicing algorithm; or
-    // - there is an error in compliantWith (see http://b/131845106)
-    if (!validateModel(model)) {
-        LOG(WARNING) << "Sliced model fails validateModel()";
+    // We shouldn't have to check whether the model is valid. However, it could
+    // be invalid if there is an error in the slicing algorithm.
+    auto maybeVersion = validate(model);
+    if (!maybeVersion.has_value() || maybeVersion.value() > version) {
+        LOG(WARNING) << "Sliced model fails validate()";
         CHECK(!strictSlicing);
         return true;
     }
@@ -173,38 +86,27 @@ bool invalid(const T_SlicedModel& model, bool strictSlicing) {
 
 }  // anonymous namespace
 
-template <class T_SlicedModel>
-MetaModel::ReturnedSlice<T_SlicedModel> MetaModel::getSlice(Slice<T_SlicedModel>* slice) const {
-    CHECK(slice != nullptr);
-    if (slice->mState == SliceState::UNINITIALIZED) {
-        *slice = makeSlice<T_SlicedModel>();
+MetaModel::MetaModel(Model model, bool strictSlicing)
+    : mModel(std::move(model)),
+      mModelMinimumSupportedVersion(validate(mModel).value()),
+      mStrictSlicing(strictSlicing) {}
+
+MetaModel::ReturnedSlice MetaModel::getSlice(Version version) const {
+    // All slices of versions of at least mModelMinimumSupportedVersion are identical, so do not
+    // create more than one such slice.
+    version = std::min(version, mModelMinimumSupportedVersion);
+
+    auto& slice = mCachedSlices[version];
+    if (slice.mState == SliceState::UNINITIALIZED) {
+        slice = makeSlice(version);
     }
-    if (slice->mState == SliceState::INVALID) {
+    if (slice.mState == SliceState::INVALID) {
         return {};
     }
-    return MetaModel::ReturnedSlice<T_SlicedModel>(std::make_pair(
-            slice->mHidlModel, Mapper([slice](uint32_t slicedOperationIndex) {
-                return slice->mSlicedOperationIndexToOrigIndex.at(slicedOperationIndex);
+    return MetaModel::ReturnedSlice(std::make_pair(
+            slice.mModel, Mapper([&slice](uint32_t slicedOperationIndex) {
+                return slice.mSlicedOperationIndexToOrigIndex.at(slicedOperationIndex);
             })));
-}
-template MetaModel::ReturnedSlice<V1_0::Model> MetaModel::getSlice(Slice<V1_0::Model>* slice) const;
-template MetaModel::ReturnedSlice<V1_1::Model> MetaModel::getSlice(Slice<V1_1::Model>* slice) const;
-template MetaModel::ReturnedSlice<V1_2::Model> MetaModel::getSlice(Slice<V1_2::Model>* slice) const;
-template <>
-MetaModel::ReturnedSlice<V1_3::Model> MetaModel::getSlice(Slice<V1_3::Model>* slice) const {
-    CHECK(slice != nullptr);
-    if (slice->mState == SliceState::UNINITIALIZED) {
-        // When adding HAL version 1.4, make sure to handle control flow and referenced
-        // subgraphs here properly. A V1_3 sliced model should contain an IF/WHILE and
-        // its referenced subgraphs only if there are no V1_4+ operations in those
-        // subgraphs.
-        *slice = {
-                .mState = SliceState::NORMAL,
-                .mHidlModel = convertToV1_3(mModel),
-        };
-    }
-    Mapper trivialMapper = [](uint32_t i) { return i; };
-    return std::make_pair(slice->mHidlModel, trivialMapper);
 }
 
 // Utility class for makeSlice().
@@ -212,39 +114,41 @@ MetaModel::ReturnedSlice<V1_3::Model> MetaModel::getSlice(Slice<V1_3::Model>* sl
 // For each output operand of a noncompliant operation that is the input
 // operand of at least one compliant operation, we will ensure that there is
 // a sliced model input whose "type" is that of the output operand.  This is
-// a map from operand "type" (in the original model) to model input
-// operand index (in the sliced model).  Unfortunately, there is no
-// representation of operand "type" defined in the HAL that we can use
-// naively here -- we want (OperandType, dimensions, scale, zeroPoint,
-// extraParams), but these fields exist in Operand along with other fields
-// that need to be excluded from the map key (numberOfConsumers, lifetime,
-// location).  There are several choices:
-// - Don't have a map -- each output identified above gets its own sliced
-//   model input (no sharing of sliced model inputs).
-// - Create an operand "type" representation solely for use as a map key.
-// - Write a tailored comparison function that ignores the excluded fields.
-// We choose to write a tailored comparison function.  If Treble were to
-// generate a comparison function for us (http://b/130567619) then it might
-// be better to instead reset the excluded fields to canonical values --
-// then we could use the Treble provided comparison function, and the
-// solution would be robust (in a correctness sense, not a sharing sense) if
-// more fields are added and we neglect to canonicalize them.
+// a map from operand "type" (in the original model) to model input operand
+// index (in the sliced model).  We only use the subset of the fields that are
+// relevant (OperandType, dimensions, scale, zeroPoint, extraParams), but
+// exclude irrelevant fields from the map key (lifetime, location).
 //
 // We also use this map for model input operands of the original model that
 // become input operands of the sliced model.  This means that an original
 // model input operand might be commoned with other original model input
 // operands and/or with original model temporary operands.
-template <typename T_SlicedOperand>
 class MetaModel::OrigOperandToSlicedInputOperandIndex {
    public:
-    OrigOperandToSlicedInputOperandIndex(hardware::hidl_vec<T_SlicedOperand>* slicedOperands,
-                                         hardware::hidl_vec<uint32_t>* slicedInputIndexes)
-        : mSlicedOperands(*slicedOperands), mSlicedInputIndexes(*slicedInputIndexes) {}
+    // `slicedOperands` and `slicedInputIndexes` will be modified as part of
+    // OrigOperandToSlicedInputOperandIndex::getIndex. `slicedVersion`, `operandValuesSize`, and
+    // `poolSizes` are used as a check to ensure that the sliced operand is valid and compliant with
+    // the sliced version. `operandValuesSize` is the size of the operand values in the sliced model
+    // (which is the same as the original model). `poolSizes` is the size of the memories in the
+    // sliced model (which is the same as the original model).
+    OrigOperandToSlicedInputOperandIndex(std::vector<Operand>* slicedOperands,
+                                         std::vector<uint32_t>* slicedInputIndexes,
+                                         Version slicedVersion, size_t operandValuesSize,
+                                         std::vector<size_t> poolSizes)
+        : mSlicedOperands(*slicedOperands),
+          mSlicedInputIndexes(*slicedInputIndexes),
+          kSlicedVersion(slicedVersion),
+          kOperandValuesSize(operandValuesSize),
+          kPoolSizes(std::move(poolSizes)) {}
 
     // Given an operand from the original model, return the index of the
     // corresponding model input operand from the sliced model.  Creates a
     // new operand in the sliced model if necessary.
     uint32_t getIndex(Operand operand) {
+        CHECK(operand.lifetime == Operand::LifeTime::SUBGRAPH_INPUT ||
+              operand.lifetime == Operand::LifeTime::SUBGRAPH_OUTPUT ||
+              operand.lifetime == Operand::LifeTime::TEMPORARY_VARIABLE);
+
         // Lookup
         auto it = mMap.find(operand);
         if (it != mMap.end()) {
@@ -256,8 +160,18 @@ class MetaModel::OrigOperandToSlicedInputOperandIndex {
         // Create
         operand.lifetime = Operand::LifeTime::SUBGRAPH_INPUT;
         operand.location = {};
-        uint32_t slicedOperandIndex =
-                extend(&mSlicedOperands, convertTo<T_SlicedOperand>(operand)).first;
+
+        // Note that the sliced model does not contain any referenced subgraphs, so both `subgraphs`
+        // and `subgraphVersionCache` are empty.
+        const std::vector<Model::Subgraph> subgraphs;
+        auto subgraphVersionCache = createSubgraphVersionCache(subgraphs.size());
+        const auto minimumSupportedOperandVersion =
+                validateOperandAndAnythingItDependsOn(operand, kOperandValuesSize, kPoolSizes,
+                                                      subgraphs, subgraphVersionCache.get())
+                        .value();
+        CHECK_LE(minimumSupportedOperandVersion, kSlicedVersion);
+
+        uint32_t slicedOperandIndex = extend(&mSlicedOperands, operand).first;
         mMap[operand] = slicedOperandIndex;
         extend(&mSlicedInputIndexes, slicedOperandIndex);
         VLOG(COMPILATION) << "OrigOperandToSlicedInputOperandIndex::getIndex created "
@@ -292,7 +206,6 @@ class MetaModel::OrigOperandToSlicedInputOperandIndex {
             }
             return a.channelDim < b.channelDim;
         }
-
         static bool compare(const Operand::ExtraParams& a, const Operand::ExtraParams& b) {
             if (a.index() != b.index()) {
                 return a.index() < b.index();
@@ -302,8 +215,8 @@ class MetaModel::OrigOperandToSlicedInputOperandIndex {
                                std::get<Operand::SymmPerChannelQuantParams>(b));
             }
             if (std::holds_alternative<Operand::ExtensionParams>(a)) {
-                return compare(std::get<Operand::ExtensionParams>(a),
-                               std::get<Operand::ExtensionParams>(b));
+                return std::get<Operand::ExtensionParams>(a) <
+                       std::get<Operand::ExtensionParams>(b);
             }
             if (std::holds_alternative<Operand::NoParams>(a)) {
                 return false;
@@ -313,25 +226,22 @@ class MetaModel::OrigOperandToSlicedInputOperandIndex {
         }
     };
     std::map<Operand, uint32_t, Compare> mMap;
-    hardware::hidl_vec<T_SlicedOperand>& mSlicedOperands;
-    hardware::hidl_vec<uint32_t>& mSlicedInputIndexes;
+    std::vector<Operand>& mSlicedOperands;
+    std::vector<uint32_t>& mSlicedInputIndexes;
+    const Version kSlicedVersion;
+    const size_t kOperandValuesSize;
+    const std::vector<size_t> kPoolSizes;
 };
 
-template <class T_SlicedModel>
 void MetaModel::processOperations(
-        Slice<T_SlicedModel>* slice, std::map<uint32_t, uint32_t>* origOperandIndexToSlicedIndex,
-        OrigOperandToSlicedInputOperandIndex<typename Slice<T_SlicedModel>::Operand>*
-                origOperandToSlicedInputOperandIndex,
+        Slice* slice, std::map<uint32_t, uint32_t>* origOperandIndexToSlicedIndex,
+        OrigOperandToSlicedInputOperandIndex* origOperandToSlicedInputOperandIndex,
         const std::set<uint32_t>& noncompliantOperations,
         const std::set<uint32_t>& inputOperandIndexesOfCompliantOperations) const {
-    using SlicedOperand = typename Slice<T_SlicedModel>::Operand;
-    using SlicedOperation = typename Slice<T_SlicedModel>::Operation;
-    using SlicedOperationType = typename Slice<T_SlicedModel>::OperationType;
-
     const auto& origOperands = mModel.main.operands;
     const auto& origOperations = mModel.main.operations;
-    auto& slicedOperands = slice->mHidlModel.operands;
-    auto& slicedOperations = slice->mHidlModel.operations;
+    auto& slicedOperands = slice->mModel.main.operands;
+    auto& slicedOperations = slice->mModel.main.operations;
 
     std::vector<uint32_t> origOperandNumberOfConsumers =
             countNumberOfConsumers(origOperands.size(), origOperations);
@@ -350,15 +260,14 @@ void MetaModel::processOperations(
                 (*origOperandIndexToSlicedIndex)[output] = slicedIndex;
                 VLOG(COMPILATION)
                         << "origOperandIndexToSlicedIndex noncompliant output processing created "
-                        << output << " -> " << slicedIndex << ": "
-                        << toString(slicedOperands[slicedIndex]);
+                        << output << " -> " << slicedIndex << ": " << slicedOperands[slicedIndex];
             }
         } else {
             slice->mSlicedOperationIndexToOrigIndex.push_back(origOperationIndex);
-            SlicedOperation& slicedOperation = *extend(&slicedOperations).second;
+            Operation& slicedOperation = *extend(&slicedOperations).second;
             CHECK_EQ(slice->mSlicedOperationIndexToOrigIndex.size(), slicedOperations.size());
 
-            slicedOperation.type = uncheckedConvertTo<SlicedOperationType>(origOperation.type);
+            slicedOperation.type = origOperation.type;
 
             // Model is topologically sorted, so all operation inputs must be
             // present in origOperandIndexToSlicedIndex, and no operation
@@ -366,7 +275,6 @@ void MetaModel::processOperations(
 
             // Operation inputs
             // - Fill in slicedOperation.inputs
-            // - Update number of consumers for each input operand
             slicedOperation.inputs.resize(origOperation.inputs.size());
             std::transform(
                     origOperation.inputs.begin(), origOperation.inputs.end(),
@@ -374,11 +282,10 @@ void MetaModel::processOperations(
                     [&origOperandIndexToSlicedIndex, &slicedOperands](uint32_t origOperandIndex) {
                         uint32_t slicedOperandIndex =
                                 origOperandIndexToSlicedIndex->at(origOperandIndex);
-                        slicedOperands[slicedOperandIndex].numberOfConsumers++;
                         VLOG(COMPILATION) << "origOperandIndexToSlicedIndex compliant input "
                                              "processing created "
                                           << origOperandIndex << " -> " << slicedOperandIndex
-                                          << ": " << toString(slicedOperands[slicedOperandIndex]);
+                                          << ": " << slicedOperands[slicedOperandIndex];
                         return slicedOperandIndex;
                     });
 
@@ -395,15 +302,13 @@ void MetaModel::processOperations(
                 uint32_t slicedOperandIndex = firstOutputSlicedOperandIndex + outputNum;
                 auto& slicedOperand = slicedOperands[slicedOperandIndex];
                 const auto& origOperand = origOperands[origOperandIndex];
-                slicedOperand = convertTo<SlicedOperand>(origOperand);
-                slicedOperand.numberOfConsumers = 0;
+                slicedOperand = origOperand;
 
                 CHECK_EQ(origOperandIndexToSlicedIndex->count(origOperandIndex), size_t(0));
                 (*origOperandIndexToSlicedIndex)[origOperandIndex] = slicedOperandIndex;
                 slicedOperation.outputs[outputNum] = slicedOperandIndex;
 
-                const auto subgraphOutputLifetime = convertTo<decltype(slicedOperand.lifetime)>(
-                        V1_3::OperandLifeTime::SUBGRAPH_OUTPUT);
+                const auto subgraphOutputLifetime = Operand::LifeTime::SUBGRAPH_OUTPUT;
                 if (!inputOperandIndexesOfCompliantOperations.count(origOperandIndex) &&
                     origOperandNumberOfConsumers[origOperandIndex] != 0) {
                     // Was consumed only by noncompliant operations; convert to
@@ -413,29 +318,81 @@ void MetaModel::processOperations(
 
                 VLOG(COMPILATION) << "origOperandIndexToSlicedIndex compliant output created "
                                   << origOperandIndex << " -> " << slicedOperandIndex << ": "
-                                  << toString(slicedOperand);
+                                  << slicedOperand;
 
                 if (slicedOperand.lifetime == subgraphOutputLifetime) {
-                    extend(&slice->mHidlModel.outputIndexes, slicedOperandIndex);
+                    extend(&slice->mModel.main.outputIndexes, slicedOperandIndex);
                 }
             }
         }
     }
 }
 
-template <class T_SlicedModel>
-MetaModel::Slice<T_SlicedModel> MetaModel::makeSlice() const {
-    using SlicedOperand = typename Slice<T_SlicedModel>::Operand;
+std::set<uint32_t> MetaModel::getNoncompliantOperations(Version version) const {
+    const auto [operandValuesSize, poolSizes] = getMemorySizes(mModel);
 
-    Slice<T_SlicedModel> slice;
+    auto subgraphVersionCache = createSubgraphVersionCache(mModel.referenced.size());
+    std::set<uint32_t> noncompliantOperations;
+    for (uint32_t i = 0; i < mModel.main.operations.size(); ++i) {
+        const auto& operation = mModel.main.operations[i];
+        const auto minSupportedVersion =
+                validateOperationAndAnythingItDependsOn(
+                        operation, mModel.main.operands, operandValuesSize, poolSizes,
+                        mModel.referenced, subgraphVersionCache.get())
+                        .value();
+        if (minSupportedVersion > version) {
+            noncompliantOperations.insert(i);
+        }
+    }
+    return noncompliantOperations;
+}
+
+MetaModel::Slice MetaModel::makeSlice(Version version) const {
+    Slice slice;
+
+    // Quickly return if the model is already compliant with `version`
+    if (version >= mModelMinimumSupportedVersion) {
+        slice.mModel = mModel;
+        slice.mSlicedOperationIndexToOrigIndex =
+                std::vector<uint32_t>(mModel.main.operations.size());
+        std::iota(slice.mSlicedOperationIndexToOrigIndex.begin(),
+                  slice.mSlicedOperationIndexToOrigIndex.end(), 0u);
+        slice.mState = SliceState::NORMAL;
+        return slice;
+    }
 
     const auto& origOperands = mModel.main.operands;
     const auto& origOperations = mModel.main.operations;
-    auto& slicedOperands = slice.mHidlModel.operands;
+    auto& slicedOperands = slice.mModel.main.operands;
 
     // Indexes of elements of noncompliant origOperations
-    std::set<uint32_t> noncompliantOperations;
-    getNoncompliantOperations<T_SlicedModel>(convertToV1_3(mModel), &noncompliantOperations);
+    std::set<uint32_t> noncompliantOperations = getNoncompliantOperations(version);
+
+    // Check if any compliant operations require a subgraph.
+    bool someCompliantOperationHasASubgraphOperand = false;
+    if (!mModel.referenced.empty()) {
+        for (size_t i = 0; i < mModel.main.operations.size(); ++i) {
+            const auto& operation = mModel.main.operations[i];
+            if (noncompliantOperations.count(i) > 0) {
+                continue;
+            }
+            const auto isSubgraph = [&origOperands](uint32_t opndIdx) {
+                return origOperands[opndIdx].lifetime == Operand::LifeTime::SUBGRAPH;
+            };
+            if (std::any_of(operation.inputs.begin(), operation.inputs.end(), isSubgraph)) {
+                someCompliantOperationHasASubgraphOperand = true;
+                break;
+            }
+        }
+    }
+
+    // TODO(b/175418767): Currently, MetaModel is not equipped to slice referenced subgraphs. If the
+    // original model is not compliant with the specified version and contains referenced subgraphs
+    // needed by the slice, return an invalidated slice.
+    if (someCompliantOperationHasASubgraphOperand) {
+        slice.mState = SliceState::INVALID;
+        return slice;
+    }
 
     // Map from an operand index in origOperands to the corresponding operand index in
     // slicedOperands
@@ -462,13 +419,11 @@ MetaModel::Slice<T_SlicedModel> MetaModel::makeSlice() const {
                     case Operand::LifeTime::POINTER:
                     case Operand::LifeTime::NO_VALUE: {
                         const uint32_t slicedOperandIndex =
-                                extend(&slicedOperands, convertTo<SlicedOperand>(origOperand))
-                                        .first;
-                        slicedOperands[slicedOperandIndex].numberOfConsumers = 0;
+                                extend(&slicedOperands, origOperand).first;
                         origOperandIndexToSlicedIndex[input] = slicedOperandIndex;
                         VLOG(COMPILATION) << "origOperandIndexToSlicedIndex initialization created "
                                           << input << " -> " << slicedOperandIndex << ": "
-                                          << toString(slicedOperands[slicedOperandIndex]);
+                                          << slicedOperands[slicedOperandIndex];
                         break;
                     }
                     default:
@@ -478,8 +433,11 @@ MetaModel::Slice<T_SlicedModel> MetaModel::makeSlice() const {
         }
     }
 
+    const auto [operandValuesSize, poolSizes] = getMemorySizes(mModel);
+
     OrigOperandToSlicedInputOperandIndex origOperandToSlicedInputOperandIndex(
-            &slicedOperands, &slice.mHidlModel.inputIndexes);
+            &slicedOperands, &slice.mModel.main.inputIndexes, version, operandValuesSize,
+            poolSizes);
 
     // An input of the original model is an input of the sliced model if and
     // only if it is consumed by at least one compliant operation.  Note that in
@@ -492,7 +450,7 @@ MetaModel::Slice<T_SlicedModel> MetaModel::makeSlice() const {
             origOperandIndexToSlicedIndex[origInputIndex] = slicedIndex;
             VLOG(COMPILATION) << "origOperandIndexToSlicedIndex inputIndexes processing created "
                               << origInputIndex << " -> " << slicedIndex << ": "
-                              << toString(slicedOperands[slicedIndex]);
+                              << slicedOperands[slicedIndex];
         }
     }
 
@@ -504,9 +462,9 @@ MetaModel::Slice<T_SlicedModel> MetaModel::makeSlice() const {
     // opt to regenerate them based on the operands present in the sliced model:
     // This would be more complex and probably take more computation time, but
     // it would reduce the size of the sliced model, and hence the time spent
-    // copying it around and passing it across the HAL interface.
-    slice.mHidlModel.operandValues = convertToV1_0(mModel.operandValues);
-    slice.mHidlModel.pools = convertToV1_0(mModel.pools);
+    // copying it around and potentially passing it across process boundaries.
+    slice.mModel.operandValues = mModel.operandValues;
+    slice.mModel.pools = mModel.pools;
 
     if (VLOG_IS_ON(COMPILATION)) {
         {
@@ -516,18 +474,15 @@ MetaModel::Slice<T_SlicedModel> MetaModel::makeSlice() const {
         }
         {
             std::ostringstream toName;
-            toName << "Slice: To " << ModelVersion<decltype(slice.mHidlModel)>::name;
-            graphDump(toName.str().c_str(), uncheckedConvert(convertToV1_3(slice.mHidlModel)));
+            toName << "Slice: To " << version;
+            graphDump(toName.str().c_str(), slice.mModel);
         }
     }
 
-    slice.mState =
-            invalid(slice.mHidlModel, mStrictSlicing) ? SliceState::INVALID : SliceState::NORMAL;
+    slice.mState = invalid(slice.mModel, version, mStrictSlicing) ? SliceState::INVALID
+                                                                  : SliceState::NORMAL;
 
     return slice;
 }
-
-template MetaModel::Slice<V1_0::Model> MetaModel::makeSlice() const;
-template MetaModel::Slice<V1_1::Model> MetaModel::makeSlice() const;
 
 }  // namespace android::nn

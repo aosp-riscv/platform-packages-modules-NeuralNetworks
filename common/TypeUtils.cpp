@@ -18,6 +18,7 @@
 
 #include <android-base/logging.h>
 
+#include <algorithm>
 #include <chrono>
 #include <limits>
 #include <memory>
@@ -198,6 +199,17 @@ Result<Dimensions> combineDimensions(const Dimensions& lhs, const Dimensions& rh
         }
     }
     return combined;
+}
+
+std::pair<size_t, std::vector<size_t>> getMemorySizes(const Model& model) {
+    const size_t operandValuesSize = model.operandValues.size();
+
+    std::vector<size_t> poolSizes;
+    poolSizes.reserve(model.pools.size());
+    std::transform(model.pools.begin(), model.pools.end(), std::back_inserter(poolSizes),
+                   [](const Memory& memory) { return memory.size; });
+
+    return std::make_pair(operandValuesSize, std::move(poolSizes));
 }
 
 std::ostream& operator<<(std::ostream& os, const DeviceStatus& deviceStatus) {

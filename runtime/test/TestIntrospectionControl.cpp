@@ -1222,6 +1222,177 @@ void createAddMulModel(WrapperModel* model, bool reverseOrder) {
     ASSERT_TRUE(model->isValid());
 }
 
+TEST_F(IntrospectionControlTest, SlicingFullySupported) {
+    // This is needed before we have the CPU fallback path being treated as a Device.
+    if (DeviceManager::get()->getUseCpuOnly()) {
+        GTEST_SKIP();
+    }
+
+    using namespace test_drivers;
+
+    static const char name[] = "driver11";
+    DeviceManager::get()->forTest_registerDevice(name, new TestDriver11(name, Success::PASS_BOTH));
+    ASSERT_TRUE(selectDeviceByName(name));
+
+    createAddMulModel(&mModel, false);
+    EXPECT_TRUE(isSupportedOpListExpected({true, true}));
+}
+
+void createCondModel(WrapperModel* model, bool dynamicRank) {
+    const auto dimensions = dynamicRank ? std::vector<uint32_t>{} : std::vector<uint32_t>{1};
+    WrapperOperandType floatType(WrapperType::TENSOR_FLOAT32, dimensions);
+    WrapperOperandType boolType(WrapperType::TENSOR_BOOL8, {1});
+    // Phase 1, operands
+    auto op1 = model->addOperand(&floatType);
+    auto op2 = model->addOperand(&boolType);
+    // Phase 2, operations
+    model->addOperation(ANEURALNETWORKS_LESS, {op1, op1}, {op2});
+    // Phase 3, inputs and outputs
+    model->identifyInputsAndOutputs({op1}, {op2});
+    model->finish();
+}
+
+void addReluOperation(WrapperModel* model, std::vector<uint32_t>* modelInputIndexes,
+                      std::vector<uint32_t>* modelOutputIndexes, bool dynamicRank) {
+    const auto dimensions = dynamicRank ? std::vector<uint32_t>{} : std::vector<uint32_t>{1};
+    WrapperOperandType type(WrapperType::TENSOR_FLOAT32, dimensions);
+    // Phase 1, operands
+    auto op1 = model->addOperand(&type);
+    auto op2 = model->addOperand(&type);
+    // Phase 2, operations
+    model->addOperation(ANEURALNETWORKS_RELU, {op1}, {op2});
+    // Phase 3, inputs and outputs
+    modelInputIndexes->push_back(op1);
+    modelOutputIndexes->push_back(op2);
+}
+
+void createReluModel(WrapperModel* model, bool dynamicRank) {
+    std::vector<uint32_t> modelInputIndexes, modelOutputIndexes;
+    addReluOperation(model, &modelInputIndexes, &modelOutputIndexes, dynamicRank);
+    model->identifyInputsAndOutputs(modelInputIndexes, modelOutputIndexes);
+    model->finish();
+}
+
+void addWhileOperation(std::vector<WrapperModel>* extraModels, WrapperModel* mainModel,
+                       std::vector<uint32_t>* modelInputIndexes,
+                       std::vector<uint32_t>* modelOutputIndexes, bool dynamicRank) {
+    const auto dimensions = dynamicRank ? std::vector<uint32_t>{} : std::vector<uint32_t>{1};
+    WrapperOperandType floatType(WrapperType::TENSOR_FLOAT32, dimensions);
+    WrapperOperandType modelType(WrapperType::MODEL, {});
+
+    extraModels->emplace_back();
+    extraModels->emplace_back();
+    WrapperModel* condModel = &extraModels->at(extraModels->size() - 2);
+    WrapperModel* bodyModel = &extraModels->at(extraModels->size() - 1);
+    createCondModel(condModel, dynamicRank);
+    createReluModel(bodyModel, dynamicRank);
+    ASSERT_TRUE(condModel->isValid());
+    ASSERT_TRUE(bodyModel->isValid());
+
+    // Phase 1, operands
+    const uint32_t op1 = mainModel->addOperand(&modelType);
+    const uint32_t op2 = mainModel->addOperand(&modelType);
+    const uint32_t op3 = mainModel->addOperand(&floatType);
+    const uint32_t op4 = mainModel->addOperand(&floatType);
+    mainModel->setOperandValueFromModel(op1, condModel);
+    mainModel->setOperandValueFromModel(op2, bodyModel);
+    // Phase 2, operations
+    mainModel->addOperation(ANEURALNETWORKS_WHILE, {op1, op2, op3}, {op4});
+    // Phase 3, inputs and outputs
+    modelInputIndexes->push_back(op3);
+    modelOutputIndexes->push_back(op4);
+}
+
+void createReluStaticWhileModel(std::vector<WrapperModel>* extraModels, WrapperModel* mainModel) {
+    std::vector<uint32_t> modelInputIndexes, modelOutputIndexes;
+
+    // Operation supported in Android API level 27
+    addReluOperation(mainModel, &modelInputIndexes, &modelOutputIndexes, /*dynamicRank=*/false);
+    // Operation supported in Android API level 30
+    addWhileOperation(extraModels, mainModel, &modelInputIndexes, &modelOutputIndexes,
+                      /*dynamicRank=*/false);
+
+    mainModel->identifyInputsAndOutputs(modelInputIndexes, modelOutputIndexes);
+    mainModel->finish();
+    ASSERT_TRUE(mainModel->isValid());
+}
+
+TEST_F(IntrospectionControlTest, ControlFlowNotSupported) {
+    // This is needed before we have the CPU fallback path being treated as a Device.
+    if (DeviceManager::get()->getUseCpuOnly()) {
+        GTEST_SKIP();
+    }
+
+    using namespace test_drivers;
+
+    static const char name[] = "driver11";
+    DeviceManager::get()->forTest_registerDevice(name, new TestDriver11(name, Success::PASS_BOTH));
+    ASSERT_TRUE(selectDeviceByName(name));
+
+    std::vector<WrapperModel> extraModels;
+    createReluStaticWhileModel(&extraModels, &mModel);
+    EXPECT_TRUE(isSupportedOpListExpected({true, false}));
+
+    // Clear mModel early because it may reference `extraModels`.
+    mModel = WrapperModel{};
+}
+
+TEST_F(IntrospectionControlTest, ControlFlowSupported) {
+    // This is needed before we have the CPU fallback path being treated as a Device.
+    if (DeviceManager::get()->getUseCpuOnly()) {
+        GTEST_SKIP();
+    }
+
+    using namespace test_drivers;
+
+    static const char name[] = "driver13";
+    DeviceManager::get()->forTest_registerDevice(name, new TestDriver13(name, Success::PASS_BOTH));
+    ASSERT_TRUE(selectDeviceByName(name));
+
+    std::vector<WrapperModel> extraModels;
+    createReluStaticWhileModel(&extraModels, &mModel);
+    EXPECT_TRUE(isSupportedOpListExpected({true, true}));
+
+    // Clear mModel early because it may reference `extraModels`.
+    mModel = WrapperModel{};
+}
+
+void createStaticWhileDynamicWhileModel(std::vector<WrapperModel>* extraModels,
+                                        WrapperModel* mainModel) {
+    std::vector<uint32_t> modelInputIndexes, modelOutputIndexes;
+
+    // Operation supported in Android API level 30
+    addWhileOperation(extraModels, mainModel, &modelInputIndexes, &modelOutputIndexes,
+                      /*dynamicRank=*/false);
+    // Operation supported only by NNAPI runtime
+    addWhileOperation(extraModels, mainModel, &modelInputIndexes, &modelOutputIndexes,
+                      /*dynamicRank=*/true);
+
+    mainModel->identifyInputsAndOutputs(modelInputIndexes, modelOutputIndexes);
+    mainModel->finish();
+    ASSERT_TRUE(mainModel->isValid());
+}
+
+TEST_F(IntrospectionControlTest, ControlFlowFailedToSlice) {
+    // This is needed before we have the CPU fallback path being treated as a Device.
+    if (DeviceManager::get()->getUseCpuOnly()) {
+        GTEST_SKIP();
+    }
+
+    using namespace test_drivers;
+
+    static const char name[] = "driver13";
+    DeviceManager::get()->forTest_registerDevice(name, new TestDriver13(name, Success::PASS_BOTH));
+    ASSERT_TRUE(selectDeviceByName(name));
+
+    std::vector<WrapperModel> extraModels;
+    createStaticWhileDynamicWhileModel(&extraModels, &mModel);
+    EXPECT_TRUE(isSupportedOpListExpected({false, false}));
+
+    // Clear mModel early because it may reference `extraModels`.
+    mModel = WrapperModel{};
+}
+
 // TODO(miaowang): add a test to make sure ANNCompilation_create() has CPU
 // fallback.
 // This test verifies that a device that could only handle ADD would correctly report that an

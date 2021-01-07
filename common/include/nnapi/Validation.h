@@ -89,8 +89,40 @@ Result<void> validateOperandType(const Operand& type,
 Result<void> validateOperandList(const std::vector<uint32_t>& list, size_t operandCount,
                                  const char* tag);
 
-Result<Version> validateOperation(const Operation& operation, const std::vector<Operand>& operands,
-                                  const std::vector<Model::Subgraph>& subgraphs);
+// Validates the operation, and ensures it uses subgraphs in a valid way, but does not validate any
+// subgraphs or operands themselves.
+//
+// This function is currently used by ModelBuilder.
+Result<void> validateOperationButNotOperands(const Operation& operation,
+                                             const std::vector<Operand>& operands,
+                                             const std::vector<Model::Subgraph>& subgraphs);
+
+// Forward declaration for a utility class for caching a referenced subgraph's version.
+struct SubgraphVersionCache;
+
+// Function to create an opaque handle to a utility class for caching a referenced subgraph's
+// version.
+std::unique_ptr<SubgraphVersionCache, void (*)(SubgraphVersionCache*)> createSubgraphVersionCache(
+        size_t subgraphCount);
+
+// Validate the operation or operand, also validating any subgraphs and operands it may use,
+// recursively.
+//
+// `subgraphVersionCache` is used to cache validation information for `subgraphs`, which would
+// otherwise be unnecessarily re-validated. For this reason, `subgraphVersionCache` must be non-null
+// and must have been created with the number of referenced subgraphs in `subgraphs`. The provided
+// subgraphs must not form a reference cycle.
+//
+// These functions are currently used by MetaModel.
+Result<Version> validateOperationAndAnythingItDependsOn(
+        const Operation& operation, const std::vector<Operand>& operands, size_t operandValuesSize,
+        const std::vector<size_t>& poolSizes, const std::vector<Model::Subgraph>& subgraphs,
+        SubgraphVersionCache* subgraphVersionCache);
+Result<Version> validateOperandAndAnythingItDependsOn(const Operand& operand,
+                                                      size_t operandValuesSize,
+                                                      const std::vector<size_t>& poolSizes,
+                                                      const std::vector<Model::Subgraph>& subgraphs,
+                                                      SubgraphVersionCache* subgraphVersionCache);
 
 }  // namespace android::nn
 

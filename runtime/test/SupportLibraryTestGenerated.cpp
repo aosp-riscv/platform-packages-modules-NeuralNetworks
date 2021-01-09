@@ -48,6 +48,8 @@
 #define NNTRACE_APP_SWITCH(...)
 #endif
 
+extern std::string SUPPORT_LIBRARY_NAME;
+
 namespace android::nn::generated_tests {
 using namespace test_wrapper;
 using namespace test_helper;
@@ -87,7 +89,7 @@ class GeneratedTests : public GeneratedTestBase {
     Execution::ComputeMode mComputeMode = Execution::getComputeMode();
 
     // TODO(vddang): Supply library name as test argument.
-    const NnApiSupportLibrary* mNnApi = LoadNnApiSupportLibrary("libneuralnetworks.so");
+    const NnApiSupportLibrary* mNnApi = LoadNnApiSupportLibrary(SUPPORT_LIBRARY_NAME.c_str());
 };
 
 int GeneratedTests::mVndkVersion = __ANDROID_API_FUTURE__;

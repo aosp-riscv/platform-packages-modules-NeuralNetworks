@@ -488,6 +488,7 @@ cc_test {
         "GeneratedTestUtils.cpp",
         "SupportLibraryTestGenerated.cpp",
         "SupportLibraryTestWrapper.cpp",
+        "SupportLibraryTestMain.cpp",
     ],
     cflags: [
         "-DNNTEST_SLTS",

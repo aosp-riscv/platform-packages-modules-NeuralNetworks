@@ -68,7 +68,7 @@ class GeneratedTests : public GeneratedTestBase {
     void computeWithDeviceMemories(const Compilation& compilation, const TestModel& testModel,
                                    Execution* execution, Execution::ComputeMode computeMode,
                                    Result* result, std::vector<TestBuffer>* outputs);
-    std::optional<Compilation> compileModel(const Model& model);
+    std::optional<Compilation> compileModel(const Model& model, ANeuralNetworksDevice* device);
     void executeWithCompilation(const Compilation& compilation, const TestModel& testModel);
     void executeOnce(const Model& model, const TestModel& testModel);
     void executeMultithreadedOwnCompilation(const Model& model, const TestModel& testModel);
@@ -88,7 +88,6 @@ class GeneratedTests : public GeneratedTestBase {
     bool mTestDeviceMemory = false;
     Execution::ComputeMode mComputeMode = Execution::getComputeMode();
 
-    // TODO(vddang): Supply library name as test argument.
     const NnApiSupportLibrary* mNnApi = LoadNnApiSupportLibrary(SUPPORT_LIBRARY_NAME.c_str());
 };
 
@@ -119,11 +118,9 @@ class DeviceMemoryTest : public GeneratedTests {
     DeviceMemoryTest() { mTestDeviceMemory = true; }
 };
 
-std::optional<Compilation> GeneratedTests::compileModel(const Model& model) {
+std::optional<Compilation> GeneratedTests::compileModel(const Model& model,
+                                                        ANeuralNetworksDevice* device) {
     NNTRACE_APP(NNTRACE_PHASE_COMPILATION, "compileModel");
-    // TODO(vddang): Need to loop through devices.
-    ANeuralNetworksDevice* device = nullptr;
-    mNnApi->ANeuralNetworks_getDevice(0, &device);
 
     if (mTestCompilationCaching) {
         // Compile the model twice with the same token, so that compilation caching will be
@@ -302,10 +299,20 @@ void GeneratedTests::executeWithCompilation(const Compilation& compilation,
 
 void GeneratedTests::executeOnce(const Model& model, const TestModel& testModel) {
     NNTRACE_APP(NNTRACE_PHASE_OVERALL, "executeOnce");
-    std::optional<Compilation> compilation = compileModel(model);
-    // Early return if compilation fails. The compilation result code is checked in compileModel.
-    if (!compilation) return;
-    executeWithCompilation(compilation.value(), testModel);
+    uint32_t num_devices = 0;
+    mNnApi->ANeuralNetworks_getDeviceCount(&num_devices);
+    for (uint32_t i = 0; i < num_devices; ++i) {
+        ANeuralNetworksDevice* device = nullptr;
+        mNnApi->ANeuralNetworks_getDevice(i, &device);
+        const char* device_name = nullptr;
+        mNnApi->ANeuralNetworksDevice_getName(device, &device_name);
+        SCOPED_TRACE("Device = " + std::string(device_name));
+        std::optional<Compilation> compilation = compileModel(model, device);
+        // Early return if compilation fails. The compilation result code is
+        // checked in compileModel.
+        if (!compilation) return;
+        executeWithCompilation(compilation.value(), testModel);
+    }
 }
 
 void GeneratedTests::executeMultithreadedOwnCompilation(const Model& model,
@@ -323,15 +330,25 @@ void GeneratedTests::executeMultithreadedSharedCompilation(const Model& model,
                                                            const TestModel& testModel) {
     NNTRACE_APP(NNTRACE_PHASE_OVERALL, "executeMultithreadedSharedCompilation");
     SCOPED_TRACE("MultithreadedSharedCompilation");
-    std::optional<Compilation> compilation = compileModel(model);
-    // Early return if compilation fails. The ompilation result code is checked in compileModel.
-    if (!compilation) return;
-    std::vector<std::thread> threads;
-    for (int i = 0; i < 10; i++) {
-        threads.push_back(
-                std::thread([&]() { executeWithCompilation(compilation.value(), testModel); }));
+    uint32_t num_devices = 0;
+    mNnApi->ANeuralNetworks_getDeviceCount(&num_devices);
+    for (uint32_t i = 0; i < num_devices; ++i) {
+        ANeuralNetworksDevice* device = nullptr;
+        mNnApi->ANeuralNetworks_getDevice(i, &device);
+        const char* device_name = nullptr;
+        mNnApi->ANeuralNetworksDevice_getName(device, &device_name);
+        SCOPED_TRACE("Device = " + std::string(device_name));
+        std::optional<Compilation> compilation = compileModel(model, device);
+        // Early return if compilation fails. The ompilation result code is
+        // checked in compileModel.
+        if (!compilation) return;
+        std::vector<std::thread> threads;
+        for (int i = 0; i < 10; i++) {
+            threads.push_back(
+                    std::thread([&]() { executeWithCompilation(compilation.value(), testModel); }));
+        }
+        std::for_each(threads.begin(), threads.end(), [](std::thread& t) { t.join(); });
     }
-    std::for_each(threads.begin(), threads.end(), [](std::thread& t) { t.join(); });
 }
 
 // Test driver for those generated from ml/nn/runtime/test/spec

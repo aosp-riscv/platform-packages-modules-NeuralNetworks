@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+#ifndef ANDROID_FRAMEWORKS_ML_NN_DRIVER_SAMPLE_SAMPLE_DRIVER_UTILS_H
+#define ANDROID_FRAMEWORKS_ML_NN_DRIVER_SAMPLE_SAMPLE_DRIVER_UTILS_H
+
 #include <hwbinder/IPCThreadState.h>
 
 #include <thread>
@@ -90,3 +93,5 @@ V1_3::ErrorStatus prepareModelBase(const T_Model& model, const SampleDriver* dri
 }  // namespace sample_driver
 }  // namespace nn
 }  // namespace android
+
+#endif  // ANDROID_FRAMEWORKS_ML_NN_DRIVER_SAMPLE_SAMPLE_DRIVER_UTILS_H

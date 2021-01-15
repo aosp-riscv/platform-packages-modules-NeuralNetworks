@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "AppInfoFetcher.h"
 #include "HalInterfaces.h"
 #include "HalUtils.h"
 #include "Manager.h"
@@ -129,8 +130,7 @@ TEST_F(ExtensionsTest, TestAllowedNativeBinaries) {
     std::vector<std::string> allowlist = {"/data/foo",    "/vendor/foo",         "/odm/foo",
                                           "/product/foo", "/system/allowlisted", "/foobar/foo"};
 
-    auto native_info =
-            [&](const std::string& binaryPath) -> android::nn::TypeManager::AppPackageInfo {
+    auto native_info = [&](const std::string& binaryPath) -> android::nn::AppInfoFetcher::AppInfo {
         return {.binaryPath = binaryPath,
                 .appPackageName = "",
                 .appIsSystemApp = false,

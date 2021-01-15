@@ -99,52 +99,18 @@ std::vector<std::string> getVendorExtensionAllowlistedApps() {
     return allowlist;
 }
 
-// Query PackageManagerNative service about Android app properties.
-// On success, it will populate appPackageInfo->app* fields.
-bool fetchAppPackageLocationInfo(uid_t uid, TypeManager::AppPackageInfo* appPackageInfo) {
-    ANeuralNetworks_PackageInfo packageInfo;
-    if (!ANeuralNetworks_fetch_PackageInfo(uid, &packageInfo)) {
-        return false;
-    }
-    appPackageInfo->appPackageName = packageInfo.appPackageName;
-    appPackageInfo->appIsSystemApp = packageInfo.appIsSystemApp;
-    appPackageInfo->appIsOnVendorImage = packageInfo.appIsOnVendorImage;
-    appPackageInfo->appIsOnProductImage = packageInfo.appIsOnProductImage;
-
-    ANeuralNetworks_free_PackageInfo(&packageInfo);
-    return true;
-}
-
-// Check if this process is allowed to use NNAPI Vendor extensions.
-bool isNNAPIVendorExtensionsUseAllowed(const std::vector<std::string>& allowlist) {
-    TypeManager::AppPackageInfo appPackageInfo = {
-            .binaryPath = ::android::procpartition::getExe(getpid()),
-            .appPackageName = "",
-            .appIsSystemApp = false,
-            .appIsOnVendorImage = false,
-            .appIsOnProductImage = false};
-
-    if (appPackageInfo.binaryPath == "/system/bin/app_process64" ||
-        appPackageInfo.binaryPath == "/system/bin/app_process32") {
-        if (!fetchAppPackageLocationInfo(getuid(), &appPackageInfo)) {
-            LOG(ERROR) << "Failed to get app information from package_manager_native";
-            return false;
-        }
-    }
-    return TypeManager::isExtensionsUseAllowed(
-            appPackageInfo, isNNAPIVendorExtensionsUseAllowedInProductImage(), allowlist);
-}
-
 }  // namespace
 
 TypeManager::TypeManager() {
     VLOG(MANAGER) << "TypeManager::TypeManager";
-    mExtensionsAllowed = isNNAPIVendorExtensionsUseAllowed(getVendorExtensionAllowlistedApps());
+    mExtensionsAllowed = TypeManager::isExtensionsUseAllowed(
+            AppInfoFetcher::get()->getAppInfo(), isNNAPIVendorExtensionsUseAllowedInProductImage(),
+            getVendorExtensionAllowlistedApps());
     VLOG(MANAGER) << "NNAPI Vendor extensions enabled: " << mExtensionsAllowed;
     findAvailableExtensions();
 }
 
-bool TypeManager::isExtensionsUseAllowed(const AppPackageInfo& appPackageInfo,
+bool TypeManager::isExtensionsUseAllowed(const AppInfoFetcher::AppInfo& appPackageInfo,
                                          bool useOnProductImageEnabled,
                                          const std::vector<std::string>& allowlist) {
     // Only selected partitions and user-installed apps (/data)

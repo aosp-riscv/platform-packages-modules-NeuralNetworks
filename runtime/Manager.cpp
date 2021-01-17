@@ -34,6 +34,7 @@
 #include <utility>
 #include <vector>
 
+#include "AppInfoFetcher.h"
 #include "Callbacks.h"
 #include "CpuExecutor.h"
 #include "ExecutionBurstController.h"
@@ -64,6 +65,8 @@ class DriverDevice : public Device {
     const std::string& getVersionString() const override { return kInterface->getVersionString(); }
     int64_t getFeatureLevel() const override { return kInterface->getFeatureLevel(); }
     int32_t getType() const override { return kInterface->getType(); }
+    // TODO: call kInterface->isUpdatable() when VersionedIDevice is changed to nn::IDevice.
+    bool isUpdatable() const override { return false; }
     const std::vector<Extension>& getSupportedExtensions() const override {
         return kInterface->getSupportedExtensions();
     }
@@ -544,6 +547,7 @@ class CpuDevice : public Device {
     const std::string& getVersionString() const override { return kVersionString; }
     int64_t getFeatureLevel() const override { return kFeatureLevel; }
     int32_t getType() const override { return ANEURALNETWORKS_DEVICE_CPU; }
+    bool isUpdatable() const override { return false; }
     const std::vector<Extension>& getSupportedExtensions() const override {
         return kSupportedExtensions;
     }
@@ -833,9 +837,18 @@ void DeviceManager::findAvailableDevices() {
     mDevicesCpuOnly.push_back(CpuDevice::get());
 }
 
+static bool updatableDriversAreAllowed() {
+    const auto& appInfo = AppInfoFetcher::get()->getAppInfo();
+    const bool currentProcessIsOnThePlatform =
+            appInfo.appIsSystemApp || appInfo.appIsOnVendorImage || appInfo.appIsOnProductImage;
+    return !currentProcessIsOnThePlatform;
+}
+
 void DeviceManager::registerDevice(const std::string& name, const HalDeviceFactory& makeDevice) {
     if (auto device = DriverDevice::create(name, makeDevice)) {
-        mDevices.push_back(std::move(device));
+        if (!device->isUpdatable() || updatableDriversAreAllowed()) {
+            mDevices.push_back(std::move(device));
+        }
     }
 }
 

@@ -93,6 +93,7 @@ class Device {
     virtual const std::string& getVersionString() const = 0;
     virtual int64_t getFeatureLevel() const = 0;
     virtual int32_t getType() const = 0;
+    virtual bool isUpdatable() const = 0;
     virtual const std::vector<Extension>& getSupportedExtensions() const = 0;
 
     // See the MetaModel class in MetaModel.h for more details.

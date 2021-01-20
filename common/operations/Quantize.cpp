@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#include "OperationsUtils.h"
 #define LOG_TAG "Operations"
 
 #include <algorithm>
@@ -22,6 +21,7 @@
 
 #include "IndexedShapeWrapper.h"
 #include "OperationResolver.h"
+#include "OperationsUtils.h"
 #include "Tracing.h"
 
 namespace android {

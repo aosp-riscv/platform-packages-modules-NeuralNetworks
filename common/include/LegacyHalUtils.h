@@ -172,6 +172,12 @@ std::tuple<int, std::vector<OutputShape>, Timing> getExecutionResult(
         V1_3::ErrorStatus status, const hardware::hidl_vec<V1_2::OutputShape>& outputShapes,
         const V1_2::Timing& timing);
 
+// Forward declaration for type defined in CpuExecutor.h.
+class RunTimePoolInfo;
+
+bool setRunTimePoolInfosFromHidlMemories(std::vector<RunTimePoolInfo>* poolInfos,
+                                         const hardware::hidl_vec<hardware::hidl_memory>& pools);
+
 // Versioning
 
 bool compliantWithV1_0(const V1_0::Capabilities& capabilities);

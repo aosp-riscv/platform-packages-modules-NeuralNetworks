@@ -153,6 +153,7 @@ namespace V1_2 = ::android::hardware::neuralnetworks::V1_2;
 namespace V1_3 = ::android::hardware::neuralnetworks::V1_3;
 using CompilationBuilder = ::android::nn::CompilationBuilder;
 using Device = ::android::nn::Device;
+using SharedDevice = ::android::nn::SharedDevice;
 using DeviceManager = ::android::nn::DeviceManager;
 using ExecutePreference = ::android::nn::test_wrapper::ExecutePreference;
 using ExecutePriority = ::android::nn::test_wrapper::ExecutePriority;
@@ -1073,37 +1074,49 @@ class PartitioningTest : public ::testing::Test {
             std::vector<DeviceSpecification> specifications) {
         std::vector<std::shared_ptr<Device>> devices;
         for (const auto& specification : specifications) {
-            V1_0::IDevice* halDriver = nullptr;
+            SharedDevice device = nullptr;
             switch (specification.mHalVersion) {
                 case HalVersion::V1_3:
-                    halDriver = new PartitioningDriver(
-                            specification.mName.c_str(), specification.mVersionString.c_str(),
-                            specification.mCapabilities, specification.mOperationMask,
-                            specification.mOEM, specification.mOperationTypes);
+                    device = android::nn::makeSharedDevice(
+                            specification.mName,
+                            new PartitioningDriver(specification.mName.c_str(),
+                                                   specification.mVersionString.c_str(),
+                                                   specification.mCapabilities,
+                                                   specification.mOperationMask, specification.mOEM,
+                                                   specification.mOperationTypes));
                     break;
                 case HalVersion::V1_2:
-                    halDriver = new PartitioningDriverV1_2(
-                            specification.mName.c_str(), specification.mVersionString.c_str(),
-                            specification.mCapabilities, specification.mOperationMask,
-                            specification.mOEM, specification.mOperationTypes);
+                    device = android::nn::makeSharedDevice(
+                            specification.mName,
+                            new PartitioningDriverV1_2(
+                                    specification.mName.c_str(),
+                                    specification.mVersionString.c_str(),
+                                    specification.mCapabilities, specification.mOperationMask,
+                                    specification.mOEM, specification.mOperationTypes));
                     break;
                 case HalVersion::V1_1:
-                    halDriver = new PartitioningDriverV1_1(
-                            specification.mName.c_str(), specification.mVersionString.c_str(),
-                            specification.mCapabilities, specification.mOperationMask,
-                            specification.mOEM, specification.mOperationTypes);
+                    device = android::nn::makeSharedDevice(
+                            specification.mName,
+                            new PartitioningDriverV1_1(
+                                    specification.mName.c_str(),
+                                    specification.mVersionString.c_str(),
+                                    specification.mCapabilities, specification.mOperationMask,
+                                    specification.mOEM, specification.mOperationTypes));
                     break;
                 case HalVersion::V1_0:
-                    halDriver = new PartitioningDriverV1_0(
-                            specification.mName.c_str(), specification.mVersionString.c_str(),
-                            specification.mCapabilities, specification.mOperationMask,
-                            specification.mOEM, specification.mOperationTypes);
+                    device = android::nn::makeSharedDevice(
+                            specification.mName,
+                            new PartitioningDriverV1_0(
+                                    specification.mName.c_str(),
+                                    specification.mVersionString.c_str(),
+                                    specification.mCapabilities, specification.mOperationMask,
+                                    specification.mOEM, specification.mOperationTypes));
                     break;
                 default:
                     ADD_FAILURE() << "Unexpected";
             }
-            auto device = DeviceManager::forTest_makeDriverDevice(specification.mName, halDriver);
-            devices.push_back(device);
+            auto driverDevice = DeviceManager::forTest_makeDriverDevice(device);
+            devices.push_back(std::move(driverDevice));
         }
         devices.push_back(DeviceManager::getCpuDevice());
         return devices;

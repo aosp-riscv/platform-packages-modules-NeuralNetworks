@@ -76,8 +76,8 @@ class FailingDriverTest : public ::testing::Test {
             !DeviceManager::partitioningAllowsFallback(deviceManager->getPartitioning())) {
             GTEST_SKIP();
         }
-        mTestDevice =
-                DeviceManager::forTest_makeDriverDevice(kTestDriverName, new FailingTestDriver());
+        mTestDevice = DeviceManager::forTest_makeDriverDevice(
+                makeSharedDevice(kTestDriverName, new FailingTestDriver()));
         deviceManager->forTest_setDevices({
                 mTestDevice,
                 DeviceManager::getCpuDevice(),

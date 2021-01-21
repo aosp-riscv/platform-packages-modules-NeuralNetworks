@@ -49,9 +49,9 @@ cc_defaults {
     srcs: [
         "AppInfoFetcher.cpp",
         "BurstBuilder.cpp",
-        "Callbacks.cpp",
         "CompilationBuilder.cpp",
         "ExecutionBuilder.cpp",
+        "ExecutionCallback.cpp",
         "ExecutionPlan.cpp",
         "Manager.cpp",
         "Memory.cpp",
@@ -59,7 +59,6 @@ cc_defaults {
         "ModelBuilder.cpp",
         "NeuralNetworks.cpp",
         "TypeManager.cpp",
-        "VersionedInterfaces.cpp",
     ],
 
     target: {
@@ -98,6 +97,7 @@ cc_defaults {
         "libprocessgroup",
         "libtextclassifier_hash_static",
         "libutils",
+        "neuralnetworks_types",
     ],
 
     stl: "libc++_static",

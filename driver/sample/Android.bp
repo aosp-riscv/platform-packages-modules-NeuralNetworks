@@ -121,3 +121,22 @@ cc_library_static {
     defaults: ["NeuralNetworksSampleDriver_defaults"],
     export_include_dirs: ["."],
 }
+
+cc_library_static {
+    name: "neuralnetworks_canonical_sample_driver",
+    defaults: ["neuralnetworks_defaults"],
+    vendor_available: true,
+    // b/109953668, disable OpenMP
+    // openmp: true,
+    srcs: [
+        "Canonical*.cpp",
+        "LimitedSupportDevice.cpp",
+    ],
+    header_libs: ["libneuralnetworks_headers"],
+    export_include_dirs: ["."],
+    static_libs: ["libneuralnetworks_common"],
+    shared_libs: [
+        "libbase",
+        "libnativewindow",
+    ],
+}

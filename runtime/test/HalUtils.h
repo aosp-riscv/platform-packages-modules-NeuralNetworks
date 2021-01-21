@@ -17,6 +17,15 @@
 #ifndef ANDROID_FRAMEWORKS_ML_NN_RUNTIME_TEST_HAL_UTILS_H
 #define ANDROID_FRAMEWORKS_ML_NN_RUNTIME_TEST_HAL_UTILS_H
 
+#include <nnapi/hal/1.0/Device.h>
+#include <nnapi/hal/1.1/Device.h>
+#include <nnapi/hal/1.2/Device.h>
+#include <nnapi/hal/1.3/Device.h>
+#include <utils/StrongPointer.h>
+
+#include <string>
+#include <utility>
+
 #include "HalInterfaces.h"
 #include "Utils.h"
 
@@ -30,7 +39,28 @@ inline V1_3::Capabilities makeCapabilities(float perf) {
             .operandPerformance = nonExtensionOperandPerformance<HalVersion::V1_3>(perfInfo),
             .ifPerformance = perfInfo,
             .whilePerformance = perfInfo};
-};
+}
+
+inline SharedDevice makeSharedDevice(std::string name, sp<V1_0::IDevice> driver) {
+    auto handleError = [](GeneralResult<SharedDevice> result) -> SharedDevice {
+        if (!result.has_value()) {
+            LOG(ERROR) << "Failed to create Device (" << result.error().code
+                       << "): " << result.error().message;
+            return nullptr;
+        }
+        return std::move(result).value();
+    };
+    if (auto driver13 = V1_3::IDevice::castFrom(driver).withDefault(nullptr); driver13 != nullptr) {
+        return handleError(V1_3::utils::Device::create(std::move(name), std::move(driver13)));
+    }
+    if (auto driver12 = V1_2::IDevice::castFrom(driver).withDefault(nullptr); driver12 != nullptr) {
+        return handleError(V1_2::utils::Device::create(std::move(name), std::move(driver12)));
+    }
+    if (auto driver11 = V1_1::IDevice::castFrom(driver).withDefault(nullptr); driver11 != nullptr) {
+        return handleError(V1_1::utils::Device::create(std::move(name), std::move(driver11)));
+    }
+    return handleError(V1_0::utils::Device::create(std::move(name), std::move(driver)));
+}
 
 }  // namespace android::nn
 

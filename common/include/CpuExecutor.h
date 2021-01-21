@@ -26,9 +26,9 @@
 #include <vector>
 
 #include "ControlFlow.h"
+#include "LegacyUtils.h"
 #include "OperationResolver.h"
 #include "OperationsUtils.h"
-#include "Utils.h"
 
 namespace android {
 namespace nn {
@@ -122,15 +122,6 @@ class RunTimePoolInfo {
 
 bool setRunTimePoolInfosFromCanonicalMemories(std::vector<RunTimePoolInfo>* poolInfos,
                                               const std::vector<Memory>& pools);
-
-// DEPRECATED. Use setRunTimePoolInfosFromCanonicalMemories().
-//
-// Used by external code.
-inline bool setRunTimePoolInfosFromHidlMemories(
-        std::vector<RunTimePoolInfo>* poolInfos,
-        const hardware::hidl_vec<hardware::hidl_memory>& pools) {
-    return setRunTimePoolInfosFromCanonicalMemories(poolInfos, uncheckedConvert(pools));
-}
 
 bool setRunTimePoolInfosFromMemoryPools(std::vector<RunTimePoolInfo>* poolInfos,
                                         const std::vector<Request::MemoryPool>& pools);

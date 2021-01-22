@@ -28,7 +28,7 @@
 #include <utility>
 #include <vector>
 
-#include "ExecutionCallback.h"
+#include "Callbacks.h"
 #include "HalInterfaces.h"
 #include "Memory.h"
 #include "Utils.h"
@@ -41,6 +41,7 @@ class Device;
 class ExecutionBurstController;
 class MetaModel;
 class ModelArgumentInfo;
+class VersionedIPreparedModel;
 
 // A unified interface for actual driver prepared model as well as the CPU.
 class RuntimePreparedModel {
@@ -51,7 +52,7 @@ class RuntimePreparedModel {
     virtual ~RuntimePreparedModel() = default;
 
     virtual const Device* getDevice() const = 0;
-    virtual SharedPreparedModel getInterface() const = 0;
+    virtual std::shared_ptr<VersionedIPreparedModel> getInterface() const = 0;
 
     // Perform computation with given input/output argument info and memory pools.
     virtual std::tuple<int, std::vector<OutputShape>, Timing> execute(
@@ -165,7 +166,10 @@ class DeviceManager {
     }
 
     // Register a test device.
-    void forTest_registerDevice(const SharedDevice& device) { registerDevice(device); }
+    void forTest_registerDevice(const std::string& name, const sp<V1_0::IDevice>& device) {
+        const HalDeviceFactory makeDevice = [device](bool /*blocking*/) { return device; };
+        registerDevice(name, makeDevice);
+    }
 
     // Re-initialize the list of available devices.
     void forTest_reInitializeDeviceList() {
@@ -175,7 +179,8 @@ class DeviceManager {
     }
 
     // Make a test device
-    static std::shared_ptr<Device> forTest_makeDriverDevice(const SharedDevice& device);
+    static std::shared_ptr<Device> forTest_makeDriverDevice(const std::string& name,
+                                                            const sp<V1_0::IDevice>& device);
 
     bool forTest_isCpuDevice(const ANeuralNetworksDevice* device) const {
         return reinterpret_cast<const Device*>(device) == getCpuDevice().get();
@@ -186,7 +191,7 @@ class DeviceManager {
     DeviceManager();
 
     // Adds a device for the manager to use.
-    void registerDevice(const SharedDevice& device);
+    void registerDevice(const std::string& name, const HalDeviceFactory& makeDevice);
 
     void findAvailableDevices();
 

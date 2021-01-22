@@ -25,14 +25,12 @@
 #include <tuple>
 #include <vector>
 
+#include "Callbacks.h"
 #include "CompilationBuilder.h"
-#include "ExecutionCallback.h"
 #include "HalInterfaces.h"
-#include "HalUtils.h"
 #include "Manager.h"
 #include "ModelBuilder.h"
 #include "NeuralNetworks.h"
-#include "PreparedModelCallback.h"
 #include "SampleDriver.h"
 #include "TestNeuralNetworksWrapper.h"
 #include "Utils.h"
@@ -46,7 +44,6 @@ namespace V1_2 = ::android::hardware::neuralnetworks::V1_2;
 namespace V1_3 = ::android::hardware::neuralnetworks::V1_3;
 using CompilationBuilder = nn::CompilationBuilder;
 using Device = nn::Device;
-using SharedDevice = nn::SharedDevice;
 using DeviceManager = nn::DeviceManager;
 using HidlModel = V1_3::Model;
 using PreparedModelCallback = nn::PreparedModelCallback;
@@ -586,7 +583,7 @@ class TestCompilation : public WrapperCompilation {
                     V1_3::ErrorStatus errorStatus) {
         std::vector<std::shared_ptr<Device>> devices;
         auto device = DeviceManager::forTest_makeDriverDevice(
-                nn::makeSharedDevice(deviceName, new DriverClass(deviceName, errorStatus)));
+                deviceName, new DriverClass(deviceName, errorStatus));
         devices.push_back(device);
 
         nn::ModelBuilder* m = reinterpret_cast<nn::ModelBuilder*>(model->getHandle());
@@ -645,8 +642,8 @@ class ExecutionTestTemplate
           kUseIntrospectionAPI(std::get<2>(GetParam())),
           mModel(makeModel()) {
         if (kUseIntrospectionAPI) {
-            DeviceManager::get()->forTest_registerDevice(
-                    nn::makeSharedDevice(kName, new DriverClass(kName.c_str(), kForceErrorStatus)));
+            DeviceManager::get()->forTest_registerDevice(kName.c_str(),
+                                                         new DriverClass(kName, kForceErrorStatus));
             mCompilation = TestIntrospectionCompilation(&mModel, kName);
         } else {
             mCompilation = TestCompilation<DriverClass>(&mModel, kName, kForceErrorStatus);

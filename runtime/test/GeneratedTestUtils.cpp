@@ -26,6 +26,8 @@
 #include <vector>
 
 #ifdef NNTEST_SLTS
+#include <android/hardware_buffer.h>
+
 #include "SupportLibraryTestWrapper.h"
 #else
 #include "TestNeuralNetworksWrapper.h"

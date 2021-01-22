@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "BufferTracker.h"
+#include "HalBufferTracker.h"
 
 #include <android-base/macros.h>
 
@@ -26,28 +26,28 @@
 #include <vector>
 
 #include "CpuExecutor.h"
+#include "HalInterfaces.h"
 #include "Utils.h"
 #include "nnapi/TypeUtils.h"
-#include "nnapi/Validation.h"
 
 namespace android::nn {
 
-std::shared_ptr<ManagedBuffer> ManagedBuffer::create(uint32_t size,
-                                                     std::set<PreparedModelRole> roles,
-                                                     const Operand& operand) {
+std::shared_ptr<HalManagedBuffer> HalManagedBuffer::create(uint32_t size,
+                                                           std::set<HalPreparedModelRole> roles,
+                                                           const Operand& operand) {
     std::unique_ptr<uint8_t[]> buffer(new (std::nothrow) uint8_t[size]);
     if (buffer == nullptr) {
         return nullptr;
     }
     if (isExtension(operand.type)) {
-        LOG(ERROR) << "ManagedBuffer cannot handle extension operands.";
+        LOG(ERROR) << "HalManagedBuffer cannot handle extension operands.";
         return nullptr;
     }
-    return std::make_shared<ManagedBuffer>(std::move(buffer), size, std::move(roles), operand);
+    return std::make_shared<HalManagedBuffer>(std::move(buffer), size, std::move(roles), operand);
 }
 
-ManagedBuffer::ManagedBuffer(std::unique_ptr<uint8_t[]> buffer, uint32_t size,
-                             std::set<PreparedModelRole> roles, const Operand& operand)
+HalManagedBuffer::HalManagedBuffer(std::unique_ptr<uint8_t[]> buffer, uint32_t size,
+                                   std::set<HalPreparedModelRole> roles, const Operand& operand)
     : kBuffer(std::move(buffer)),
       kSize(size),
       kRoles(std::move(roles)),
@@ -57,8 +57,8 @@ ManagedBuffer::ManagedBuffer(std::unique_ptr<uint8_t[]> buffer, uint32_t size,
     CHECK(!isExtension(kOperandType));
 }
 
-ErrorStatus ManagedBuffer::validateRequest(uint32_t poolIndex, const Request& request,
-                                           const IPreparedModel* preparedModel) const {
+ErrorStatus HalManagedBuffer::validateRequest(uint32_t poolIndex, const Request& request,
+                                              const V1_3::IPreparedModel* preparedModel) const {
     CHECK_LT(poolIndex, request.pools.size());
     CHECK(std::holds_alternative<Request::MemoryDomainToken>(request.pools[poolIndex]));
     std::lock_guard<std::mutex> guard(mMutex);
@@ -69,17 +69,18 @@ ErrorStatus ManagedBuffer::validateRequest(uint32_t poolIndex, const Request& re
         if (request.inputs[i].location.poolIndex != poolIndex) continue;
         // Validate if the input role is specified during allocation.
         if (kRoles.count({preparedModel, IOType::INPUT, i}) == 0) {
-            LOG(ERROR) << "ManagedBuffer::validateRequest -- invalid buffer role.";
+            LOG(ERROR) << "HalManagedBuffer::validateRequest -- invalid buffer role.";
             return ErrorStatus::INVALID_ARGUMENT;
         }
         if (!mInitialized) {
-            LOG(ERROR) << "ManagedBuffer::validateRequest -- using uninitialized buffer as input "
-                          "request.";
+            LOG(ERROR)
+                    << "HalManagedBuffer::validateRequest -- using uninitialized buffer as input "
+                       "request.";
             return ErrorStatus::GENERAL_FAILURE;
         }
         auto combined = combineDimensions(mUpdatedDimensions, request.inputs[i].dimensions);
         if (!combined.has_value()) {
-            LOG(ERROR) << "ManagedBuffer::validateRequest -- incompatible dimensions ("
+            LOG(ERROR) << "HalManagedBuffer::validateRequest -- incompatible dimensions ("
                        << toString(mUpdatedDimensions) << " vs "
                        << toString(request.inputs[i].dimensions) << ")";
             return ErrorStatus::INVALID_ARGUMENT;
@@ -90,18 +91,18 @@ ErrorStatus ManagedBuffer::validateRequest(uint32_t poolIndex, const Request& re
         if (request.outputs[i].lifetime != Request::Argument::LifeTime::POOL) continue;
         if (request.outputs[i].location.poolIndex != poolIndex) continue;
         if (usedAsInput || usedAsOutput) {
-            LOG(ERROR) << "ManagedBuffer::validateRequest -- using the same device memory for "
+            LOG(ERROR) << "HalManagedBuffer::validateRequest -- using the same device memory for "
                           "input/output or multiple outputs";
             return ErrorStatus::INVALID_ARGUMENT;
         }
         // Validate if the output role is specified during allocation.
         if (kRoles.count({preparedModel, IOType::OUTPUT, i}) == 0) {
-            LOG(ERROR) << "ManagedBuffer::validateRequest -- invalid buffer role.";
+            LOG(ERROR) << "HalManagedBuffer::validateRequest -- invalid buffer role.";
             return ErrorStatus::INVALID_ARGUMENT;
         }
         auto combined = combineDimensions(kInitialDimensions, request.outputs[i].dimensions);
         if (!combined.has_value()) {
-            LOG(ERROR) << "ManagedBuffer::validateRequest -- incompatible dimensions ("
+            LOG(ERROR) << "HalManagedBuffer::validateRequest -- incompatible dimensions ("
                        << toString(kInitialDimensions) << " vs "
                        << toString(request.outputs[i].dimensions) << ")";
             return ErrorStatus::INVALID_ARGUMENT;
@@ -111,19 +112,19 @@ ErrorStatus ManagedBuffer::validateRequest(uint32_t poolIndex, const Request& re
     return ErrorStatus::NONE;
 }
 
-ErrorStatus ManagedBuffer::validateCopyFrom(const std::vector<uint32_t>& dimensions,
-                                            uint32_t size) const {
+ErrorStatus HalManagedBuffer::validateCopyFrom(const std::vector<uint32_t>& dimensions,
+                                               uint32_t size) const {
     if (size != kSize) {
-        LOG(ERROR) << "ManagedBuffer::validateCopyFrom -- invalid memory size: " << kSize << " vs "
-                   << size;
+        LOG(ERROR) << "HalManagedBuffer::validateCopyFrom -- invalid memory size: " << kSize
+                   << " vs " << size;
         return ErrorStatus::INVALID_ARGUMENT;
     }
 
     if (nonExtensionOperandTypeIsScalar(static_cast<int>(kOperandType))) {
         if (!dimensions.empty()) {
-            LOG(ERROR)
-                    << "ManagedBuffer::validateCopyFrom -- invalid dimensions for scalar operand: "
-                    << toString(dimensions);
+            LOG(ERROR) << "HalManagedBuffer::validateCopyFrom -- invalid dimensions for scalar "
+                          "operand: "
+                       << toString(dimensions);
             return ErrorStatus::INVALID_ARGUMENT;
         }
         return ErrorStatus::NONE;
@@ -131,47 +132,49 @@ ErrorStatus ManagedBuffer::validateCopyFrom(const std::vector<uint32_t>& dimensi
 
     if (dimensions.empty()) {
         if (tensorHasUnspecifiedDimensions(kOperandType, kInitialDimensions)) {
-            LOG(ERROR) << "ManagedBuffer::validateCopyFrom -- the initial dimensions are not fully "
-                          "specified and no dimension update is provided: "
-                       << toString(kInitialDimensions);
+            LOG(ERROR)
+                    << "HalManagedBuffer::validateCopyFrom -- the initial dimensions are not fully "
+                       "specified and no dimension update is provided: "
+                    << toString(kInitialDimensions);
             return ErrorStatus::INVALID_ARGUMENT;
         }
     } else {
         if (tensorHasUnspecifiedDimensions(kOperandType, dimensions)) {
-            LOG(ERROR) << "ManagedBuffer::validateCopyFrom -- the updated dimensions are not fully "
-                          "specified: "
-                       << toString(dimensions);
+            LOG(ERROR)
+                    << "HalManagedBuffer::validateCopyFrom -- the updated dimensions are not fully "
+                       "specified: "
+                    << toString(dimensions);
             return ErrorStatus::INVALID_ARGUMENT;
         }
     }
 
     const auto combined = combineDimensions(kInitialDimensions, dimensions);
     if (!combined.has_value()) {
-        LOG(ERROR) << "ManagedBuffer::validateCopyFrom -- incompatible dimensions ("
+        LOG(ERROR) << "HalManagedBuffer::validateCopyFrom -- incompatible dimensions ("
                    << toString(kInitialDimensions) << " vs " << toString(dimensions) << ")";
         return ErrorStatus::INVALID_ARGUMENT;
     }
     return ErrorStatus::NONE;
 }
 
-ErrorStatus ManagedBuffer::validateCopyTo(uint32_t size) const {
+ErrorStatus HalManagedBuffer::validateCopyTo(uint32_t size) const {
     if (size != kSize) {
-        LOG(ERROR) << "ManagedBuffer::validateCopyTo -- invalid memory size: " << kSize << " vs "
+        LOG(ERROR) << "HalManagedBuffer::validateCopyTo -- invalid memory size: " << kSize << " vs "
                    << size;
         return ErrorStatus::INVALID_ARGUMENT;
     }
     std::lock_guard<std::mutex> guard(mMutex);
     if (!mInitialized) {
-        LOG(ERROR) << "ManagedBuffer::validateCopyTo -- using uninitialized buffer as source.";
+        LOG(ERROR) << "HalManagedBuffer::validateCopyTo -- using uninitialized buffer as source.";
         return ErrorStatus::GENERAL_FAILURE;
     }
     return ErrorStatus::NONE;
 }
 
-bool ManagedBuffer::updateDimensions(const std::vector<uint32_t>& dimensions) {
+bool HalManagedBuffer::updateDimensions(const std::vector<uint32_t>& dimensions) {
     auto combined = combineDimensions(kInitialDimensions, dimensions);
     if (!combined.has_value()) {
-        LOG(ERROR) << "ManagedBuffer::updateDimensions -- incompatible dimensions ("
+        LOG(ERROR) << "HalManagedBuffer::updateDimensions -- incompatible dimensions ("
                    << toString(kInitialDimensions) << " vs " << toString(dimensions) << ")";
         return false;
     }
@@ -180,58 +183,45 @@ bool ManagedBuffer::updateDimensions(const std::vector<uint32_t>& dimensions) {
     return true;
 }
 
-void ManagedBuffer::setInitialized(bool initialized) {
+void HalManagedBuffer::setInitialized(bool initialized) {
     std::lock_guard<std::mutex> guard(mMutex);
     mInitialized = initialized;
 }
 
-BufferTracker::BufferTracker() {
-    constexpr size_t kPreallocatedElements = 1024;
-    using StackSpace = std::vector<Request::MemoryDomainToken>;
-    using Stack = std::stack<Request::MemoryDomainToken, StackSpace>;
-    StackSpace stackSpace;
-    stackSpace.reserve(kPreallocatedElements);
-    mFreeTokens = Stack(std::move(stackSpace));
-    mTokenToBuffers.reserve(kPreallocatedElements);
-    mTokenToBuffers.emplace_back();
-}
-
-std::unique_ptr<BufferTracker::Token> BufferTracker::add(std::shared_ptr<ManagedBuffer> buffer) {
+std::unique_ptr<HalBufferTracker::Token> HalBufferTracker::add(
+        std::shared_ptr<HalManagedBuffer> buffer) {
     if (buffer == nullptr) {
         return nullptr;
     }
     std::lock_guard<std::mutex> guard(mMutex);
-    auto token = Request::MemoryDomainToken{0};
+    uint32_t token = 0;
     if (mFreeTokens.empty()) {
-        token = static_cast<Request::MemoryDomainToken>(mTokenToBuffers.size());
+        token = mTokenToBuffers.size();
         mTokenToBuffers.push_back(std::move(buffer));
     } else {
         token = mFreeTokens.top();
         mFreeTokens.pop();
-        const auto index = static_cast<uint32_t>(token);
-        mTokenToBuffers[index] = std::move(buffer);
+        mTokenToBuffers[token] = std::move(buffer);
     }
-    VLOG(MEMORY) << "BufferTracker::add -- new token = " << token;
+    VLOG(MEMORY) << "HalBufferTracker::add -- new token = " << token;
     return std::make_unique<Token>(token, shared_from_this());
 }
 
-std::shared_ptr<ManagedBuffer> BufferTracker::get(Request::MemoryDomainToken token) const {
+std::shared_ptr<HalManagedBuffer> HalBufferTracker::get(uint32_t token) const {
     std::lock_guard<std::mutex> guard(mMutex);
-    const auto index = static_cast<uint32_t>(token);
-    if (mTokenToBuffers.size() <= index || mTokenToBuffers[index] == nullptr) {
-        LOG(ERROR) << "BufferTracker::get -- unknown token " << token;
+    if (mTokenToBuffers.size() <= token || mTokenToBuffers[token] == nullptr) {
+        LOG(ERROR) << "HalBufferTracker::get -- unknown token " << token;
         return nullptr;
     }
-    return mTokenToBuffers[index];
+    return mTokenToBuffers[token];
 }
 
-void BufferTracker::free(Request::MemoryDomainToken token) {
+void HalBufferTracker::free(uint32_t token) {
     std::lock_guard<std::mutex> guard(mMutex);
-    const auto index = static_cast<uint32_t>(token);
-    CHECK_LT(index, mTokenToBuffers.size());
-    CHECK(mTokenToBuffers[index] != nullptr);
-    VLOG(MEMORY) << "BufferTracker::free -- release token = " << token;
-    mTokenToBuffers[index] = nullptr;
+    CHECK_LT(token, mTokenToBuffers.size());
+    CHECK(mTokenToBuffers[token] != nullptr);
+    VLOG(MEMORY) << "HalBufferTracker::free -- release token = " << token;
+    mTokenToBuffers[token] = nullptr;
     mFreeTokens.push(token);
 }
 

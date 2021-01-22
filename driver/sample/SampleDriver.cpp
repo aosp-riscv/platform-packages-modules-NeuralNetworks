@@ -34,9 +34,9 @@
 #include <utility>
 #include <vector>
 
-#include "BufferTracker.h"
 #include "CpuExecutor.h"
 #include "ExecutionBurstServer.h"
+#include "HalBufferTracker.h"
 #include "HalInterfaces.h"
 #include "SampleDriverUtils.h"
 #include "Tracing.h"
@@ -284,16 +284,17 @@ hardware::Return<void> SampleDriver::allocate(
         return hardware::Void();
     }
 
-    auto bufferWrapper = ManagedBuffer::create(size, std::move(roles), uncheckedConvert(operand));
+    auto bufferWrapper =
+            HalManagedBuffer::create(size, std::move(roles), uncheckedConvert(operand));
     if (bufferWrapper == nullptr) {
         LOG(ERROR) << "SampleDriver::allocate -- not enough memory.";
         cb(V1_3::ErrorStatus::GENERAL_FAILURE, nullptr, kInvalidBufferToken);
         return hardware::Void();
     }
 
-    auto token = mBufferTracker->add(bufferWrapper);
+    auto token = mHalBufferTracker->add(bufferWrapper);
     if (token == nullptr) {
-        LOG(ERROR) << "SampleDriver::allocate -- BufferTracker returned invalid token.";
+        LOG(ERROR) << "SampleDriver::allocate -- HalBufferTracker returned invalid token.";
         cb(V1_3::ErrorStatus::GENERAL_FAILURE, nullptr, kInvalidBufferToken);
         return hardware::Void();
     }
@@ -342,7 +343,7 @@ hardware::Return<V1_3::ErrorStatus> SampleBuffer::copyTo(const hardware::hidl_me
 
 static V1_3::ErrorStatus copyFromInternal(const hardware::hidl_memory& src,
                                           const hardware::hidl_vec<uint32_t>& dimensions,
-                                          const std::shared_ptr<ManagedBuffer>& bufferWrapper) {
+                                          const std::shared_ptr<HalManagedBuffer>& bufferWrapper) {
     CHECK(bufferWrapper != nullptr);
     const auto srcPool = RunTimePoolInfo::createFromMemory(uncheckedConvert(src));
     if (!srcPool.has_value()) {
@@ -376,11 +377,11 @@ bool SamplePreparedModel::initialize() {
 }
 
 static std::tuple<V1_3::ErrorStatus, std::vector<RunTimePoolInfo>,
-                  std::vector<std::shared_ptr<ManagedBuffer>>>
+                  std::vector<std::shared_ptr<HalManagedBuffer>>>
 createRunTimePoolInfos(const V1_3::Request& request, const SampleDriver& driver,
                        const SamplePreparedModel* preparedModel) {
     std::vector<RunTimePoolInfo> requestPoolInfos;
-    std::vector<std::shared_ptr<ManagedBuffer>> bufferWrappers;
+    std::vector<std::shared_ptr<HalManagedBuffer>> bufferWrappers;
     requestPoolInfos.reserve(request.pools.size());
     bufferWrappers.reserve(request.pools.size());
     for (uint32_t i = 0; i < request.pools.size(); i++) {
@@ -397,7 +398,7 @@ createRunTimePoolInfos(const V1_3::Request& request, const SampleDriver& driver,
                 bufferWrappers.push_back(nullptr);
             } break;
             case V1_3::Request::MemoryPool::hidl_discriminator::token: {
-                auto bufferWrapper = driver.getBufferTracker()->get(pool.token());
+                auto bufferWrapper = driver.getHalBufferTracker()->get(pool.token());
                 if (bufferWrapper == nullptr) {
                     return {V1_3::ErrorStatus::INVALID_ARGUMENT, {}, {}};
                 }
@@ -416,7 +417,7 @@ createRunTimePoolInfos(const V1_3::Request& request, const SampleDriver& driver,
 
 static V1_3::ErrorStatus updateDeviceMemories(
         V1_3::ErrorStatus status, const V1_3::Request& request,
-        const std::vector<std::shared_ptr<ManagedBuffer>>& bufferWrappers,
+        const std::vector<std::shared_ptr<HalManagedBuffer>>& bufferWrappers,
         const hardware::hidl_vec<V1_2::OutputShape>& outputShapes) {
     if (status == V1_3::ErrorStatus::NONE) {
         for (uint32_t i = 0; i < request.outputs.size(); i++) {

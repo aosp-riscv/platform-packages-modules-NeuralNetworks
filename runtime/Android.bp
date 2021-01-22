@@ -47,6 +47,7 @@ cc_defaults {
     // b/109953668, disable OpenMP
     // openmp: true,
     srcs: [
+        "AppInfoFetcher.cpp",
         "BurstBuilder.cpp",
         "Callbacks.cpp",
         "CompilationBuilder.cpp",

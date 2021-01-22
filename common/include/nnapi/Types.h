@@ -39,6 +39,7 @@ namespace android::nn {
 // Forward declarations
 
 class IBuffer;
+class IBurst;
 class IDevice;
 class IPreparedModel;
 
@@ -55,6 +56,7 @@ constexpr uint8_t kExtensionPrefixBits = 16;
 
 using AlignedData = std::max_align_t;
 using SharedBuffer = std::shared_ptr<const IBuffer>;
+using SharedBurst = std::shared_ptr<const IBurst>;
 using SharedDevice = std::shared_ptr<const IDevice>;
 using SharedPreparedModel = std::shared_ptr<const IPreparedModel>;
 

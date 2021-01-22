@@ -22,6 +22,7 @@
 #include <string>
 #include <vector>
 
+#include "AppInfoFetcher.h"
 #include "HalInterfaces.h"
 #include "Manager.h"
 
@@ -107,27 +108,13 @@ class TypeManager {
     // available devices.
     void forTest_reset() { *this = TypeManager(); }
 
-    // Collection of app-related arguments for the isExtensionsUseAllowed method.
-    struct AppPackageInfo {
-        // Path of the binary (/proc/$PID/exe)
-        std::string binaryPath;
-        // Package name of the Android app (empty string if not Android app).
-        std::string appPackageName;
-        // Is the app a system app? (false if not an Android app)
-        bool appIsSystemApp;
-        // Is the app preinstalled on vendor image? (false if not an Android app)
-        bool appIsOnVendorImage;
-        // Is the app preinstalled on product image? (false if not an Android app)
-        bool appIsOnProductImage;
-    };
-
     // Check if NNAPI Vendor extensions are usable in the process with the given app
     // and supplemental infomation.
     //
     // useOnProductImageEnabled - whether apps/binaries preinstalled on /product partition
     // can be enabled for extensions use.
     // allowlist - list of apps/binaries which are allowed to use extensions.
-    static bool isExtensionsUseAllowed(const AppPackageInfo& appPackageInfo,
+    static bool isExtensionsUseAllowed(const AppInfoFetcher::AppInfo& appPackageInfo,
                                        bool useOnProductImageEnabled,
                                        const std::vector<std::string>& allowlist);
 

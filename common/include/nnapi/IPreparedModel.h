@@ -151,6 +151,13 @@ class IPreparedModel {
             const OptionalDuration& timeoutDurationAfterFence) const = 0;
 
     /**
+     * Creates a burst controller on a prepared model.
+     *
+     * @return ExecutionBurstController Execution burst controller object, otherwise GeneralError.
+     */
+    virtual GeneralResult<SharedBurst> configureExecutionBurst() const = 0;
+
+    /**
      * Return the resource that the IPreparedModel wraps, or any empty std::any.
      *
      * This method is used for IDevice::allocate.

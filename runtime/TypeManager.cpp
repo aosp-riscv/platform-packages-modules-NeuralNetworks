@@ -99,52 +99,29 @@ std::vector<std::string> getVendorExtensionAllowlistedApps() {
     return allowlist;
 }
 
-// Query PackageManagerNative service about Android app properties.
-// On success, it will populate appPackageInfo->app* fields.
-bool fetchAppPackageLocationInfo(uid_t uid, TypeManager::AppPackageInfo* appPackageInfo) {
-    ANeuralNetworks_PackageInfo packageInfo;
-    if (!ANeuralNetworks_fetch_PackageInfo(uid, &packageInfo)) {
-        return false;
-    }
-    appPackageInfo->appPackageName = packageInfo.appPackageName;
-    appPackageInfo->appIsSystemApp = packageInfo.appIsSystemApp;
-    appPackageInfo->appIsOnVendorImage = packageInfo.appIsOnVendorImage;
-    appPackageInfo->appIsOnProductImage = packageInfo.appIsOnProductImage;
-
-    ANeuralNetworks_free_PackageInfo(&packageInfo);
+// Since Android S we allow use of vendor extensions for all
+// non-system applications without need to put the binary
+// name on allowlist
+static bool allowVendorExtensionsForAllNonSystemClients() {
+#if defined(__BIONIC__)
+    return android_get_device_api_level() >= __ANDROID_API_S__;
+#else
     return true;
-}
-
-// Check if this process is allowed to use NNAPI Vendor extensions.
-bool isNNAPIVendorExtensionsUseAllowed(const std::vector<std::string>& allowlist) {
-    TypeManager::AppPackageInfo appPackageInfo = {
-            .binaryPath = ::android::procpartition::getExe(getpid()),
-            .appPackageName = "",
-            .appIsSystemApp = false,
-            .appIsOnVendorImage = false,
-            .appIsOnProductImage = false};
-
-    if (appPackageInfo.binaryPath == "/system/bin/app_process64" ||
-        appPackageInfo.binaryPath == "/system/bin/app_process32") {
-        if (!fetchAppPackageLocationInfo(getuid(), &appPackageInfo)) {
-            LOG(ERROR) << "Failed to get app information from package_manager_native";
-            return false;
-        }
-    }
-    return TypeManager::isExtensionsUseAllowed(
-            appPackageInfo, isNNAPIVendorExtensionsUseAllowedInProductImage(), allowlist);
+#endif  // __BIONIC__
 }
 
 }  // namespace
 
 TypeManager::TypeManager() {
     VLOG(MANAGER) << "TypeManager::TypeManager";
-    mExtensionsAllowed = isNNAPIVendorExtensionsUseAllowed(getVendorExtensionAllowlistedApps());
+    mExtensionsAllowed = TypeManager::isExtensionsUseAllowed(
+            AppInfoFetcher::get()->getAppInfo(), isNNAPIVendorExtensionsUseAllowedInProductImage(),
+            getVendorExtensionAllowlistedApps());
     VLOG(MANAGER) << "NNAPI Vendor extensions enabled: " << mExtensionsAllowed;
     findAvailableExtensions();
 }
 
-bool TypeManager::isExtensionsUseAllowed(const AppPackageInfo& appPackageInfo,
+bool TypeManager::isExtensionsUseAllowed(const AppInfoFetcher::AppInfo& appPackageInfo,
                                          bool useOnProductImageEnabled,
                                          const std::vector<std::string>& allowlist) {
     // Only selected partitions and user-installed apps (/data)
@@ -153,6 +130,9 @@ bool TypeManager::isExtensionsUseAllowed(const AppPackageInfo& appPackageInfo,
         StartsWith(appPackageInfo.binaryPath, "/odm/") ||
         StartsWith(appPackageInfo.binaryPath, "/data/") ||
         (StartsWith(appPackageInfo.binaryPath, "/product/") && useOnProductImageEnabled)) {
+        if (allowVendorExtensionsForAllNonSystemClients()) {
+            return true;
+        }
 #ifdef NN_DEBUGGABLE
         // Only on userdebug and eng builds.
         // When running tests with mma and adb push.
@@ -162,17 +142,22 @@ bool TypeManager::isExtensionsUseAllowed(const AppPackageInfo& appPackageInfo,
             return true;
         }
 #endif  // NN_DEBUGGABLE
-
         return std::find(allowlist.begin(), allowlist.end(), appPackageInfo.binaryPath) !=
                allowlist.end();
     } else if (appPackageInfo.binaryPath == "/system/bin/app_process64" ||
                appPackageInfo.binaryPath == "/system/bin/app_process32") {
-        // App is not system app OR vendor app OR (product app AND product enabled)
-        // AND app is on allowlist.
-        return (!appPackageInfo.appIsSystemApp || appPackageInfo.appIsOnVendorImage ||
-                (appPackageInfo.appIsOnProductImage && useOnProductImageEnabled)) &&
-               std::find(allowlist.begin(), allowlist.end(), appPackageInfo.appPackageName) !=
-                       allowlist.end();
+        // App is (not system app) OR (vendor app) OR (product app AND product enabled)
+        if (!appPackageInfo.appIsSystemApp || appPackageInfo.appIsOnVendorImage ||
+            (appPackageInfo.appIsOnProductImage && useOnProductImageEnabled)) {
+            if (allowVendorExtensionsForAllNonSystemClients()) {
+                // No need for allowlist
+                return true;
+            } else {
+                // Check if app is on allowlist.
+                return std::find(allowlist.begin(), allowlist.end(),
+                                 appPackageInfo.appPackageName) != allowlist.end();
+            }
+        }
     }
     return false;
 }

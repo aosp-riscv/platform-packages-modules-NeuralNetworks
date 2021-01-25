@@ -31,6 +31,7 @@
 #include <utility>
 #include <vector>
 
+#include "CpuExecutor.h"
 #include "NeuralNetworks.h"
 #include "ValidateHal.h"
 
@@ -276,6 +277,11 @@ V1_0::PerformanceInfo lookup(
     CHECK(type != V1_3::OperandType::SUBGRAPH)
             << "Use Capabilities::ifPerformance or Capabilities::whilePerformance";
     return lookup<HalVersion::V1_3>(operandPerformance, type);
+}
+
+bool setRunTimePoolInfosFromHidlMemories(std::vector<RunTimePoolInfo>* poolInfos,
+                                         const hardware::hidl_vec<hardware::hidl_memory>& pools) {
+    return setRunTimePoolInfosFromCanonicalMemories(poolInfos, uncheckedConvert(pools));
 }
 
 // Versioning

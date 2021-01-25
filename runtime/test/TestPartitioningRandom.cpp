@@ -1040,6 +1040,11 @@ TEST_P(RandomPartitioningTest, Test) {
                     }
                 });
 
+        // TODO(b/174851714): Fix the partitioner and re-enable these tests.
+        if (!operandsWithUnknownDimensions.empty()) {
+            GTEST_SKIP() << "Skipping due to b/174851714";
+        }
+
         // OPERATION ///////////////////////////////////////////////////////////////////////////////
 
         const uint32_t operationIndex = model.addOperation(operationPattern.mOperationType,

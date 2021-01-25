@@ -2295,8 +2295,10 @@ int ModelBuilder::findBestDeviceForEachOperation(
                 const auto& device = devices[deviceIndex];
                 if (canDo[deviceIndex].check(operationIndex)) {
                     const float perfVal = getPerformance(preference, device, operationIndex);
+                    const bool deviceIsPreferred =
+                            (device == DeviceManager::getCpuDevice() || device->isUpdatable());
                     if (bestChoice < 0 || perfVal < bestPerfVal ||
-                        (perfVal == bestPerfVal && device == DeviceManager::getCpuDevice())) {
+                        (perfVal == bestPerfVal && deviceIsPreferred)) {
                         bestChoice = deviceIndex;
                         bestPerfVal = perfVal;
                     }

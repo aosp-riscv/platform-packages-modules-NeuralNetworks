@@ -554,7 +554,7 @@ struct NnApiSupportLibrary {
      * Create an empty {@link ANeuralNetworksModel}.
      *
      * <p>This only creates the object. Computation is performed once
-     * {@link ANeuralNetworksExecution_startCompute} is invoked.
+     * {@link ANeuralNetworksExecution_compute} is invoked.
      *
      * The model should be constructed with calls to
      * {@link ANeuralNetworksModel_addOperation} and
@@ -1014,7 +1014,7 @@ struct NnApiSupportLibrary {
     /**
      * Create a {@link ANeuralNetworksExecution} to apply the given compilation.
      * This only creates the object. Computation is only performed once
-     * {@link ANeuralNetworksExecution_startCompute} is invoked.
+     * {@link ANeuralNetworksExecution_compute} is invoked.
      *
      * <p>The provided compilation must outlive the execution.</p>
      *
@@ -1032,12 +1032,6 @@ struct NnApiSupportLibrary {
 
     /**
      * Destroy an execution.
-     *
-     * <p>If called on an execution for which
-     * {@link ANeuralNetworksExecution_startCompute} has been called, the
-     * function will return immediately but will mark the execution to be deleted
-     * once the computation completes.   The {link ANeuralNetworksExecution_wait}
-     * will return ANEURALNETWORKS_ERROR_DELETED.
      *
      * See {@link ANeuralNetworksExecution} for information on multithreaded
      * usage.
@@ -1222,10 +1216,6 @@ struct NnApiSupportLibrary {
      * See {@link ANeuralNetworksExecution} for information on multithreaded
      * usage.
      *
-     * See {@link ANeuralNetworksExecution_startCompute} for asynchronous
-     * execution. Synchronous execution incurs lower overhead than asynchronous
-     * execution.
-     *
      * Available since API level 29.
      *
      * @param execution The execution to be scheduled and executed.
@@ -1241,11 +1231,6 @@ struct NnApiSupportLibrary {
      * model of the
      * {@link ANeuralNetworksExecution}. The target output operand cannot be a
      * scalar.
-     *
-     * On asynchronous execution initiated by {@link
-     * ANeuralNetworksExecution_startCompute},
-     * {@link ANeuralNetworksEvent_wait} must be called prior to this function to
-     * recuperate the resources used by the execution.
      *
      * @param execution The execution to be queried.
      * @param index The index of the output argument we are querying. It is an
@@ -1273,11 +1258,6 @@ struct NnApiSupportLibrary {
      * model of the
      * {@link ANeuralNetworksExecution}.
      *
-     * On asynchronous execution initiated by {@link
-     * ANeuralNetworksExecution_startCompute},
-     * {@link ANeuralNetworksEvent_wait} must be called prior to this function to
-     * recuperate the resources used by the execution.
-     *
      * @param execution The execution to be queried.
      * @param index The index of the output argument we are querying. It is
      *              an index into the lists passed to
@@ -1304,8 +1284,6 @@ struct NnApiSupportLibrary {
      * call to one of:
      * - {@link ANeuralNetworksExecution_burstCompute}
      * - {@link ANeuralNetworksExecution_compute}
-     * - {@link ANeuralNetworksExecution_startCompute}
-     * - {@link ANeuralNetworksExecution_startComputeWithDependencies}
      *
      * This timeout duration acts as a hint to drivers, and can be used to both
      * free up compute resources within the driver and return control back to the
@@ -1398,8 +1376,7 @@ struct NnApiSupportLibrary {
      * sync_fence_fd will be set to -1, and ANEURALNETWORKS_BAD_DATA will be
      * returned.
      *
-     * See {@link ANeuralNetworksEvent_createFromSyncFenceFd} and
-     * {@link ANeuralNetworksExecution_startComputeWithDependencies} to see how to
+     * See {@link ANeuralNetworksEvent_createFromSyncFenceFd} to see how to
      * create an event backed by a sync fence.
      *
      * The user takes ownership of the returned fd, and must close the returned

@@ -127,7 +127,8 @@ static bool checkDimensionInfo(const Operand& operand, const ANeuralNetworksOper
             return true;
         }
         if (operand.dimensions.size() != newType->dimensionCount) {
-            LOG(ERROR) << tag << ": Setting with incompatible dimension count";
+            LOG(ERROR) << tag << ": Setting with incompatible dimension count (existing = "
+                       << operand.dimensions.size() << ", new = " << newType->dimensionCount << ")";
             return false;
         }
         for (uint32_t i = 0; i < newType->dimensionCount; i++) {

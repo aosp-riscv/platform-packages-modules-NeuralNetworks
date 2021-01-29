@@ -796,8 +796,26 @@ int ExecutionPlan::CompoundBody::finish(const SourceModels* sourceModels,
     findTempsAsStepModelOutputs();
     for (const auto& logicalStep : mSteps) {
         if (ExecutionStep* step = logicalStep->tryExecutionStep()) {
-            int n = step->finishStepModel(mainModel, &mHasDynamicTemporaries, executionPreference,
-                                          priority);
+            bool stepHasDynamicTemporaries = false;
+            int n = step->finishStepModel(mainModel, &stepHasDynamicTemporaries,
+                                          executionPreference, priority);
+            if (stepHasDynamicTemporaries) {
+                mHasDynamicTemporaries = true;
+                if (step->getDevice()->getFeatureLevel() < kHalVersionV1_2ToApi.android) {
+                    // Until HAL 1.2, an Operand with lifetime SUBGRAPH_OUTPUT
+                    // must have fully specified dimensions either in the
+                    // Operand or in the RequestArgument.  In the case of a
+                    // dynamic temporary, we won't be able to supply fully
+                    // specified dimensions in either.
+                    VLOG(COMPILATION)
+                            << "ExecutionPlan::CompoundBody::finish -- step#" << step->getIndex()
+                            << " defines dynamic temporaries but is scheduled on pre-1.2 device "
+                            << step->getDevice()->getName();
+                    if (n == ANEURALNETWORKS_NO_ERROR) {
+                        n = ANEURALNETWORKS_OP_FAILED;
+                    }
+                }
+            }
             if (n != ANEURALNETWORKS_NO_ERROR) {
                 VLOG(COMPILATION)
                         << "ExecutionPlan::CompoundBody::finish -- finishStepModel failed";
@@ -2309,7 +2327,7 @@ int ModelBuilder::findBestDeviceForEachOperation(
                     // Logs O(operationCount * deviceCount) times, but typically deviceCount is
                     // very small.
                     VLOG(COMPILATION) << "Device " << device->getName() << " can't do operation "
-                                      << operation.type;
+                                      << operation.type << ":" << operationIndex;
                 }
             }
         }

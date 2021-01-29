@@ -813,6 +813,7 @@ std::shared_ptr<Device> DeviceManager::getCpuDevice() {
 
 std::shared_ptr<Device> DeviceManager::forTest_makeDriverDevice(const std::string& name,
                                                                 const sp<V1_0::IDevice>& device) {
+    VLOG(MANAGER) << "forTest_makeDriverDevice(" << name << ")";
     const HalDeviceFactory makeDevice = [device](bool /*blocking*/) { return device; };
     const auto driverDevice = DriverDevice::create(name, makeDevice);
     CHECK(driverDevice != nullptr);

@@ -18,6 +18,10 @@
 #include <gtest/gtest.h>
 #include <unistd.h>
 
+#include <android/hardware/neuralnetworks/1.0/ADevice.h>
+#include <android/hardware/neuralnetworks/1.1/ADevice.h>
+#include <android/hardware/neuralnetworks/1.2/ADevice.h>
+
 #include <algorithm>
 #include <cassert>
 #include <cstdio>
@@ -103,9 +107,11 @@ using CompilationBuilder = nn::CompilationBuilder;
 using DeviceManager = nn::DeviceManager;
 using Device = nn::Device;
 using ExecutionPlan = nn::ExecutionPlan;
+using ExecutionStep = nn::ExecutionStep;
 using HalCacheToken = nn::HalCacheToken;
 using HalVersion = nn::HalVersion;
 using HidlModel = V1_3::Model;
+using LogicalStep = nn::LogicalStep;
 using ModelBuilder = nn::ModelBuilder;
 using Result = nn::test_wrapper::Result;
 using SampleDriver = nn::sample_driver::SampleDriver;
@@ -612,130 +618,22 @@ class TestDriver : public SampleDriver {
     const std::set<Signature> mSignatures;
 };
 
-// Like TestDriver, but implementing 1.2
-class TestDriverV1_2 : public V1_2::IDevice {
+class TestDriverV1_2 : public V1_2::ADevice {
    public:
     TestDriverV1_2(const char* name, std::set<Signature> signatures)
-        : mLatestDriver(new TestDriver(name, std::move(signatures))) {}
-    hardware::Return<void> getCapabilities_1_2(getCapabilities_1_2_cb _hidl_cb) override {
-        return mLatestDriver->getCapabilities_1_2(_hidl_cb);
-    }
-    hardware::Return<void> getSupportedOperations_1_2(
-            const V1_2::Model& model, getSupportedOperations_1_2_cb _hidl_cb) override {
-        return mLatestDriver->getSupportedOperations_1_2(model, _hidl_cb);
-    }
-    hardware::Return<V1_0::ErrorStatus> prepareModel_1_2(
-            const V1_2::Model& model, V1_1::ExecutionPreference preference,
-            const hardware::hidl_vec<hardware::hidl_handle>& modelCache,
-            const hardware::hidl_vec<hardware::hidl_handle>& dataCache, const HalCacheToken& token,
-            const sp<V1_2::IPreparedModelCallback>& actualCallback) override {
-        return mLatestDriver->prepareModel_1_2(model, preference, modelCache, dataCache, token,
-                                               actualCallback);
-    }
-    hardware::Return<void> getVersionString(getVersionString_cb _hidl_cb) override {
-        return mLatestDriver->getVersionString(_hidl_cb);
-    }
-    hardware::Return<void> getType(getType_cb _hidl_cb) override {
-        return mLatestDriver->getType(_hidl_cb);
-    }
-    hardware::Return<void> getSupportedExtensions(getSupportedExtensions_cb _hidl_cb) {
-        return mLatestDriver->getSupportedExtensions(_hidl_cb);
-    }
-    hardware::Return<void> getNumberOfCacheFilesNeeded(getNumberOfCacheFilesNeeded_cb _hidl_cb) {
-        return mLatestDriver->getNumberOfCacheFilesNeeded(_hidl_cb);
-    }
-    hardware::Return<V1_0::ErrorStatus> prepareModelFromCache(
-            const hardware::hidl_vec<hardware::hidl_handle>& modelCache,
-            const hardware::hidl_vec<hardware::hidl_handle>& dataCache, const HalCacheToken& token,
-            const sp<V1_2::IPreparedModelCallback>& callback) {
-        return mLatestDriver->prepareModelFromCache(modelCache, dataCache, token, callback);
-    }
-    hardware::Return<void> getCapabilities_1_1(getCapabilities_1_1_cb _hidl_cb) override {
-        return mLatestDriver->getCapabilities_1_1(_hidl_cb);
-    }
-    hardware::Return<void> getSupportedOperations_1_1(
-            const V1_1::Model& model, getSupportedOperations_1_1_cb _hidl_cb) override {
-        return mLatestDriver->getSupportedOperations_1_1(model, _hidl_cb);
-    }
-    hardware::Return<V1_0::ErrorStatus> prepareModel_1_1(
-            const V1_1::Model& model, V1_1::ExecutionPreference preference,
-            const sp<V1_0::IPreparedModelCallback>& actualCallback) override {
-        return mLatestDriver->prepareModel_1_1(model, preference, actualCallback);
-    }
-    hardware::Return<V1_0::DeviceStatus> getStatus() override { return mLatestDriver->getStatus(); }
-    hardware::Return<void> getCapabilities(getCapabilities_cb _hidl_cb) override {
-        return mLatestDriver->getCapabilities(_hidl_cb);
-    }
-    hardware::Return<void> getSupportedOperations(const V1_0::Model& model,
-                                                  getSupportedOperations_cb _hidl_cb) override {
-        return mLatestDriver->getSupportedOperations(model, _hidl_cb);
-    }
-    hardware::Return<V1_0::ErrorStatus> prepareModel(
-            const V1_0::Model& model,
-            const sp<V1_0::IPreparedModelCallback>& actualCallback) override {
-        return mLatestDriver->prepareModel(model, actualCallback);
-    }
-
-   private:
-    const sp<V1_3::IDevice> mLatestDriver;
+        : V1_2::ADevice(new TestDriver(name, std::move(signatures))) {}
 };
 
-// Like TestDriver, but implementing 1.1
-class TestDriverV1_1 : public V1_1::IDevice {
+class TestDriverV1_1 : public V1_1::ADevice {
    public:
     TestDriverV1_1(const char* name, std::set<Signature> signatures)
-        : mLatestDriver(new TestDriver(name, std::move(signatures))) {}
-    hardware::Return<void> getCapabilities_1_1(getCapabilities_1_1_cb _hidl_cb) override {
-        return mLatestDriver->getCapabilities_1_1(_hidl_cb);
-    }
-    hardware::Return<void> getSupportedOperations_1_1(
-            const V1_1::Model& model, getSupportedOperations_1_1_cb _hidl_cb) override {
-        return mLatestDriver->getSupportedOperations_1_1(model, _hidl_cb);
-    }
-    hardware::Return<V1_0::ErrorStatus> prepareModel_1_1(
-            const V1_1::Model& model, V1_1::ExecutionPreference preference,
-            const sp<V1_0::IPreparedModelCallback>& actualCallback) override {
-        return mLatestDriver->prepareModel_1_1(model, preference, actualCallback);
-    }
-    hardware::Return<V1_0::DeviceStatus> getStatus() override { return mLatestDriver->getStatus(); }
-    hardware::Return<void> getCapabilities(getCapabilities_cb _hidl_cb) override {
-        return mLatestDriver->getCapabilities(_hidl_cb);
-    }
-    hardware::Return<void> getSupportedOperations(const V1_0::Model& model,
-                                                  getSupportedOperations_cb _hidl_cb) override {
-        return mLatestDriver->getSupportedOperations(model, _hidl_cb);
-    }
-    hardware::Return<V1_0::ErrorStatus> prepareModel(
-            const V1_0::Model& model,
-            const sp<V1_0::IPreparedModelCallback>& actualCallback) override {
-        return mLatestDriver->prepareModel(model, actualCallback);
-    }
-
-   private:
-    const sp<V1_3::IDevice> mLatestDriver;
+        : V1_1::ADevice(new TestDriver(name, std::move(signatures))) {}
 };
 
-// Like TestDriver, but implementing 1.0
-class TestDriverV1_0 : public V1_0::IDevice {
+class TestDriverV1_0 : public V1_0::ADevice {
    public:
     TestDriverV1_0(const char* name, std::set<Signature> signatures)
-        : mLatestDriver(new TestDriver(name, std::move(signatures))) {}
-    hardware::Return<void> getCapabilities(getCapabilities_cb _hidl_cb) override {
-        return mLatestDriver->getCapabilities(_hidl_cb);
-    }
-    hardware::Return<void> getSupportedOperations(const V1_0::Model& model,
-                                                  getSupportedOperations_cb _hidl_cb) override {
-        return mLatestDriver->getSupportedOperations(model, _hidl_cb);
-    }
-    hardware::Return<V1_0::ErrorStatus> prepareModel(
-            const V1_0::Model& model,
-            const sp<V1_0::IPreparedModelCallback>& actualCallback) override {
-        return mLatestDriver->prepareModel(model, actualCallback);
-    }
-    hardware::Return<V1_0::DeviceStatus> getStatus() override { return mLatestDriver->getStatus(); }
-
-   private:
-    const sp<V1_3::IDevice> mLatestDriver;
+        : V1_0::ADevice(new TestDriver(name, std::move(signatures))) {}
 };
 
 V1_0::IDevice* RandomPartitioningTest::makeTestDriver(HalVersion version, const char* name,
@@ -836,6 +734,12 @@ TEST_P(RandomPartitioningTest, Test) {
     // operations (those that do not consume results produced by other
     // operations).
     unsigned rootOperationCount = 0;
+
+    // Track whether we added operands with unknown dimensions. In this case,
+    // partitioned compilation will fail if such an operand is read in a
+    // different partition than it is written, and the partition that does the
+    // writing is scheduled on a pre-HAL 1.2 (pre-Android Q) device.
+    bool hasUnknownDimensions = false;
 
     // Generate operations.
     for (unsigned i = 0; i < numOperations; i++) {
@@ -1027,10 +931,14 @@ TEST_P(RandomPartitioningTest, Test) {
         std::generate(
                 operationOutputs.begin(), operationOutputs.end(),
                 [&operandsWithUnknownDimensions, &model, &problemType, &unknownDimensionsTypes,
-                 allowUnknownDimensions, this] {
-                    // Before the fix for http://b/132458982, 3% unknowns
-                    // causes ~35% of partitionings to fail.
+                 &hasUnknownDimensions, allowUnknownDimensions, this] {
+                    // Before the fix for http://b/132458982, 3% unknowns causes
+                    // ~35% of partitionings to fail.  After the fix, 3%
+                    // unknowns causes ~3% of partitionings to fail.  (This is
+                    // determined by removing the fallback code and noting the
+                    // number of failures.)
                     if (allowUnknownDimensions && randFrac() < 0.03) {
+                        hasUnknownDimensions = true;
                         uint32_t opndIdx = model.addOperand(
                                 &unknownDimensionsTypes[randUInt(kUnknownDimensionsTypesCount)]);
                         operandsWithUnknownDimensions.insert(opndIdx);
@@ -1208,11 +1116,63 @@ TEST_P(RandomPartitioningTest, Test) {
     // CPU fallback device
     devices.push_back(DeviceManager::getCpuDevice());
 
-    // Partitioned compilation.  We require the partitioning to succeed without
-    // CPU fallback.
-    TestCompilation c2(&model, devices);
-    ASSERT_EQ(c2.setPartitioning(DeviceManager::kPartitioningWithoutFallback), Result::NO_ERROR);
-    ASSERT_EQ(c2.finish(), Result::NO_ERROR);
+    // Partitioned compilation.
+    //
+    // For a test case without both (a) unknown intermediate operand sizes and
+    // (b) partitions scheduled on pre-HAL 1.2 (pre-Android Q) devices, we
+    // require the partitioning to succeed without CPU fallback.  For a test
+    // case with both (a) and (b), we retry with a fallback if the non-fallback
+    // partitioning fails and require the fallback to succeed.
+    //
+    // The issue is that prior to HAL 1.2, an output operand must have a known
+    // size provided either in the Model or in the Request; and in the case of
+    // partitioning, an intermediate operand of the original model that becomes
+    // an output operand of a partition won't have a known size provided in the
+    // Request.
+    TestCompilation cNoFallback(&model, devices);
+    TestCompilation cWithFallback(&model, devices);
+    bool fallbackNeeded = false;
+    ASSERT_EQ(cNoFallback.setPartitioning(DeviceManager::kPartitioningWithoutFallback),
+              Result::NO_ERROR);
+    auto compilationResult = cNoFallback.finish();
+    if (compilationResult == Result::OP_FAILED && hasUnknownDimensions &&
+        cNoFallback.getExecutionPlan().hasDynamicTemporaries() &&
+        std::any_of(devices.begin(), devices.end(), [](const std::shared_ptr<Device>& device) {
+            return device->getFeatureLevel() < __ANDROID_API_Q__;
+        })) {
+        ASSERT_EQ(cWithFallback.setPartitioning(DeviceManager::kPartitioningWithFallback),
+                  Result::NO_ERROR);
+        compilationResult = cWithFallback.finish();
+        ASSERT_EQ(compilationResult, Result::NO_ERROR);
+        ASSERT_EQ(cWithFallback.getExecutionPlan().forTest_getKind(), ExecutionPlan::Kind::SIMPLE);
+        ASSERT_EQ(cWithFallback.getExecutionPlan().forTest_simpleGetDevice(),
+                  DeviceManager::getCpuDevice());
+        fallbackNeeded = true;
+    } else {
+        ASSERT_EQ(compilationResult, Result::NO_ERROR);
+
+        const ExecutionPlan& plan = cNoFallback.getExecutionPlan();
+        if (signaturesForDriver.size() == 1) {
+            ASSERT_EQ(plan.forTest_getKind(), ExecutionPlan::Kind::SIMPLE);
+            ASSERT_TRUE(plan.forTest_simpleGetDevice() != DeviceManager::getCpuDevice());
+        } else {
+            ASSERT_EQ(plan.forTest_getKind(), ExecutionPlan::Kind::COMPOUND);
+            auto stepToDeviceId = [](const std::shared_ptr<LogicalStep>& step) {
+                return step->executionStep()->getDevice();
+            };
+            std::set<decltype(stepToDeviceId(plan.forTest_compoundGetSteps()[0]))> deviceSet;
+            for (const auto& step : plan.forTest_compoundGetSteps()) {
+                deviceSet.insert(stepToDeviceId(step));
+            }
+            // TODO(b/178517567): Figure out why we sometimes have 1 more
+            // signature than we have devices -- this means that we've scheduled
+            // one or more operations onto the CPU fallback device, which is not
+            // something we ever expect to do.
+            ASSERT_TRUE(deviceSet.size() == signaturesForDriver.size() ||
+                        deviceSet.size() == signaturesForDriver.size() + 1);
+        }
+    }
+    TestCompilation& c2 = (fallbackNeeded ? cWithFallback : cNoFallback);
 #ifdef TRACE_DYNTEMP
     {
         const ExecutionPlan& plan = c2.getExecutionPlan();

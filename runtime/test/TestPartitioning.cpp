@@ -185,6 +185,10 @@ float lookupExecTime(const V1_3::Capabilities& capabilities, V1_3::OperandType t
     return ::android::nn::lookup(capabilities.operandPerformance, type).execTime;
 }
 
+HalVersion min(HalVersion a, HalVersion b) {
+    return int32_t(a) < int32_t(b) ? a : b;
+}
+
 const uint32_t kNumFuseCodes = 4;
 const uint32_t kBadOperation = ~0;
 
@@ -599,11 +603,14 @@ class PartitioningDriverV1_0 : public V1_0::IDevice {
 };
 
 enum class Dimensioned {
-    NO,     // either a scalar, or a tensor of either unspecified rank (usually)
-            // or specified rank but with no specified dimensions (where
-            // specifically stated)
-    YES_1,  // tensor of shape { 1 }
-    YES_2,  // tensor of shape { 2 }
+    NO,      // either a scalar, or a tensor of either unspecified rank (usually)
+             // or specified rank but with no specified dimensions (where
+             // specifically stated)
+    RANK_1,  // tensor of shape { 0 }    -- i.e., rank 1, unspecified dimensions
+    RANK_2,  // tensor of shape { 0, 0 } -- i.e., rank 2, unspecified dimensions
+    YES_1,   // tensor of shape { 1 }
+    YES_2,   // tensor of shape { 2 }
+    YES_4,   // tensor of shape { 4 }
     YES = YES_1
 };
 
@@ -614,10 +621,16 @@ std::vector<uint32_t> dimensions(Dimensioned dimensioned) {
             FALLTHROUGH_INTENDED;
         case Dimensioned::NO:
             return {};
+        case Dimensioned::RANK_1:
+            return {0};
+        case Dimensioned::RANK_2:
+            return {0, 0};
         case Dimensioned::YES_1:
             return {1};
         case Dimensioned::YES_2:
             return {2};
+        case Dimensioned::YES_4:
+            return {4};
     }
 }
 
@@ -627,10 +640,16 @@ std::string toString(Dimensioned dimensioned) {
             return "<Unknown value>";
         case Dimensioned::NO:
             return "NO";
+        case Dimensioned::RANK_1:
+            return "RANK_1";
+        case Dimensioned::RANK_2:
+            return "RANK_2";
         case Dimensioned::YES_1:
             return "YES_1";
         case Dimensioned::YES_2:
             return "YES_2";
+        case Dimensioned::YES_4:
+            return "YES_4";
     }
 }
 
@@ -663,7 +682,6 @@ class PartitioningModel : private WrapperModel {
     uint32_t addFloatOperand(Dimensioned dimensioned = Dimensioned::YES) {
         return addOperand(WrapperType::TENSOR_FLOAT32, dimensioned);
     }
-    uint32_t addFloatScalarOperand() { return addOperand(WrapperType::FLOAT32); }
     uint32_t addQuantOperand(Dimensioned dimensioned = Dimensioned::YES) {
         return addOperand(WrapperType::TENSOR_QUANT8_ASYMM, dimensioned);
     }
@@ -969,25 +987,32 @@ class PartitioningTest : public ::testing::Test {
               mOEM(oem) {}
         DeviceSpecification(const std::string& name, float perf, uint32_t operationMask,
                             PartitioningDriver::OEM oem = PartitioningDriver::OEMNo,
+                            HalVersion halVersion = HalVersion::LATEST,
                             std::set<V1_3::OperationType> operationTypes = {})
-            : DeviceSpecification(name, perf, perf, operationMask, oem, operationTypes) {}
+            : DeviceSpecification(name, perf, perf, operationMask, oem, halVersion,
+                                  operationTypes) {}
         DeviceSpecification(const std::string& name, float perf, float perfRelaxed,
                             uint32_t operationMask,
                             PartitioningDriver::OEM oem = PartitioningDriver::OEMNo,
+                            HalVersion halVersion = HalVersion::LATEST,
                             std::set<V1_3::OperationType> operationTypes = {})
             : DeviceSpecification(name, kVersionString, perf, perfRelaxed, operationMask, oem,
-                                  operationTypes) {}
+                                  halVersion, operationTypes) {}
         DeviceSpecification(const std::string& name, const std::string& version, float perf,
                             uint32_t operationMask,
                             PartitioningDriver::OEM oem = PartitioningDriver::OEMNo,
+                            HalVersion halVersion = HalVersion::LATEST,
                             std::set<V1_3::OperationType> operationTypes = {})
-            : DeviceSpecification(name, version, perf, perf, operationMask, oem, operationTypes) {}
+            : DeviceSpecification(name, version, perf, perf, operationMask, oem, halVersion,
+                                  operationTypes) {}
         DeviceSpecification(const std::string& name, const std::string& version, float perf,
                             float perfRelaxed, uint32_t operationMask,
                             PartitioningDriver::OEM oem = PartitioningDriver::OEMNo,
+                            HalVersion halVersion = HalVersion::LATEST,
                             std::set<V1_3::OperationType> operationTypes = {})
             : mName(name),
               mVersionString(version),
+              mHalVersion(halVersion),
               mOperationMask(operationMask),
               mOEM(oem),
               mOperationTypes(std::move(operationTypes)) {
@@ -2103,20 +2128,22 @@ TEST_F(PartitioningTest, Perf) {
 
 // Test dynamic temporaries and related parts of the partitioning implementation.
 //
-// opnd0 = model input                   // fill shape
-// opnd1 = constant                      // fill value
-// opnd2 = FILL(opnd0, opnd1)            // model output
-// opnd3 = FILL(opnd0, opnd1)
+// opnd0 = model input                   // tensor to pad
+// opnd1 = model input                   // padding
+// opnd2 = PAD(opnd1, opnd0)             // model output
+// opnd3 = PAD(opnd1, opnd0)
 // opnd4 = ADD(opnd2, opnd3, FUSED_NONE) // model output
 class DynamicTemporariesTest : public PartitioningTest {
    protected:
     // Call these functions in sequence in order to perform the test.
     // Call to declareOutputDimensions() can be omitted (see the default values below).
+    // Call to declareHalVersions() can be omitted (defaults to HalVersion::LATEST).
     void declareOutputDimensions(bool opnd2ModelAndPartitionOutputSpecified,
                                  bool opnd3PartitionOutputSpecified,
                                  bool opnd4ModelOutputSpecified);
+    void declareHalVersions(HalVersion padDeviceVersion, HalVersion addDeviceVersion);
     void makeModelAndValidate();
-    void compileModelAndComparePlan();
+    void compileModelAndComparePlan(bool noFallback = true);
     void executeCompilationAndCompareOutput(bool opnd2ModelOutputBigEnough,
                                             bool opnd4ModelOutputBigEnough);
 
@@ -2125,6 +2152,11 @@ class DynamicTemporariesTest : public PartitioningTest {
     bool mOpnd3PartitionOutputSpecified = false;
     bool mOpnd4ModelOutputSpecified = false;
 
+    // set by declareHalVersions()
+    HalVersion mPadDeviceVersion = HalVersion::LATEST;
+    HalVersion mAddDeviceVersion = HalVersion::LATEST;
+    HalVersion mMinDeviceVersion = HalVersion::LATEST;  // minimum of the other two device versions
+
     // created by makeModelAndValidate()
     std::optional<PartitioningModel> mModel;
     std::vector<uint32_t> mOpnds;
@@ -2132,11 +2164,15 @@ class DynamicTemporariesTest : public PartitioningTest {
     // created by compileModelAndComparePlan();
     std::optional<PartitioningCompilation> mCompilation;
 
-    static Dimensioned dimensioned(bool specified) {
-        return specified ? Dimensioned::YES_2 : Dimensioned::NO;
+    static bool supportsOutputOfUnknownRank(HalVersion version) {
+        return version >= HalVersion::V1_2;
     }
 
-    static constexpr float kFillValue = 3.0f;
+    static Dimensioned dimensionedOutput(HalVersion version, bool specified) {
+        return specified ? Dimensioned::YES_4
+                         : supportsOutputOfUnknownRank(version) ? Dimensioned::NO
+                                                                : Dimensioned::RANK_1;
+    }
 };
 
 void DynamicTemporariesTest::declareOutputDimensions(bool opnd2ModelAndPartitionOutputSpecified,
@@ -2148,94 +2184,123 @@ void DynamicTemporariesTest::declareOutputDimensions(bool opnd2ModelAndPartition
     mOpnd4ModelOutputSpecified = opnd4ModelOutputSpecified;
 }
 
+void DynamicTemporariesTest::declareHalVersions(HalVersion padDeviceVersion,
+                                                HalVersion addDeviceVersion) {
+    ASSERT_FALSE(mModel.has_value());
+    mPadDeviceVersion = padDeviceVersion;
+    mAddDeviceVersion = addDeviceVersion;
+    mMinDeviceVersion = min(padDeviceVersion, addDeviceVersion);
+}
+
 void DynamicTemporariesTest::makeModelAndValidate() {
     ASSERT_FALSE(mModel.has_value());
     mModel = PartitioningModel();
 
     uint32_t opndActivation = mModel->addIntScalarOperand(ANEURALNETWORKS_FUSED_NONE);
 
-    uint32_t opnd0 = mModel->addIntOperand(Dimensioned::NO);  // desired output tensor shape
-    uint32_t opnd1 = mModel->addFloatScalarOperand();         // fill value
-    mModel->setOperandValue(opnd1, &kFillValue, sizeof(kFillValue));
+    uint32_t opnd0 = mModel->addFloatOperand(Dimensioned::YES_2);  // tensor to pad
+    uint32_t opnd1 = mModel->addIntOperand(Dimensioned::RANK_2);   // paddings
     uint32_t opnd2 = mModel->addExplicitOperationXTo1(
-            ANEURALNETWORKS_FILL, {opnd0, opnd1}, WrapperType::TENSOR_FLOAT32,
-            dimensioned(mOpnd2ModelAndPartitionOutputSpecified));
-    uint32_t opnd3 = mModel->addExplicitOperationXTo1(ANEURALNETWORKS_FILL, {opnd0, opnd1},
-                                                      WrapperType::TENSOR_FLOAT32,
-                                                      dimensioned(mOpnd3PartitionOutputSpecified));
+            ANEURALNETWORKS_PAD, {opnd0, opnd1}, WrapperType::TENSOR_FLOAT32,
+            dimensionedOutput(mMinDeviceVersion, mOpnd2ModelAndPartitionOutputSpecified));
+    uint32_t opnd3 = mModel->addExplicitOperationXTo1(
+            ANEURALNETWORKS_PAD, {opnd0, opnd1}, WrapperType::TENSOR_FLOAT32,
+            dimensionedOutput(mMinDeviceVersion, mOpnd3PartitionOutputSpecified));
     uint32_t opnd4 = mModel->addExplicitOperationXTo1(
             ANEURALNETWORKS_ADD, {opnd2, opnd3, opndActivation}, WrapperType::TENSOR_FLOAT32,
-            dimensioned(mOpnd4ModelOutputSpecified));
-    mModel->identifyInputsAndOutputs({opnd0}, {opnd2, opnd4});
+            dimensionedOutput(mMinDeviceVersion, mOpnd4ModelOutputSpecified));
+    mModel->identifyInputsAndOutputs({opnd0, opnd1}, {opnd2, opnd4});
     mModel->finish();
     ASSERT_TRUE(mModel->isValid());
 
     mOpnds = {opnd0, opnd1, opnd2, opnd3, opnd4};
 }
 
-void DynamicTemporariesTest::compileModelAndComparePlan() {
+void DynamicTemporariesTest::compileModelAndComparePlan(bool noFallback) {
     ASSERT_TRUE(mModel.has_value());
     ASSERT_TRUE(!mCompilation.has_value());
 
-    auto devices =
-            makeDevices({{"fill", 0.9, 0U, PartitioningDriver::OEMNo, {V1_3::OperationType::FILL}},
-                         {"add", 0.9, 0U, PartitioningDriver::OEMNo, {V1_3::OperationType::ADD}}});
+    auto devices = makeDevices({{"pad",
+                                 0.9,
+                                 0U,
+                                 PartitioningDriver::OEMNo,
+                                 mPadDeviceVersion,
+                                 {V1_3::OperationType::PAD}},
+                                {"add",
+                                 0.9,
+                                 0U,
+                                 PartitioningDriver::OEMNo,
+                                 mAddDeviceVersion,
+                                 {V1_3::OperationType::ADD}}});
 
     mCompilation = PartitioningCompilation(&mModel.value(), devices);
     ASSERT_EQ(mCompilation->setPartitioning(DeviceManager::kPartitioningWithoutFallback),
               Result::NO_ERROR);
-    ASSERT_EQ(mCompilation->finish(), Result::NO_ERROR);
-    const ExecutionPlan& planA = mCompilation->getExecutionPlan();
-    EXPECT_TRUE(planA.forTest_flatGetDynamicTemporaries() ==
-                (mOpnd3PartitionOutputSpecified ? DynamicTemporariesType{}
-                                                : DynamicTemporariesType{mOpnds[3]}));
-    ASSERT_EQ(planA.forTest_getKind(), ExecutionPlan::Kind::COMPOUND);
-    const auto& stepsA = planA.forTest_compoundGetSteps();
-    ASSERT_EQ(stepsA.size(), size_t(2));
-    {
-        // Build a model to compare against the step model from stepsA[0].
-        PartitioningModel modelA0;
-        uint32_t a0Opnd0 = modelA0.addIntOperand(Dimensioned::NO);
-        uint32_t a0Opnd1 = modelA0.addFloatScalarOperand();
-        modelA0.setOperandValue(a0Opnd1, &kFillValue, sizeof(kFillValue));
-        uint32_t a0Opnd2 = modelA0.addExplicitOperationXTo1(
-                ANEURALNETWORKS_FILL, {a0Opnd0, a0Opnd1}, WrapperType::TENSOR_FLOAT32,
-                dimensioned(mOpnd3PartitionOutputSpecified));
-        uint32_t a0Opnd3 = modelA0.addExplicitOperationXTo1(
-                ANEURALNETWORKS_FILL, {a0Opnd0, a0Opnd1}, WrapperType::TENSOR_FLOAT32,
-                dimensioned(mOpnd2ModelAndPartitionOutputSpecified));
-        modelA0.identifyInputsAndOutputs({a0Opnd0}, {a0Opnd3, a0Opnd2});
-        modelA0.finish();
-        ASSERT_TRUE(modelA0.isValid());
+    if (noFallback) {
+        ASSERT_EQ(mCompilation->finish(), Result::NO_ERROR);
+        const ExecutionPlan& planA = mCompilation->getExecutionPlan();
+        EXPECT_TRUE(planA.forTest_flatGetDynamicTemporaries() ==
+                    (mOpnd3PartitionOutputSpecified ? DynamicTemporariesType{}
+                                                    : DynamicTemporariesType{mOpnds[3]}));
+        ASSERT_EQ(planA.forTest_getKind(), ExecutionPlan::Kind::COMPOUND);
+        const auto& stepsA = planA.forTest_compoundGetSteps();
+        ASSERT_EQ(stepsA.size(), size_t(2));
+        {
+            // Build a model to compare against the step model from stepsA[0].
+            PartitioningModel modelA0;
+            uint32_t a0Opnd0 = modelA0.addFloatOperand(Dimensioned::YES_2);
+            uint32_t a0Opnd1 = modelA0.addIntOperand(Dimensioned::RANK_2);
+            uint32_t a0Opnd2 = modelA0.addExplicitOperationXTo1(
+                    ANEURALNETWORKS_PAD, {a0Opnd0, a0Opnd1}, WrapperType::TENSOR_FLOAT32,
+                    dimensionedOutput(mMinDeviceVersion, mOpnd3PartitionOutputSpecified));
+            uint32_t a0Opnd3 = modelA0.addExplicitOperationXTo1(
+                    ANEURALNETWORKS_PAD, {a0Opnd0, a0Opnd1}, WrapperType::TENSOR_FLOAT32,
+                    dimensionedOutput(mMinDeviceVersion, mOpnd2ModelAndPartitionOutputSpecified));
+            modelA0.identifyInputsAndOutputs({a0Opnd0, a0Opnd1}, {a0Opnd3, a0Opnd2});
+            modelA0.finish();
+            ASSERT_TRUE(modelA0.isValid());
 
-        ASSERT_NO_FATAL_FAILURE(
-                compare(stepsA[0], &modelA0, devices[0],
-                        RemapVectorType{{mOpnds[0], a0Opnd0}},         // modelInputs
-                        RemapVectorType{{mOpnds[2], a0Opnd3}},         // modelOutputs
-                        RemapVectorType{},                             // tempsAsStepModelInputs
-                        StepModelOutputSetType{{mOpnds[3], a0Opnd2}},  // tempsAsStepModelOutputs
-                        RemapVectorType{},                             // outputsAsStepModelInputs
-                        {0u}));  // modelOutputsThatAreDownstreamInputs
-    }
-    {
-        // Build a model to compare against the step model from stepsA[1].
-        PartitioningModel modelA1;
-        uint32_t a1Opnd2 =
-                modelA1.addFloatOperand(dimensioned(mOpnd2ModelAndPartitionOutputSpecified));
-        uint32_t a1Opnd3 = modelA1.addFloatOperand(dimensioned(mOpnd3PartitionOutputSpecified));
-        uint32_t a1Opnd4 = modelA1.addOperation2To1V1_0(0, a1Opnd2, a1Opnd3,
-                                                        dimensioned(mOpnd4ModelOutputSpecified));
-        modelA1.identifyInputsAndOutputs({a1Opnd3, a1Opnd2}, {a1Opnd4});
-        modelA1.finish();
-        ASSERT_TRUE(modelA1.isValid());
+            ASSERT_NO_FATAL_FAILURE(compare(
+                    stepsA[0], &modelA0, devices[0],
+                    RemapVectorType{{mOpnds[0], a0Opnd0}, {mOpnds[1], a0Opnd1}},  // modelInputs
+                    RemapVectorType{{mOpnds[2], a0Opnd3}},                        // modelOutputs
+                    RemapVectorType{},                             // tempsAsStepModelInputs
+                    StepModelOutputSetType{{mOpnds[3], a0Opnd2}},  // tempsAsStepModelOutputs
+                    RemapVectorType{},                             // outputsAsStepModelInputs
+                    {0u}));  // modelOutputsThatAreDownstreamInputs
+        }
+        {
+            // Build a model to compare against the step model from stepsA[1].
+            PartitioningModel modelA1;
+            uint32_t a1Opnd2 = modelA1.addFloatOperand(
+                    dimensionedOutput(mMinDeviceVersion, mOpnd2ModelAndPartitionOutputSpecified));
+            uint32_t a1Opnd3 = modelA1.addFloatOperand(
+                    dimensionedOutput(mMinDeviceVersion, mOpnd3PartitionOutputSpecified));
+            uint32_t a1Opnd4 = modelA1.addOperation2To1V1_0(
+                    0, a1Opnd2, a1Opnd3,
+                    dimensionedOutput(mMinDeviceVersion, mOpnd4ModelOutputSpecified));
+            modelA1.identifyInputsAndOutputs({a1Opnd3, a1Opnd2}, {a1Opnd4});
+            modelA1.finish();
+            ASSERT_TRUE(modelA1.isValid());
 
-        ASSERT_NO_FATAL_FAILURE(
-                compare(stepsA[1], &modelA1, devices[1], RemapVectorType{},  // modelInputs
-                        RemapVectorType{{mOpnds[4], a1Opnd4}},               // modelOutputs
-                        RemapVectorType{{mOpnds[3], a1Opnd3}},  // tempsAsStepModelInputs
-                        StepModelOutputSetType{},               // tempsAsStepModelOutputs
-                        RemapVectorType{{mOpnds[2], a1Opnd2}},  // outputsAsStepModelInputs
-                        {}));  // modelOutputsThatAreDownstreamInputs
+            ASSERT_NO_FATAL_FAILURE(
+                    compare(stepsA[1], &modelA1, devices[1], RemapVectorType{},  // modelInputs
+                            RemapVectorType{{mOpnds[4], a1Opnd4}},               // modelOutputs
+                            RemapVectorType{{mOpnds[3], a1Opnd3}},  // tempsAsStepModelInputs
+                            StepModelOutputSetType{},               // tempsAsStepModelOutputs
+                            RemapVectorType{{mOpnds[2], a1Opnd2}},  // outputsAsStepModelInputs
+                            {}));  // modelOutputsThatAreDownstreamInputs
+        }
+    } else {
+        ASSERT_EQ(mCompilation->finish(), Result::OP_FAILED);
+        // Try again, expecting fallback.
+        mCompilation = PartitioningCompilation(&mModel.value(), devices);
+        ASSERT_EQ(mCompilation->setPartitioning(DeviceManager::kPartitioningWithFallback),
+                  Result::NO_ERROR);
+        ASSERT_EQ(mCompilation->finish(), Result::NO_ERROR);
+        ASSERT_EQ(mCompilation->getExecutionPlan().forTest_getKind(), ExecutionPlan::Kind::SIMPLE);
+        ASSERT_EQ(mCompilation->getExecutionPlan().forTest_simpleGetDevice(),
+                  DeviceManager::getCpuDevice());
     }
 }
 
@@ -2247,32 +2312,44 @@ void DynamicTemporariesTest::executeCompilationAndCompareOutput(bool opnd2ModelO
     ASSERT_TRUE(mCompilation.has_value());
     WrapperExecution e(&mCompilation.value());
 
-    WrapperOperandType shapeType(WrapperType::TENSOR_INT32, {1});
-    const int shape[1] = {2};
-    e.setInput(0, &shape, &shapeType.operandType);
+    WrapperOperandType padTensorValueType(WrapperType::TENSOR_FLOAT32, {2});
+    const float padTensorValue[] = {3.0f, 5.0f};
+    e.setInput(0, &padTensorValue, &padTensorValueType.operandType);
 
-    auto setOutput = [&e](uint32_t index, float* buffer, bool bigEnough, bool specified) {
-        const uint32_t elts = bigEnough ? 2 : 1;
-        std::fill(buffer, buffer + elts, 0.0f);
+    WrapperOperandType paddingsType(WrapperType::TENSOR_INT32, {1, 2});
+    const int paddings[1][2] = {{1, 1}};
+    e.setInput(1, &paddings, &paddingsType.operandType);
+
+    auto setOutput = [&e](uint32_t index, float* buffer, bool bigEnough, bool specified,
+                          HalVersion version) {
+        const uint32_t elts = bigEnough ? 4 : 3;
+        std::fill(buffer, buffer + elts, -1.0f);
         using DimsType = std::vector<uint32_t>;
-        WrapperOperandType outputType(WrapperType::TENSOR_FLOAT32,
-                                      specified ? DimsType{elts} : DimsType{});
+        WrapperOperandType outputType(
+                WrapperType::TENSOR_FLOAT32,
+                specified ? DimsType{elts}
+                          : supportsOutputOfUnknownRank(version) ? DimsType{} : DimsType{0});
         e.setOutput(index, buffer, elts * sizeof(float), &outputType.operandType);
     };
-    float opnd2ModelOutput[2], opnd4ModelOutput[2];
+    float opnd2ModelOutput[4], opnd4ModelOutput[4];
     setOutput(0, opnd2ModelOutput, opnd2ModelOutputBigEnough,
-              mOpnd2ModelAndPartitionOutputSpecified);
-    setOutput(1, opnd4ModelOutput, opnd4ModelOutputBigEnough, mOpnd4ModelOutputSpecified);
+              mOpnd2ModelAndPartitionOutputSpecified, mPadDeviceVersion);
+    setOutput(1, opnd4ModelOutput, opnd4ModelOutputBigEnough, mOpnd4ModelOutputSpecified,
+              mAddDeviceVersion);
 
     const Result expectResult = opnd2ModelOutputBigEnough && opnd4ModelOutputBigEnough
                                         ? Result::NO_ERROR
                                         : Result::OUTPUT_INSUFFICIENT_SIZE;
     ASSERT_EQ(e.compute(), expectResult);
     if (expectResult == Result::NO_ERROR) {
-        ASSERT_TRUE(std::all_of(std::begin(opnd2ModelOutput), std::end(opnd2ModelOutput),
-                                [](float v) { return v == kFillValue; }));
-        ASSERT_TRUE(std::all_of(std::begin(opnd4ModelOutput), std::end(opnd4ModelOutput),
-                                [](float v) { return v == kFillValue * 2; }));
+        float expected[4] = {0.0f, padTensorValue[0], padTensorValue[1], 0.0f};
+        ASSERT_TRUE(std::equal(std::begin(opnd2ModelOutput), std::end(opnd2ModelOutput),
+                               std::begin(expected)));
+        for (auto& elt : expected) {
+            elt *= 2;
+        }
+        ASSERT_TRUE(std::equal(std::begin(opnd4ModelOutput), std::end(opnd4ModelOutput),
+                               std::begin(expected)));
     }
 }
 
@@ -2284,6 +2361,22 @@ TEST_F(DynamicTemporariesTest, ModelOutputsSufficientSize) {
     ASSERT_NO_FATAL_FAILURE(declareOutputDimensions(/*opnd2ModelAndPartitionOutputSpecified=*/false,
                                                     /*opnd3PartitionOutputSpecified=*/true,
                                                     /*opnd4ModelOutputSpecified=*/false));
+    ASSERT_NO_FATAL_FAILURE(makeModelAndValidate());
+    ASSERT_NO_FATAL_FAILURE(compileModelAndComparePlan());
+    ASSERT_NO_FATAL_FAILURE(executeCompilationAndCompareOutput(true, true));
+}
+
+TEST_F(DynamicTemporariesTest, ModelOutputsSufficientSize_V1_1) {
+    // The purpose of this test is to confirm that the partitioner and the
+    // runtime can handle a model output of unspecified dimensions but
+    // sufficient size that is written by one partition and read by another.
+    // Regression test for http://b/174851714.
+
+    ASSERT_NO_FATAL_FAILURE(declareOutputDimensions(/*opnd2ModelAndPartitionOutputSpecified=*/false,
+                                                    /*opnd3PartitionOutputSpecified=*/true,
+                                                    /*opnd4ModelOutputSpecified=*/false));
+    ASSERT_NO_FATAL_FAILURE(declareHalVersions(/*padDeviceVersion=*/HalVersion::V1_1,
+                                               /*addDeviceVersion=*/HalVersion::V1_1));
     ASSERT_NO_FATAL_FAILURE(makeModelAndValidate());
     ASSERT_NO_FATAL_FAILURE(compileModelAndComparePlan());
     ASSERT_NO_FATAL_FAILURE(executeCompilationAndCompareOutput(true, true));
@@ -2309,6 +2402,38 @@ TEST_F(DynamicTemporariesTest, DynamicTemporariesSpecifiedOutputs) {
                                                     /*opnd4ModelOutputSpecified=*/true));
     ASSERT_NO_FATAL_FAILURE(makeModelAndValidate());
     ASSERT_NO_FATAL_FAILURE(compileModelAndComparePlan());
+    ASSERT_NO_FATAL_FAILURE(executeCompilationAndCompareOutput(true, true));
+}
+
+TEST_F(DynamicTemporariesTest, DynamicTemporariesSpecifiedOutputs_V1_2) {
+    // The purpose of this test is to confirm that the partitioner can produce
+    // dynamic temporaries and that the runtime can handle them properly.  Note
+    // that all model outputs are of specified dimensions.
+    // Regression test for http://b/174851714.
+
+    ASSERT_NO_FATAL_FAILURE(declareOutputDimensions(/*opnd2ModelAndPartitionOutputSpecified=*/true,
+                                                    /*opnd3PartitionOutputSpecified=*/false,
+                                                    /*opnd4ModelOutputSpecified=*/true));
+    ASSERT_NO_FATAL_FAILURE(declareHalVersions(/*padDeviceVersion=*/HalVersion::V1_2,
+                                               /*addDeviceVersion=*/HalVersion::V1_2));
+    ASSERT_NO_FATAL_FAILURE(makeModelAndValidate());
+    ASSERT_NO_FATAL_FAILURE(compileModelAndComparePlan());
+    ASSERT_NO_FATAL_FAILURE(executeCompilationAndCompareOutput(true, true));
+}
+
+TEST_F(DynamicTemporariesTest, DynamicTemporariesSpecifiedOutputs_V1_1) {
+    // The purpose of this test is to confirm that the partitioner cannot produce
+    // dynamic temporaries for V1_1 but instead does whole-model CPU fallback.  Note
+    // that all model outputs are of specified dimensions.
+    // Regression test for http://b/174851714.
+
+    ASSERT_NO_FATAL_FAILURE(declareOutputDimensions(/*opnd2ModelAndPartitionOutputSpecified=*/true,
+                                                    /*opnd3PartitionOutputSpecified=*/false,
+                                                    /*opnd4ModelOutputSpecified=*/true));
+    ASSERT_NO_FATAL_FAILURE(declareHalVersions(/*padDeviceVersion=*/HalVersion::V1_1,
+                                               /*addDeviceVersion=*/HalVersion::V1_1));
+    ASSERT_NO_FATAL_FAILURE(makeModelAndValidate());
+    ASSERT_NO_FATAL_FAILURE(compileModelAndComparePlan(false));
     ASSERT_NO_FATAL_FAILURE(executeCompilationAndCompareOutput(true, true));
 }
 
@@ -2345,7 +2470,6 @@ TEST_F(DynamicTemporariesTest, ModelOutput2InsufficientSizeWithoutDynamicTempora
     ASSERT_NO_FATAL_FAILURE(executeCompilationAndCompareOutput(false, true));
 }
 
-// TODO: enable this test once b/168657259 is fixed
 TEST_F(DynamicTemporariesTest, ModelOutput4InsufficientSizeWithoutDynamicTemporary) {
     // The purpose of this test is to confirm that the runtime can detect a
     // model output of insufficient size in the absence of a dynamic temporary.
@@ -3015,8 +3139,12 @@ TEST_F(ControlFlowPartitioningTest, IF_SimplePlan) {
     const auto models = createIfModel();
 
     // The device supports all operations.
-    const auto devices =
-            makeDevices({{"ALL", 0.9, ~0U, PartitioningDriver::OEMNo, {V1_3::OperationType::IF}}});
+    const auto devices = makeDevices({{"ALL",
+                                       0.9,
+                                       ~0U,
+                                       PartitioningDriver::OEMNo,
+                                       HalVersion::LATEST,
+                                       {V1_3::OperationType::IF}}});
 
     ExecutionPlan plan;
     ASSERT_EQ(models[0]->partitionTheWork(devices, ExecutePreference::PREFER_LOW_POWER,
@@ -3034,6 +3162,7 @@ TEST_F(ControlFlowPartitioningTest, WHILE_SimplePlan) {
                                        0.9,
                                        ~0U,
                                        PartitioningDriver::OEMNo,
+                                       HalVersion::LATEST,
                                        {V1_3::OperationType::WHILE, V1_3::OperationType::EQUAL}}});
 
     ExecutionPlan plan;
@@ -3057,8 +3186,12 @@ void ControlFlowPartitioningTest::testIfUnknownSize(Dimensioned dimensionedMain,
 
     // The device supports all operations but the partitioner ignores its IF
     // support due to http://b/159076604#comment5.
-    const auto devices =
-            makeDevices({{"ALL", 0.9, ~0U, PartitioningDriver::OEMNo, {V1_3::OperationType::IF}}});
+    const auto devices = makeDevices({{"ALL",
+                                       0.9,
+                                       ~0U,
+                                       PartitioningDriver::OEMNo,
+                                       HalVersion::LATEST,
+                                       {V1_3::OperationType::IF}}});
 
     ExecutionPlan plan;
     ASSERT_EQ(models[0]->partitionTheWork(devices, ExecutePreference::PREFER_LOW_POWER,
@@ -3101,6 +3234,7 @@ void ControlFlowPartitioningTest::testWhileUnknownSize(Dimensioned dimensionedMa
                                        0.9,
                                        ~0U,
                                        PartitioningDriver::OEMNo,
+                                       HalVersion::LATEST,
                                        {V1_3::OperationType::WHILE, V1_3::OperationType::EQUAL}}});
 
     ExecutionPlan plan;

@@ -148,40 +148,26 @@ class DeathHandler : public hardware::hidl_death_recipient {
     std::vector<sp<Callback>> mCallbacks GUARDED_BY(mMutex);
 };
 
-struct HalVersion {
-    Version canonical;
-    int64_t android;
-};
-
-constexpr auto kHalVersionV1_0 =
-        HalVersion{.canonical = Version::ANDROID_OC_MR1, .android = __ANDROID_API_O_MR1__};
-constexpr auto kHalVersionV1_1 =
-        HalVersion{.canonical = Version::ANDROID_P, .android = __ANDROID_API_P__};
-constexpr auto kHalVersionV1_2 =
-        HalVersion{.canonical = Version::ANDROID_Q, .android = __ANDROID_API_Q__};
-constexpr auto kHalVersionV1_3 =
-        HalVersion{.canonical = Version::ANDROID_R, .android = __ANDROID_API_R__};
-
 template <class T_Model>
 using ReturnedSlice = std::optional<std::pair<T_Model, MetaModel::Mapper>>;
 
 ReturnedSlice<V1_0::Model> getSliceV1_0(const MetaModel& metaModel) {
-    auto [model, mapping] = NN_TRY(metaModel.getSlice(kHalVersionV1_0.canonical));
+    auto [model, mapping] = NN_TRY(metaModel.getSlice(kHalVersionV1_0ToApi.canonical));
     return std::make_pair(hardware::neuralnetworks::V1_0::utils::convert(model).value(),
                           std::move(mapping));
 }
 ReturnedSlice<V1_1::Model> getSliceV1_1(const MetaModel& metaModel) {
-    auto [model, mapping] = NN_TRY(metaModel.getSlice(kHalVersionV1_1.canonical));
+    auto [model, mapping] = NN_TRY(metaModel.getSlice(kHalVersionV1_1ToApi.canonical));
     return std::make_pair(hardware::neuralnetworks::V1_1::utils::convert(model).value(),
                           std::move(mapping));
 }
 ReturnedSlice<V1_2::Model> getSliceV1_2(const MetaModel& metaModel) {
-    auto [model, mapping] = NN_TRY(metaModel.getSlice(kHalVersionV1_2.canonical));
+    auto [model, mapping] = NN_TRY(metaModel.getSlice(kHalVersionV1_2ToApi.canonical));
     return std::make_pair(hardware::neuralnetworks::V1_2::utils::convert(model).value(),
                           std::move(mapping));
 }
 ReturnedSlice<V1_3::Model> getSliceV1_3(const MetaModel& metaModel) {
-    auto [model, mapping] = NN_TRY(metaModel.getSlice(kHalVersionV1_3.canonical));
+    auto [model, mapping] = NN_TRY(metaModel.getSlice(kHalVersionV1_3ToApi.canonical));
     return std::make_pair(hardware::neuralnetworks::V1_3::utils::convert(model).value(),
                           std::move(mapping));
 }
@@ -1582,13 +1568,13 @@ int64_t VersionedIDevice::getFeatureLevel() const {
     constexpr int64_t kFailure = -1;
 
     if (getDevice<V1_3::IDevice>() != nullptr) {
-        return kHalVersionV1_3.android;
+        return kHalVersionV1_3ToApi.android;
     } else if (getDevice<V1_2::IDevice>() != nullptr) {
-        return kHalVersionV1_2.android;
+        return kHalVersionV1_2ToApi.android;
     } else if (getDevice<V1_1::IDevice>() != nullptr) {
-        return kHalVersionV1_1.android;
+        return kHalVersionV1_1ToApi.android;
     } else if (getDevice<V1_0::IDevice>() != nullptr) {
-        return kHalVersionV1_0.android;
+        return kHalVersionV1_0ToApi.android;
     } else {
         LOG(ERROR) << "Device not available!";
         return kFailure;

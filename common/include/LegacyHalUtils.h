@@ -38,11 +38,8 @@
 namespace android {
 namespace nn {
 
-// Make an optional Deadline from an OptionalTimePoint. If
-// timePoint.nanosecondsSinceEpoch cannot be represented in Deadline, return a
-// time point holding the maximum Deadline. If the OptionalTimePoint is none,
-// this function returns std::nullopt.
-std::optional<Deadline> makeDeadline(const V1_3::OptionalTimePoint& timePoint);
+// Make an optional deadline from an OptionalTimePoint.
+OptionalTimePoint makeDeadline(const V1_3::OptionalTimePoint& timePoint);
 
 // Ensure that every user of FalseyErrorStream is linked to the
 // correct instance, using the correct LOG_TAG
@@ -174,6 +171,26 @@ int convertErrorStatusToResultCode(V1_3::ErrorStatus status);
 std::tuple<int, std::vector<OutputShape>, Timing> getExecutionResult(
         V1_3::ErrorStatus status, const hardware::hidl_vec<V1_2::OutputShape>& outputShapes,
         const V1_2::Timing& timing);
+
+struct ApiVersion {
+    Version canonical;
+    int64_t android;
+};
+
+constexpr auto kHalVersionV1_0ToApi =
+        ApiVersion{.canonical = Version::ANDROID_OC_MR1, .android = __ANDROID_API_O_MR1__};
+constexpr auto kHalVersionV1_1ToApi =
+        ApiVersion{.canonical = Version::ANDROID_P, .android = __ANDROID_API_P__};
+constexpr auto kHalVersionV1_2ToApi =
+        ApiVersion{.canonical = Version::ANDROID_Q, .android = __ANDROID_API_Q__};
+constexpr auto kHalVersionV1_3ToApi =
+        ApiVersion{.canonical = Version::ANDROID_R, .android = __ANDROID_API_R__};
+
+// Forward declaration for type defined in CpuExecutor.h.
+class RunTimePoolInfo;
+
+bool setRunTimePoolInfosFromHidlMemories(std::vector<RunTimePoolInfo>* poolInfos,
+                                         const hardware::hidl_vec<hardware::hidl_memory>& pools);
 
 // Versioning
 
@@ -337,7 +354,7 @@ OperandType uncheckedConvert(V1_3::OperandType operandType);
 Operand uncheckedConvert(const V1_3::Operand& operand);
 OperationType uncheckedConvert(V1_3::OperationType operationType);
 Operation uncheckedConvert(const V1_3::Operation& operation);
-OptionalTimeoutDuration uncheckedConvert(const V1_3::OptionalTimeoutDuration& timeoutDuration);
+OptionalDuration uncheckedConvert(const V1_3::OptionalTimeoutDuration& timeoutDuration);
 OutputShape uncheckedConvert(const V1_2::OutputShape& outputShape);
 Request::Argument uncheckedConvert(const V1_0::RequestArgument& requestArgument);
 Request::MemoryPool uncheckedConvert(const V1_3::Request::MemoryPool& memoryPool);
@@ -376,7 +393,7 @@ V1_3::OperandLifeTime convertToV1_3(Operand::LifeTime lifetime);
 V1_3::OperandType convertToV1_3(OperandType operandType);
 V1_3::Operation convertToV1_3(const Operation& operation);
 V1_3::OperationType convertToV1_3(OperationType operationType);
-V1_3::OptionalTimeoutDuration convertToV1_3(const OptionalTimeoutDuration& timeoutDuration);
+V1_3::OptionalTimeoutDuration convertToV1_3(const OptionalDuration& timeoutDuration);
 V1_3::OptionalTimePoint convertToV1_3(const OptionalTimePoint& timePoint);
 V1_3::Priority convertToV1_3(Priority priority);
 V1_3::Request convertToV1_3(const Request& request);

@@ -298,7 +298,7 @@ class StepExecutor {
 
     // Executes using the (driver, preparedModel) specified at construction time.
     std::tuple<int, std::vector<OutputShape>, Timing> compute(
-            const std::optional<Deadline>& deadline,
+            const OptionalTimePoint& deadline,
             const std::shared_ptr<ExecutionBurstController>& burstController = nullptr);
 
     // Re-compiles and executes using the CPU, regardless of the (driver,
@@ -311,7 +311,7 @@ class StepExecutor {
     // callback.
     std::tuple<int, int, ExecuteFencedInfoCallback> computeFenced(
             const std::vector<int>& wait_for, uint64_t timeoutDurationAfterFence,
-            const std::optional<Deadline>& deadline);
+            const OptionalTimePoint& deadline);
 
     // Do the dynamic temporaries defined by this step have valid allocations?
     // (true if there are no dynamic temporaries defined by this step.)
@@ -336,8 +336,7 @@ class StepExecutor {
                                    ModelArgumentInfo* inputOrOutputInfo);
 
     std::tuple<int, std::vector<OutputShape>, Timing> computeWithMemories(
-            const std::optional<Deadline>& deadline,
-            const std::vector<const RuntimeMemory*>& memories,
+            const OptionalTimePoint& deadline, const std::vector<const RuntimeMemory*>& memories,
             const std::shared_ptr<ExecutionBurstController>& burstController = nullptr);
 
     // describes the full (possibly multiple-"step") execution

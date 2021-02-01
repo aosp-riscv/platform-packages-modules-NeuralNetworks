@@ -24,8 +24,8 @@
 #include <utility>
 #include <vector>
 
-#include "BufferTracker.h"
 #include "CpuExecutor.h"
+#include "HalBufferTracker.h"
 #include "HalInterfaces.h"
 #include "NeuralNetworks.h"
 
@@ -38,7 +38,8 @@ using hardware::MQDescriptorSync;
 // Manages the data buffer for an operand.
 class SampleBuffer : public V1_3::IBuffer {
    public:
-    SampleBuffer(std::shared_ptr<ManagedBuffer> buffer, std::unique_ptr<BufferTracker::Token> token)
+    SampleBuffer(std::shared_ptr<HalManagedBuffer> buffer,
+                 std::unique_ptr<HalBufferTracker::Token> token)
         : kBuffer(std::move(buffer)), kToken(std::move(token)) {
         CHECK(kBuffer != nullptr);
         CHECK(kToken != nullptr);
@@ -49,8 +50,8 @@ class SampleBuffer : public V1_3::IBuffer {
             const hardware::hidl_vec<uint32_t>& dimensions) override;
 
    private:
-    const std::shared_ptr<ManagedBuffer> kBuffer;
-    const std::unique_ptr<BufferTracker::Token> kToken;
+    const std::shared_ptr<HalManagedBuffer> kBuffer;
+    const std::unique_ptr<HalBufferTracker::Token> kToken;
 };
 
 // Base class used to create sample drivers for the NN HAL.  This class
@@ -64,7 +65,7 @@ class SampleDriver : public V1_3::IDevice {
                  const IOperationResolver* operationResolver = BuiltinOperationResolver::get())
         : mName(name),
           mOperationResolver(operationResolver),
-          mBufferTracker(BufferTracker::create()) {
+          mHalBufferTracker(HalBufferTracker::create()) {
         android::nn::initVLogMask();
     }
     hardware::Return<void> getCapabilities(getCapabilities_cb cb) override;
@@ -117,12 +118,14 @@ class SampleDriver : public V1_3::IDevice {
     int run();
 
     CpuExecutor getExecutor() const { return CpuExecutor(mOperationResolver); }
-    const std::shared_ptr<BufferTracker>& getBufferTracker() const { return mBufferTracker; }
+    const std::shared_ptr<HalBufferTracker>& getHalBufferTracker() const {
+        return mHalBufferTracker;
+    }
 
    protected:
     std::string mName;
     const IOperationResolver* mOperationResolver;
-    const std::shared_ptr<BufferTracker> mBufferTracker;
+    const std::shared_ptr<HalBufferTracker> mHalBufferTracker;
 };
 
 class SamplePreparedModel : public V1_3::IPreparedModel {

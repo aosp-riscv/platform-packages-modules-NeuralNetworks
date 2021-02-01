@@ -179,7 +179,7 @@ bool setInfoAndAllocateIfNeeded(RunTimeOperandInfo* info, const Shape& shape, in
 
     auto combined = combineDimensions(shape.dimensions, info->dimensions);
     if (!combined.has_value()) {
-        LOG(ERROR) << "Invalid dimensions for model operand";
+        LOG(ERROR) << "Invalid dimensions for model operand: " << combined.error();
         *result = ANEURALNETWORKS_OP_FAILED;
         return false;
     }
@@ -662,20 +662,36 @@ void CpuExecutor::updateForArguments(const std::vector<uint32_t>& indexes,
             // TODO make sure that's the case for the default CPU path.
             to.dimensions = from.dimensions;
         }
-        if (from.lifetime == Request::Argument::LifeTime::NO_VALUE) {
-            to.lifetime = Operand::LifeTime::NO_VALUE;
-            CHECK(to.buffer == nullptr);
-            to.length = 0;
-        } else {
-            auto poolIndex = from.location.poolIndex;
-            CHECK_LT(poolIndex, requestPoolInfos.size());
-            auto& r = requestPoolInfos[poolIndex];
-            to.buffer = r.getBuffer() + from.location.offset;
-            if (from.location.offset == 0 && from.location.length == 0) {
-                // Use the entire memory region.
-                to.length = r.getSize();
-            } else {
+        switch (from.lifetime) {
+            case Request::Argument::LifeTime::NO_VALUE: {
+                to.lifetime = Operand::LifeTime::NO_VALUE;
+                CHECK(to.buffer == nullptr);
+                to.length = 0;
+                break;
+            }
+            case Request::Argument::LifeTime::POOL: {
+                auto poolIndex = from.location.poolIndex;
+                CHECK_LT(poolIndex, requestPoolInfos.size());
+                auto& r = requestPoolInfos[poolIndex];
+                to.buffer = r.getBuffer() + from.location.offset;
+                if (from.location.offset == 0 && from.location.length == 0) {
+                    // Use the entire memory region.
+                    to.length = r.getSize();
+                } else {
+                    to.length = from.location.length;
+                }
+                break;
+            }
+            case Request::Argument::LifeTime::POINTER: {
+                constexpr auto fn = [](const void* ptr) {
+                    return static_cast<const uint8_t*>(ptr);
+                };
+                auto ptr = std::visit(fn, from.location.pointer);
+                // Writing to a const buffer may lead to undefined behavior.
+                // TODO: Refactor the code to avoid the const_cast.
+                to.buffer = const_cast<uint8_t*>(ptr);
                 to.length = from.location.length;
+                break;
             }
         }
     }
@@ -1751,7 +1767,7 @@ int CpuExecutor::executeWhileOperation(const Operation& operation, RunTimeOperan
     condOutput.length = sizeof(condValue);
 
     std::chrono::nanoseconds timeoutDuration(mLoopTimeoutDuration);
-    const auto startTime = std::chrono::steady_clock::now();
+    const auto startTime = Clock::now();
     for (uint32_t iteration = 0;; ++iteration) {
         VLOG(CPUEXE) << "CpuExecutor::executeWhileOperation: iteration " << iteration;
         if (iteration != 0) {
@@ -1768,7 +1784,7 @@ int CpuExecutor::executeWhileOperation(const Operation& operation, RunTimeOperan
             break;
         }
 
-        const auto duration = std::chrono::steady_clock::now() - startTime;
+        const auto duration = Clock::now() - startTime;
         if (duration > timeoutDuration) {
             LOG(ERROR) << "CpuExecutor::executeWhileOperation: timed out after "
                        << std::chrono::duration_cast<std::chrono::milliseconds>(duration).count()

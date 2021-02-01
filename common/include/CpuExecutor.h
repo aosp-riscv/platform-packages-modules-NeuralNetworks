@@ -26,9 +26,9 @@
 #include <vector>
 
 #include "ControlFlow.h"
+#include "LegacyUtils.h"
 #include "OperationResolver.h"
 #include "OperationsUtils.h"
-#include "Utils.h"
 
 namespace android {
 namespace nn {
@@ -123,15 +123,6 @@ class RunTimePoolInfo {
 bool setRunTimePoolInfosFromCanonicalMemories(std::vector<RunTimePoolInfo>* poolInfos,
                                               const std::vector<Memory>& pools);
 
-// DEPRECATED. Use setRunTimePoolInfosFromCanonicalMemories().
-//
-// Used by external code.
-inline bool setRunTimePoolInfosFromHidlMemories(
-        std::vector<RunTimePoolInfo>* poolInfos,
-        const hardware::hidl_vec<hardware::hidl_memory>& pools) {
-    return setRunTimePoolInfosFromCanonicalMemories(poolInfos, uncheckedConvert(pools));
-}
-
 bool setRunTimePoolInfosFromMemoryPools(std::vector<RunTimePoolInfo>* poolInfos,
                                         const std::vector<Request::MemoryPool>& pools);
 
@@ -164,7 +155,7 @@ class CpuExecutor {
         return mOutputShapes;
     }
 
-    void setDeadline(const Deadline& deadline) { mDeadline = deadline; }
+    void setDeadline(const TimePoint& deadline) { mDeadline = deadline; }
     void setLoopTimeout(uint64_t duration) { mLoopTimeoutDuration = duration; }
 
    private:
@@ -201,7 +192,7 @@ class CpuExecutor {
     // The deadline hint for the maximum amount of time the client expects the
     // execution will take. If this deadline is exceeded, the CpuExecutor will
     // abort the execution if there are remaining ops to execute.
-    std::optional<Deadline> mDeadline;
+    OptionalTimePoint mDeadline;
 
     // The maximum amount of time in nanoseconds that can be spent executing a
     // WHILE loop.

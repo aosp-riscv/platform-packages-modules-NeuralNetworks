@@ -223,7 +223,7 @@ class VersionedIDevice {
      */
     std::pair<int, std::shared_ptr<VersionedIPreparedModel>> prepareModel(
             const ModelFactory& makeModel, ExecutionPreference preference, Priority,
-            const std::optional<Deadline>& deadline, const std::string& cacheDir,
+            const OptionalTimePoint& deadline, const std::string& cacheDir,
             const std::optional<CacheToken>& maybeToken) const;
 
     /**
@@ -393,10 +393,10 @@ class VersionedIDevice {
     // internal methods to prepare a model
     std::pair<int, std::shared_ptr<VersionedIPreparedModel>> prepareModelInternal(
             const Model& model, ExecutionPreference preference, Priority priority,
-            const std::optional<Deadline>& deadline, const std::string& cacheDir,
+            const OptionalTimePoint& deadline, const std::string& cacheDir,
             const std::optional<CacheToken>& maybeToken) const;
     std::pair<int, std::shared_ptr<VersionedIPreparedModel>> prepareModelFromCacheInternal(
-            const std::optional<Deadline>& deadline, const std::string& cacheDir,
+            const OptionalTimePoint& deadline, const std::string& cacheDir,
             const CacheToken& token) const;
 
     /**
@@ -679,8 +679,8 @@ class VersionedIPreparedModel {
      *         indicating that measurement is not available.
      */
     std::tuple<int, std::vector<OutputShape>, Timing> execute(
-            const Request& request, MeasureTiming measure, const std::optional<Deadline>& deadline,
-            const OptionalTimeoutDuration& loopTimeoutDuration, bool preferSynchronous) const;
+            const Request& request, MeasureTiming measure, const OptionalTimePoint& deadline,
+            const OptionalDuration& loopTimeoutDuration, bool preferSynchronous) const;
 
     /**
      * Creates a burst controller on a prepared model.
@@ -766,19 +766,18 @@ class VersionedIPreparedModel {
      */
     std::tuple<int, SyncFence, ExecuteFencedInfoCallback, Timing> executeFenced(
             const Request& request, const std::vector<SyncFence>& waitFor, MeasureTiming measure,
-            const std::optional<Deadline>& deadline,
-            const OptionalTimeoutDuration& loopTimeoutDuration,
-            const OptionalTimeoutDuration& timeoutDurationAfterFence);
+            const OptionalTimePoint& deadline, const OptionalDuration& loopTimeoutDuration,
+            const OptionalDuration& timeoutDurationAfterFence);
 
    private:
     friend class VersionedIDevice;
 
     std::tuple<int, std::vector<OutputShape>, Timing> executeAsynchronously(
-            const Request& request, MeasureTiming timing, const std::optional<Deadline>& deadline,
-            const OptionalTimeoutDuration& loopTimeoutDuration) const;
+            const Request& request, MeasureTiming timing, const OptionalTimePoint& deadline,
+            const OptionalDuration& loopTimeoutDuration) const;
     std::tuple<int, std::vector<OutputShape>, Timing> executeSynchronously(
-            const Request& request, MeasureTiming measure, const std::optional<Deadline>& deadline,
-            const OptionalTimeoutDuration& loopTimeoutDuration) const;
+            const Request& request, MeasureTiming measure, const OptionalTimePoint& deadline,
+            const OptionalDuration& loopTimeoutDuration) const;
 
     /**
      * Returns sp<V1_3::IPreparedModel> that is a downcast of the sp<V1_0::IPreparedModel>

@@ -59,6 +59,9 @@ std::vector<uint32_t> countNumberOfConsumers(size_t numberOfOperands,
 // Combine two tensor dimensions, both may have unspecified dimensions or rank.
 Result<Dimensions> combineDimensions(const Dimensions& lhs, const Dimensions& rhs);
 
+// Returns the operandValues's size and a size for each pool in the provided model.
+std::pair<size_t, std::vector<size_t>> getMemorySizes(const Model& model);
+
 // Set of output utility functions.
 std::ostream& operator<<(std::ostream& os, const DeviceStatus& deviceStatus);
 std::ostream& operator<<(std::ostream& os, const ExecutionPreference& executionPreference);
@@ -103,8 +106,8 @@ std::ostream& operator<<(std::ostream& os, const Request& request);
 std::ostream& operator<<(std::ostream& os, const SyncFence::FenceState& fenceState);
 std::ostream& operator<<(std::ostream& os, const TimePoint& timePoint);
 std::ostream& operator<<(std::ostream& os, const OptionalTimePoint& optionalTimePoint);
-std::ostream& operator<<(std::ostream& os, const TimeoutDuration& timeoutDuration);
-std::ostream& operator<<(std::ostream& os, const OptionalTimeoutDuration& optionalTimeoutDuration);
+std::ostream& operator<<(std::ostream& os, const Duration& timeoutDuration);
+std::ostream& operator<<(std::ostream& os, const OptionalDuration& optionalTimeoutDuration);
 std::ostream& operator<<(std::ostream& os, const Version& version);
 std::ostream& operator<<(std::ostream& os, const HalVersion& halVersion);
 

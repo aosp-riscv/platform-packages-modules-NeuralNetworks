@@ -88,38 +88,35 @@ void initVLogMask();
         }                                             \
     } while (0)
 
-// Make an TimeoutDuration from a duration in nanoseconds. If the value exceeds
+// Make an Duration from a duration in nanoseconds. If the value exceeds
 // the max duration, return the maximum expressible duration.
-TimeoutDuration makeTimeoutDuration(uint64_t nanoseconds);
+Duration makeTimeoutDuration(uint64_t nanoseconds);
 
-// Type to represent a deadline time point across processes.
-using Deadline = std::chrono::steady_clock::time_point;
-
-// Make an Deadline from a duration. If the sum of the current time and the
+// Make a deadline from a duration. If the sum of the current time and the
 // duration exceeds the max time, return a time point holding the maximum
 // expressible time.
-Deadline makeDeadline(TimeoutDuration duration);
-inline Deadline makeDeadline(uint64_t duration) {
+TimePoint makeDeadline(Duration duration);
+inline TimePoint makeDeadline(uint64_t duration) {
     return makeDeadline(makeTimeoutDuration(duration));
 }
 
 // Convenience function. If the duration is provided, this function creates a
-// Deadline using makeDeadline. If the duration is not provided, this function
+// deadline using makeDeadline. If the duration is not provided, this function
 // returns std::nullopt.
-inline std::optional<Deadline> makeDeadline(OptionalTimeoutDuration duration) {
-    return duration.has_value() ? makeDeadline(*duration) : std::optional<Deadline>{};
+inline OptionalTimePoint makeDeadline(OptionalDuration duration) {
+    return duration.has_value() ? std::make_optional(makeDeadline(*duration)) : OptionalTimePoint{};
 }
-inline std::optional<Deadline> makeDeadline(std::optional<uint64_t> duration) {
-    return duration.has_value() ? makeDeadline(*duration) : std::optional<Deadline>{};
+inline OptionalTimePoint makeDeadline(std::optional<uint64_t> duration) {
+    return duration.has_value() ? std::make_optional(makeDeadline(*duration)) : OptionalTimePoint{};
 }
 
 // Returns true if the deadline has passed. Returns false if either the deadline
 // has not been exceeded or if the deadline is not present.
-bool hasDeadlinePassed(const std::optional<Deadline>& deadline);
+bool hasDeadlinePassed(const OptionalTimePoint& deadline);
 
-// Make an OptionalTimePoint from an optional Deadline. If the Deadline is not
+// Make an OptionalTimePoint from an optional deadline. If the deadline is not
 // provided, this function returns none for OptionalTimePoint.
-OptionalTimePoint makeTimePoint(const std::optional<Deadline>& deadline);
+OptionalTimePoint makeTimePoint(const OptionalTimePoint& deadline);
 
 // Returns true if an operand type is an extension type.
 bool isExtensionOperandType(OperandType type);

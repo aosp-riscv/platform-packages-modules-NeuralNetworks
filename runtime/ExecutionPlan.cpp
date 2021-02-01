@@ -67,9 +67,8 @@ constexpr uint32_t kMainModelInSourceModels = 0;
 // operation indices to be executed (COMPOUND body). The token will be re-hashed further by the
 // device name, device version string, and the execution preference in this function.
 int compile(const Device& device, const ModelBuilder& model, int executionPreference,
-            int compilationPriority, const std::optional<Deadline>& deadline,
-            const std::string& cacheDir, TokenHasher* token,
-            std::shared_ptr<RuntimePreparedModel>* preparedModel) {
+            int compilationPriority, const OptionalTimePoint& deadline, const std::string& cacheDir,
+            TokenHasher* token, std::shared_ptr<RuntimePreparedModel>* preparedModel) {
     CHECK(token != nullptr);
     CHECK(preparedModel != nullptr);
     *preparedModel = nullptr;
@@ -732,11 +731,6 @@ int ExecutionStep::finishStepModel(const ModelBuilder* mainModel, bool* hasOutpu
                    [](auto& e) { return e.second; });
     NN_RETURN_IF_ERROR(mStepModel.identifyInputsAndOutputs(inputs.size(), inputs.data(),
                                                            outputs.size(), outputs.data()));
-    // TODO: Model::finish() should use ValidationMode::RUNTIME when sending the
-    // step model to CpuDevice. Right now, this is harmless because the only
-    // difference in validation occurs with control flow operations and inputs
-    // or outputs of unknown size and we never send control flow operations to
-    // CpuDevice. We need to address this if this behavior changes (b/151634976).
     NN_RETURN_IF_ERROR(mStepModel.finish());
 
     // TODO: Move compilation elsewhere?
@@ -782,7 +776,7 @@ void LogicalStep::dump() const {
 
 int ExecutionPlan::CompoundBody::finish(const SourceModels* sourceModels,
                                         int32_t executionPreference, int32_t priority,
-                                        const std::optional<Deadline>& deadline,
+                                        const OptionalTimePoint& deadline,
                                         int simulateFailureResultCode) {
     CHECK(!mSuccessfulFinish);
     CHECK(!deadline.has_value());
@@ -802,8 +796,26 @@ int ExecutionPlan::CompoundBody::finish(const SourceModels* sourceModels,
     findTempsAsStepModelOutputs();
     for (const auto& logicalStep : mSteps) {
         if (ExecutionStep* step = logicalStep->tryExecutionStep()) {
-            int n = step->finishStepModel(mainModel, &mHasDynamicTemporaries, executionPreference,
-                                          priority);
+            bool stepHasDynamicTemporaries = false;
+            int n = step->finishStepModel(mainModel, &stepHasDynamicTemporaries,
+                                          executionPreference, priority);
+            if (stepHasDynamicTemporaries) {
+                mHasDynamicTemporaries = true;
+                if (step->getDevice()->getFeatureLevel() < kHalVersionV1_2ToApi.android) {
+                    // Until HAL 1.2, an Operand with lifetime SUBGRAPH_OUTPUT
+                    // must have fully specified dimensions either in the
+                    // Operand or in the RequestArgument.  In the case of a
+                    // dynamic temporary, we won't be able to supply fully
+                    // specified dimensions in either.
+                    VLOG(COMPILATION)
+                            << "ExecutionPlan::CompoundBody::finish -- step#" << step->getIndex()
+                            << " defines dynamic temporaries but is scheduled on pre-1.2 device "
+                            << step->getDevice()->getName();
+                    if (n == ANEURALNETWORKS_NO_ERROR) {
+                        n = ANEURALNETWORKS_OP_FAILED;
+                    }
+                }
+            }
             if (n != ANEURALNETWORKS_NO_ERROR) {
                 VLOG(COMPILATION)
                         << "ExecutionPlan::CompoundBody::finish -- finishStepModel failed";
@@ -893,7 +905,7 @@ void ExecutionPlan::CompoundBody::findControlFlowBoundaryConstants(
 }
 
 int ExecutionPlan::SimpleBody::finish(const SourceModels*, int32_t executionPreference,
-                                      int32_t priority, const std::optional<Deadline>& deadline,
+                                      int32_t priority, const OptionalTimePoint& deadline,
                                       int simulateFailureResultCode) {
     CHECK(!mSuccessfulFinish);
     CHECK(mDevice != nullptr);
@@ -910,7 +922,7 @@ int ExecutionPlan::SimpleBody::finish(const SourceModels*, int32_t executionPref
 }
 
 int ExecutionPlan::finish(int32_t executionPreference, int32_t priority,
-                          const std::optional<Deadline>& deadline, int simulateFailureResultCode) {
+                          const OptionalTimePoint& deadline, int simulateFailureResultCode) {
     CHECK(mBody != nullptr);
     return mBody->finish(&getSourceModels(), executionPreference, priority, deadline,
                          simulateFailureResultCode);
@@ -1531,7 +1543,7 @@ int ExecutionPlan::nextCompound(const WhileStep* step, std::shared_ptr<Controlle
         controller->mNextStepIndex = step->condStepIndex;
 
         if (state.iteration == 0) {
-            state.startTime = std::chrono::steady_clock::now();
+            state.startTime = Clock::now();
         }
 
         // iteration = 0   cond inputs = outer inputs
@@ -1556,7 +1568,7 @@ int ExecutionPlan::nextCompound(const WhileStep* step, std::shared_ptr<Controlle
     CHECK(state.stage == WhileState::EVALUATE_BODY);
     std::chrono::nanoseconds timeoutDuration(
             controller->mExecutionBuilder->getLoopTimeoutDuration());
-    auto duration = std::chrono::steady_clock::now() - state.startTime;
+    auto duration = Clock::now() - state.startTime;
     if (duration > timeoutDuration) {
         LOG(ERROR) << "WHILE loop timed out after "
                    << std::chrono::duration_cast<std::chrono::milliseconds>(duration).count()
@@ -1865,7 +1877,7 @@ void ExecutionPlan::forEachDynamicTemporary(
 
 int ModelBuilder::partitionTheWork(const std::vector<std::shared_ptr<Device>>& devices,
                                    uint32_t preference, uint32_t priority,
-                                   const std::optional<Deadline>& deadline, ExecutionPlan* plan,
+                                   const OptionalTimePoint& deadline, ExecutionPlan* plan,
                                    int simulateFailureResultCode) const {
     uint32_t sourceModelIndex = plan->getSourceModels().addModel(this);
     NN_RETURN_IF_ERROR(partitionTheWorkInternal(sourceModelIndex, devices, preference, priority,
@@ -1882,7 +1894,7 @@ int ModelBuilder::partitionTheWork(const std::vector<std::shared_ptr<Device>>& d
 int ModelBuilder::partitionTheWorkInternal(uint32_t sourceModelIndex,
                                            const std::vector<std::shared_ptr<Device>>& devices,
                                            uint32_t preference, uint32_t priority,
-                                           const std::optional<Deadline>& deadline,
+                                           const OptionalTimePoint& deadline,
                                            ExecutionPlan* plan) const {
     // This function uses a heuristic approach to partitioning the graph.
     // It should be good enough for the first release.
@@ -2301,8 +2313,10 @@ int ModelBuilder::findBestDeviceForEachOperation(
                 const auto& device = devices[deviceIndex];
                 if (canDo[deviceIndex].check(operationIndex)) {
                     const float perfVal = getPerformance(preference, device, operationIndex);
+                    const bool deviceIsPreferred =
+                            (device == DeviceManager::getCpuDevice() || device->isUpdatable());
                     if (bestChoice < 0 || perfVal < bestPerfVal ||
-                        (perfVal == bestPerfVal && device == DeviceManager::getCpuDevice())) {
+                        (perfVal == bestPerfVal && deviceIsPreferred)) {
                         bestChoice = deviceIndex;
                         bestPerfVal = perfVal;
                     }
@@ -2313,7 +2327,7 @@ int ModelBuilder::findBestDeviceForEachOperation(
                     // Logs O(operationCount * deviceCount) times, but typically deviceCount is
                     // very small.
                     VLOG(COMPILATION) << "Device " << device->getName() << " can't do operation "
-                                      << operation.type;
+                                      << operation.type << ":" << operationIndex;
                 }
             }
         }

@@ -382,7 +382,8 @@ int ModelBuilder::addOperation(ANeuralNetworksOperationType type, uint32_t input
             .inputs = makeVector(inputs, inputCount),
             .outputs = makeVector(outputs, outputCount),
     };
-    if (auto result = validateOperation(operation, mOperands, mReferencedSubgraphsForValidation);
+    if (auto result = validateOperationButNotOperands(operation, mOperands,
+                                                      mReferencedSubgraphsForValidation);
         !result.ok()) {
         LOG(ERROR) << "Invalid Operation: " << result.error();
         return ANEURALNETWORKS_BAD_DATA;

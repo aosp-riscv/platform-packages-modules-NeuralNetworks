@@ -31,6 +31,7 @@
 #include <utility>
 #include <vector>
 
+#include "CpuExecutor.h"
 #include "NeuralNetworks.h"
 #include "ValidateHal.h"
 
@@ -39,27 +40,15 @@ namespace nn {
 
 constexpr V1_0::PerformanceInfo kNoPerformanceInfo = {.execTime = FLT_MAX, .powerUsage = FLT_MAX};
 
-static uint64_t getMaxNanosecondsSinceEpoch() {
-    const auto maxTime =
-            std::chrono::time_point<std::chrono::steady_clock, std::chrono::nanoseconds>::max();
-    return maxTime.time_since_epoch().count();
+template <typename Type>
+static Type handleError(GeneralResult<Type> result) {
+    CHECK(result.has_value()) << "Unhandled error (" << result.error().code
+                              << "): " << result.error().message;
+    return std::move(result).value();
 }
 
-std::optional<Deadline> makeDeadline(const V1_3::OptionalTimePoint& timePoint) {
-    using Discriminator = V1_3::OptionalTimePoint::hidl_discriminator;
-    if (timePoint.getDiscriminator() == Discriminator::none) {
-        return std::nullopt;
-    }
-    const uint64_t nanosecondsSinceEpoch = timePoint.nanosecondsSinceEpoch();
-    const uint64_t maxNanosecondsSinceEpoch = getMaxNanosecondsSinceEpoch();
-
-    // Clamp time point to max.
-    if (nanosecondsSinceEpoch >= maxNanosecondsSinceEpoch) {
-        return Deadline::max();
-    }
-
-    // Return provided time point.
-    return Deadline{std::chrono::nanoseconds{nanosecondsSinceEpoch}};
+OptionalTimePoint makeDeadline(const V1_3::OptionalTimePoint& timePoint) {
+    return handleError(convert(timePoint));
 }
 
 bool isExtensionOperandType(V1_3::OperandType type) {
@@ -288,6 +277,11 @@ V1_0::PerformanceInfo lookup(
     CHECK(type != V1_3::OperandType::SUBGRAPH)
             << "Use Capabilities::ifPerformance or Capabilities::whilePerformance";
     return lookup<HalVersion::V1_3>(operandPerformance, type);
+}
+
+bool setRunTimePoolInfosFromHidlMemories(std::vector<RunTimePoolInfo>* poolInfos,
+                                         const hardware::hidl_vec<hardware::hidl_memory>& pools) {
+    return setRunTimePoolInfosFromCanonicalMemories(poolInfos, uncheckedConvert(pools));
 }
 
 // Versioning
@@ -730,7 +724,7 @@ bool compliantWithV1_2(const V1_3::Operand& operand) {
            compliantWithV1_0(operand.lifetime);
 }
 
-bool compliantWithV1_3(const V1_3::Operand& operand) {
+bool compliantWithV1_3(const V1_3::Operand& /*operand*/) {
     return true;
 }
 
@@ -803,7 +797,7 @@ static bool compliantWith(HalVersion version, const V1_3::Model& model,
     }
 }
 
-bool compliantWithV1_0(const V1_0::Model& model) {
+bool compliantWithV1_0(const V1_0::Model& /*model*/) {
     return true;
 }
 
@@ -860,7 +854,7 @@ bool compliantWithV1_2(const V1_1::Model&) {
     return true;
 }
 
-bool compliantWithV1_2(const V1_2::Model&, std::set<uint32_t>* noncompliantOperations) {
+bool compliantWithV1_2(const V1_2::Model&, std::set<uint32_t>* /*noncompliantOperations*/) {
     return true;
 }
 
@@ -1053,7 +1047,7 @@ V1_0::OperandType convertToV1_0(const V1_3::OperandType& operandType) {
     return static_cast<V1_0::OperandType>(operandType);
 }
 
-bool compliantWithV1_0(V1_0::OperandLifeTime lifetime) {
+bool compliantWithV1_0(V1_0::OperandLifeTime /*lifetime*/) {
     return true;
 }
 
@@ -1061,11 +1055,11 @@ bool compliantWithV1_0(V1_3::OperandLifeTime lifetime) {
     return lifetime != V1_3::OperandLifeTime::SUBGRAPH;
 }
 
-bool compliantWithV1_3(V1_0::OperandLifeTime lifetime) {
+bool compliantWithV1_3(V1_0::OperandLifeTime /*lifetime*/) {
     return true;
 }
 
-bool compliantWithV1_3(V1_3::OperandLifeTime lifetime) {
+bool compliantWithV1_3(V1_3::OperandLifeTime /*lifetime*/) {
     return true;
 }
 
@@ -1369,7 +1363,7 @@ V1_3::Model convertToV1_3(const V1_3::Model& model) {
     return model;
 }
 
-bool compliantWithV1_0(const V1_0::Request& request) {
+bool compliantWithV1_0(const V1_0::Request& /*request*/) {
     return true;
 }
 
@@ -1447,13 +1441,6 @@ V1_3::Request convertToV1_3(const V1_3::Request& request) {
     return request;
 }
 
-template <typename Type>
-static Type handleError(GeneralResult<Type> result) {
-    CHECK(result.has_value()) << "Unhandled error (" << result.error().code
-                              << "): " << result.error().message;
-    return std::move(result).value();
-}
-
 ErrorStatus uncheckedConvert(V1_0::ErrorStatus status) {
     return handleError(convert(status));
 }
@@ -1463,15 +1450,15 @@ ErrorStatus uncheckedConvert(V1_3::ErrorStatus status) {
 }
 
 OperandType uncheckedConvert(V1_3::OperandType operandType) {
-    return handleError(convert(operandType));
+    return handleError(unvalidatedConvert(operandType));
 }
 
 OperationType uncheckedConvert(V1_3::OperationType operandType) {
-    return handleError(convert(operandType));
+    return handleError(unvalidatedConvert(operandType));
 }
 
 Operand::LifeTime uncheckedConvert(V1_3::OperandLifeTime lifetime) {
-    return handleError(convert(lifetime));
+    return handleError(unvalidatedConvert(lifetime));
 }
 
 MeasureTiming uncheckedConvert(V1_2::MeasureTiming measure) {
@@ -1479,19 +1466,19 @@ MeasureTiming uncheckedConvert(V1_2::MeasureTiming measure) {
 }
 
 DataLocation uncheckedConvert(const V1_0::DataLocation& location) {
-    return handleError(convert(location));
+    return handleError(unvalidatedConvert(location));
 }
 
 Operand uncheckedConvert(const V1_3::Operand& operand) {
-    return handleError(convert(operand));
+    return handleError(unvalidatedConvert(operand));
 }
 
 Operand::ExtraParams uncheckedConvert(const V1_2::Operand::ExtraParams& params) {
-    return handleError(convert(params));
+    return handleError(unvalidatedConvert(params));
 }
 
 Operand::SymmPerChannelQuantParams uncheckedConvert(const V1_2::SymmPerChannelQuantParams& params) {
-    return handleError(convert(params));
+    return handleError(unvalidatedConvert(params));
 }
 
 Operand::ExtensionParams uncheckedConvert(const hardware::hidl_vec<uint8_t>& params) {
@@ -1499,7 +1486,7 @@ Operand::ExtensionParams uncheckedConvert(const hardware::hidl_vec<uint8_t>& par
 }
 
 Operation uncheckedConvert(const V1_3::Operation& operation) {
-    return handleError(convert(operation));
+    return handleError(unvalidatedConvert(operation));
 }
 
 template <typename CanonicalType, typename HalType>
@@ -1515,11 +1502,11 @@ Model uncheckedConvert(const V1_3::Model& model) {
 }
 
 Model::Subgraph uncheckedConvert(const V1_3::Subgraph& subgraph) {
-    return handleError(convert(subgraph));
+    return handleError(unvalidatedConvert(subgraph));
 }
 
 Model::ExtensionNameAndPrefix uncheckedConvert(const V1_2::Model::ExtensionNameAndPrefix& x) {
-    return handleError(convert(x));
+    return handleError(unvalidatedConvert(x));
 }
 
 Request uncheckedConvert(const V1_3::Request& request) {
@@ -1527,15 +1514,15 @@ Request uncheckedConvert(const V1_3::Request& request) {
 }
 
 Request::Argument uncheckedConvert(const V1_0::RequestArgument& requestArgument) {
-    return handleError(convert(requestArgument));
+    return handleError(unvalidatedConvert(requestArgument));
 }
 
 Request::MemoryPool uncheckedConvert(const V1_3::Request::MemoryPool& memoryPool) {
-    return handleError(convert(memoryPool));
+    return handleError(unvalidatedConvert(memoryPool));
 }
 
 OutputShape uncheckedConvert(const V1_2::OutputShape& outputShape) {
-    return handleError(convert(outputShape));
+    return handleError(unvalidatedConvert(outputShape));
 }
 
 std::vector<OutputShape> uncheckedConvert(
@@ -1549,15 +1536,15 @@ Capabilities uncheckedConvert(const V1_3::Capabilities& capabilities) {
 
 Capabilities::OperandPerformance uncheckedConvert(
         const V1_3::Capabilities::OperandPerformance& operandPerformance) {
-    return handleError(convert(operandPerformance));
+    return handleError(unvalidatedConvert(operandPerformance));
 }
 
 Capabilities::PerformanceInfo uncheckedConvert(const V1_0::PerformanceInfo& performanceInfo) {
-    return handleError(convert(performanceInfo));
+    return handleError(unvalidatedConvert(performanceInfo));
 }
 
 Extension uncheckedConvert(const V1_2::Extension& extension) {
-    return handleError(convert(extension));
+    return handleError(unvalidatedConvert(extension));
 }
 
 std::vector<Extension> uncheckedConvert(const hardware::hidl_vec<V1_2::Extension>& extensions) {
@@ -1566,10 +1553,10 @@ std::vector<Extension> uncheckedConvert(const hardware::hidl_vec<V1_2::Extension
 
 Extension::OperandTypeInformation uncheckedConvert(
         const V1_2::Extension::OperandTypeInformation& info) {
-    return handleError(convert(info));
+    return handleError(unvalidatedConvert(info));
 }
 
-OptionalTimeoutDuration uncheckedConvert(const V1_3::OptionalTimeoutDuration& timeoutDuration) {
+OptionalDuration uncheckedConvert(const V1_3::OptionalTimeoutDuration& timeoutDuration) {
     return handleError(convert(timeoutDuration));
 }
 
@@ -1586,15 +1573,15 @@ V1_3::ErrorStatus convertToV1_3(ErrorStatus status) {
 }
 
 V1_3::OperandType convertToV1_3(OperandType operandType) {
-    return handleError(V1_3::utils::convert(operandType));
+    return handleError(V1_3::utils::unvalidatedConvert(operandType));
 }
 
 V1_3::OperationType convertToV1_3(OperationType operandType) {
-    return handleError(V1_3::utils::convert(operandType));
+    return handleError(V1_3::utils::unvalidatedConvert(operandType));
 }
 
 V1_3::OperandLifeTime convertToV1_3(Operand::LifeTime lifetime) {
-    return handleError(V1_3::utils::convert(lifetime));
+    return handleError(V1_3::utils::unvalidatedConvert(lifetime));
 }
 
 V1_1::ExecutionPreference convertToV1_1(ExecutionPreference preference) {
@@ -1610,19 +1597,19 @@ V1_2::MeasureTiming convertToV1_2(MeasureTiming measure) {
 }
 
 V1_0::DataLocation convertToV1_0(const DataLocation& location) {
-    return handleError(V1_0::utils::convert(location));
+    return handleError(V1_0::utils::unvalidatedConvert(location));
 }
 
 V1_3::Operand convertToV1_3(const Operand& operand) {
-    return handleError(V1_3::utils::convert(operand));
+    return handleError(V1_3::utils::unvalidatedConvert(operand));
 }
 
 V1_2::Operand::ExtraParams convertToV1_2(const Operand::ExtraParams& params) {
-    return handleError(V1_2::utils::convert(params));
+    return handleError(V1_2::utils::unvalidatedConvert(params));
 }
 
 V1_2::SymmPerChannelQuantParams convertToV1_2(const Operand::SymmPerChannelQuantParams& params) {
-    return handleError(V1_2::utils::convert(params));
+    return handleError(V1_2::utils::unvalidatedConvert(params));
 }
 
 hardware::hidl_vec<uint8_t> uncheckedConvert(const Operand::ExtensionParams& params) {
@@ -1630,7 +1617,7 @@ hardware::hidl_vec<uint8_t> uncheckedConvert(const Operand::ExtensionParams& par
 }
 
 V1_3::Operation convertToV1_3(const Operation& operation) {
-    return handleError(V1_3::utils::convert(operation));
+    return handleError(V1_3::utils::unvalidatedConvert(operation));
 }
 
 template <typename HalType, typename CanonicalType>
@@ -1658,7 +1645,7 @@ static hardware::hidl_vec<HalType> convertVecToV1_3(const std::vector<CanonicalT
 }
 
 V1_2::OutputShape convertToV1_2(const OutputShape& outputShape) {
-    return handleError(V1_2::utils::convert(outputShape));
+    return handleError(V1_2::utils::unvalidatedConvert(outputShape));
 }
 
 hardware::hidl_vec<V1_2::OutputShape> convertToV1_2(const std::vector<OutputShape>& outputShapes) {
@@ -1670,11 +1657,11 @@ V1_3::Model convertToV1_3(const Model& model) {
 }
 
 V1_3::Subgraph convertToV1_3(const Model::Subgraph& subgraph) {
-    return handleError(V1_3::utils::convert(subgraph));
+    return handleError(V1_3::utils::unvalidatedConvert(subgraph));
 }
 
 V1_2::Model::ExtensionNameAndPrefix convertToV1_2(const Model::ExtensionNameAndPrefix& x) {
-    return handleError(V1_2::utils::convert(x));
+    return handleError(V1_2::utils::unvalidatedConvert(x));
 }
 
 V1_3::Request convertToV1_3(const Request& request) {
@@ -1682,11 +1669,11 @@ V1_3::Request convertToV1_3(const Request& request) {
 }
 
 V1_0::RequestArgument convertToV1_0(const Request::Argument& requestArgument) {
-    return handleError(V1_0::utils::convert(requestArgument));
+    return handleError(V1_0::utils::unvalidatedConvert(requestArgument));
 }
 
 V1_3::Request::MemoryPool convertToV1_3(const Request::MemoryPool& memoryPool) {
-    return handleError(V1_3::utils::convert(memoryPool));
+    return handleError(V1_3::utils::unvalidatedConvert(memoryPool));
 }
 
 std::vector<Request::MemoryPool> uncheckedConvert(
@@ -1698,7 +1685,7 @@ V1_3::OptionalTimePoint convertToV1_3(const OptionalTimePoint& timePoint) {
     return handleError(V1_3::utils::convert(timePoint));
 }
 
-V1_3::OptionalTimeoutDuration convertToV1_3(const OptionalTimeoutDuration& timeoutDuration) {
+V1_3::OptionalTimeoutDuration convertToV1_3(const OptionalDuration& timeoutDuration) {
     return handleError(V1_3::utils::convert(timeoutDuration));
 }
 
@@ -1707,7 +1694,7 @@ V1_2::Timing convertToV1_2(const Timing& timing) {
 }
 
 V1_3::BufferRole convertToV1_3(const BufferRole& bufferRole) {
-    return handleError(V1_3::utils::convert(bufferRole));
+    return handleError(V1_3::utils::unvalidatedConvert(bufferRole));
 }
 
 hardware::hidl_vec<V1_3::BufferRole> convertToV1_3(const std::vector<BufferRole>& bufferRoles) {
@@ -1715,11 +1702,11 @@ hardware::hidl_vec<V1_3::BufferRole> convertToV1_3(const std::vector<BufferRole>
 }
 
 hardware::hidl_vec<uint8_t> convertToV1_0(const Model::OperandValues& operandValues) {
-    return handleError(V1_0::utils::convert(operandValues));
+    return handleError(V1_0::utils::unvalidatedConvert(operandValues));
 }
 
 hardware::hidl_memory convertToV1_0(const Memory& memory) {
-    return handleError(V1_0::utils::convert(memory));
+    return handleError(V1_0::utils::unvalidatedConvert(memory));
 }
 
 Memory uncheckedConvert(const hardware::hidl_memory& memory) {

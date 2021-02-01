@@ -90,7 +90,7 @@ class IPreparedModel {
      */
     virtual ExecutionResult<std::pair<std::vector<OutputShape>, Timing>> execute(
             const Request& request, MeasureTiming measure, const OptionalTimePoint& deadline,
-            const OptionalTimeoutDuration& loopTimeoutDuration) const = 0;
+            const OptionalDuration& loopTimeoutDuration) const = 0;
 
     /**
      * Launch a fenced asynchronous execution on a prepared model.
@@ -147,8 +147,15 @@ class IPreparedModel {
      */
     virtual GeneralResult<std::pair<SyncFence, ExecuteFencedInfoCallback>> executeFenced(
             const Request& request, const std::vector<SyncFence>& waitFor, MeasureTiming measure,
-            const OptionalTimePoint& deadline, const OptionalTimeoutDuration& loopTimeoutDuration,
-            const OptionalTimeoutDuration& timeoutDurationAfterFence) const = 0;
+            const OptionalTimePoint& deadline, const OptionalDuration& loopTimeoutDuration,
+            const OptionalDuration& timeoutDurationAfterFence) const = 0;
+
+    /**
+     * Creates a burst controller on a prepared model.
+     *
+     * @return ExecutionBurstController Execution burst controller object, otherwise GeneralError.
+     */
+    virtual GeneralResult<SharedBurst> configureExecutionBurst() const = 0;
 
     /**
      * Return the resource that the IPreparedModel wraps, or any empty std::any.

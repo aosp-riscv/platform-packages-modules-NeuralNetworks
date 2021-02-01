@@ -26,14 +26,14 @@
 #include <vector>
 
 #include "CpuExecutor.h"
-#include "HalInterfaces.h"
 #include "Utils.h"
 #include "nnapi/TypeUtils.h"
+#include "nnapi/Validation.h"
 
 namespace android::nn {
 
 std::shared_ptr<ManagedBuffer> ManagedBuffer::create(uint32_t size,
-                                                     std::set<HalPreparedModelRole> roles,
+                                                     std::set<PreparedModelRole> roles,
                                                      const Operand& operand) {
     std::unique_ptr<uint8_t[]> buffer(new (std::nothrow) uint8_t[size]);
     if (buffer == nullptr) {
@@ -47,7 +47,7 @@ std::shared_ptr<ManagedBuffer> ManagedBuffer::create(uint32_t size,
 }
 
 ManagedBuffer::ManagedBuffer(std::unique_ptr<uint8_t[]> buffer, uint32_t size,
-                             std::set<HalPreparedModelRole> roles, const Operand& operand)
+                             std::set<PreparedModelRole> roles, const Operand& operand)
     : kBuffer(std::move(buffer)),
       kSize(size),
       kRoles(std::move(roles)),
@@ -58,7 +58,7 @@ ManagedBuffer::ManagedBuffer(std::unique_ptr<uint8_t[]> buffer, uint32_t size,
 }
 
 ErrorStatus ManagedBuffer::validateRequest(uint32_t poolIndex, const Request& request,
-                                           const V1_3::IPreparedModel* preparedModel) const {
+                                           const IPreparedModel* preparedModel) const {
     CHECK_LT(poolIndex, request.pools.size());
     CHECK(std::holds_alternative<Request::MemoryDomainToken>(request.pools[poolIndex]));
     std::lock_guard<std::mutex> guard(mMutex);
@@ -170,7 +170,7 @@ ErrorStatus ManagedBuffer::validateCopyTo(uint32_t size) const {
 
 bool ManagedBuffer::updateDimensions(const std::vector<uint32_t>& dimensions) {
     auto combined = combineDimensions(kInitialDimensions, dimensions);
-    if (!combined) {
+    if (!combined.has_value()) {
         LOG(ERROR) << "ManagedBuffer::updateDimensions -- incompatible dimensions ("
                    << toString(kInitialDimensions) << " vs " << toString(dimensions) << ")";
         return false;
@@ -185,39 +185,53 @@ void ManagedBuffer::setInitialized(bool initialized) {
     mInitialized = initialized;
 }
 
+BufferTracker::BufferTracker() {
+    constexpr size_t kPreallocatedElements = 1024;
+    using StackSpace = std::vector<Request::MemoryDomainToken>;
+    using Stack = std::stack<Request::MemoryDomainToken, StackSpace>;
+    StackSpace stackSpace;
+    stackSpace.reserve(kPreallocatedElements);
+    mFreeTokens = Stack(std::move(stackSpace));
+    mTokenToBuffers.reserve(kPreallocatedElements);
+    mTokenToBuffers.emplace_back();
+}
+
 std::unique_ptr<BufferTracker::Token> BufferTracker::add(std::shared_ptr<ManagedBuffer> buffer) {
     if (buffer == nullptr) {
         return nullptr;
     }
     std::lock_guard<std::mutex> guard(mMutex);
-    uint32_t token = 0;
+    auto token = Request::MemoryDomainToken{0};
     if (mFreeTokens.empty()) {
-        token = mTokenToBuffers.size();
+        token = static_cast<Request::MemoryDomainToken>(mTokenToBuffers.size());
         mTokenToBuffers.push_back(std::move(buffer));
     } else {
         token = mFreeTokens.top();
         mFreeTokens.pop();
-        mTokenToBuffers[token] = std::move(buffer);
+        const auto index = static_cast<uint32_t>(token);
+        mTokenToBuffers[index] = std::move(buffer);
     }
     VLOG(MEMORY) << "BufferTracker::add -- new token = " << token;
     return std::make_unique<Token>(token, shared_from_this());
 }
 
-std::shared_ptr<ManagedBuffer> BufferTracker::get(uint32_t token) const {
+std::shared_ptr<ManagedBuffer> BufferTracker::get(Request::MemoryDomainToken token) const {
     std::lock_guard<std::mutex> guard(mMutex);
-    if (mTokenToBuffers.size() <= token || mTokenToBuffers[token] == nullptr) {
+    const auto index = static_cast<uint32_t>(token);
+    if (mTokenToBuffers.size() <= index || mTokenToBuffers[index] == nullptr) {
         LOG(ERROR) << "BufferTracker::get -- unknown token " << token;
         return nullptr;
     }
-    return mTokenToBuffers[token];
+    return mTokenToBuffers[index];
 }
 
-void BufferTracker::free(uint32_t token) {
+void BufferTracker::free(Request::MemoryDomainToken token) {
     std::lock_guard<std::mutex> guard(mMutex);
-    CHECK_LT(token, mTokenToBuffers.size());
-    CHECK(mTokenToBuffers[token] != nullptr);
+    const auto index = static_cast<uint32_t>(token);
+    CHECK_LT(index, mTokenToBuffers.size());
+    CHECK(mTokenToBuffers[index] != nullptr);
     VLOG(MEMORY) << "BufferTracker::free -- release token = " << token;
-    mTokenToBuffers[token] = nullptr;
+    mTokenToBuffers[index] = nullptr;
     mFreeTokens.push(token);
 }
 

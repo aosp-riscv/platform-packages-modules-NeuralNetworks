@@ -60,8 +60,8 @@ class RuntimePreparedModel {
             const std::vector<ModelArgumentInfo>& outputs,
             const std::vector<const RuntimeMemory*>& memories,
             const std::shared_ptr<ExecutionBurstController>& burstController, MeasureTiming measure,
-            const std::optional<Deadline>& deadline,
-            const OptionalTimeoutDuration& loopTimeoutDuration) const = 0;
+            const OptionalTimePoint& deadline,
+            const OptionalDuration& loopTimeoutDuration) const = 0;
 
     // Perform fenced computation with given input/output argument info and memory pools.
     // The returned timing information is only valid if the callback is nullptr.
@@ -70,9 +70,9 @@ class RuntimePreparedModel {
             const std::vector<ModelArgumentInfo>& inputs,
             const std::vector<ModelArgumentInfo>& outputs,
             const std::vector<const RuntimeMemory*>& memories, const std::vector<int>& waitFor,
-            MeasureTiming measure, const std::optional<Deadline>& deadline,
-            const OptionalTimeoutDuration& loopTimeoutDuration,
-            const OptionalTimeoutDuration& timeoutDurationAfterFence) const = 0;
+            MeasureTiming measure, const OptionalTimePoint& deadline,
+            const OptionalDuration& loopTimeoutDuration,
+            const OptionalDuration& timeoutDurationAfterFence) const = 0;
 
     virtual std::shared_ptr<ExecutionBurstController> configureExecutionBurst(
             bool preferPowerOverLatency) const = 0;
@@ -93,6 +93,7 @@ class Device {
     virtual const std::string& getVersionString() const = 0;
     virtual int64_t getFeatureLevel() const = 0;
     virtual int32_t getType() const = 0;
+    virtual bool isUpdatable() const = 0;
     virtual const std::vector<Extension>& getSupportedExtensions() const = 0;
 
     // See the MetaModel class in MetaModel.h for more details.
@@ -108,7 +109,7 @@ class Device {
 
     virtual std::pair<int, std::shared_ptr<RuntimePreparedModel>> prepareModel(
             const ModelFactory& makeModel, ExecutionPreference preference, Priority priority,
-            const std::optional<Deadline>& deadline, const std::string& cacheDir,
+            const OptionalTimePoint& deadline, const std::string& cacheDir,
             const std::optional<CacheToken>& maybeToken) const = 0;
 
     // The caller is responsible for making sure the MemoryDescriptor only contains
@@ -131,13 +132,8 @@ class DeviceManager {
     // For testing only:
     void setUseCpuOnly(bool useCpuOnly) { mSetCpuOnly = useCpuOnly; }
     bool getUseCpuOnly() const { return mSetCpuOnly; }
-    void setSyncExecHal(bool val) {
-        mSyncExecHal = val;
-        mSyncExecHalSetter = true;
-    }
 
     bool syncExecCpu() const { return mSyncExecCpu; }
-    bool syncExecHal() const { return mSyncExecHal; }
     bool syncExecRuntime() const { return mSyncExecRuntime; }
 
     // How to handle graph partitioning?
@@ -212,10 +208,6 @@ class DeviceManager {
 
     // synchronous execution
     bool mSyncExecCpu = true;
-    bool mSyncExecHal = true;         // Call executeSynchronously*() when available on device.
-    bool mSyncExecHalSetter = false;  // Has mSyncExecHal been set by setSyncExecHal()?
-                                      // If so, don't allow the setting to be overridden
-                                      //     by system property debug.nn.syncexec-hal
     bool mSyncExecRuntime = false;
 
     static const uint32_t kPartitioningDefault = kPartitioningWithFallback;

@@ -77,7 +77,8 @@ class ExtensionsTest : public ::testing::Test {
             GTEST_SKIP();
         }
 
-        DeviceManager::get()->forTest_registerDevice(kTestDriverName, new TestDriver());
+        DeviceManager::get()->forTest_registerDevice(
+                android::nn::makeSharedDevice(kTestDriverName, new TestDriver()));
         // Discover extensions provided by registered devices.
         TypeManager::get()->forTest_reset();
         mDevice = getDeviceByName(kTestDriverName);

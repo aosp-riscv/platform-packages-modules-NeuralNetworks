@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "Callbacks"
+#define LOG_TAG "ExecutionCallback"
 
-#include "Callbacks.h"
+#include "ExecutionCallback.h"
 
 #include <Utils.h>
 #include <android-base/logging.h>
@@ -27,90 +27,9 @@
 
 namespace android::nn {
 
-// PreparedModelCallback methods begin here
-
-hardware::Return<void> PreparedModelCallback::notifyInternal(
-        bool deadObject, ErrorStatus errorStatus, const sp<V1_0::IPreparedModel>& preparedModel) {
-    {
-        std::lock_guard<std::mutex> hold(mMutex);
-
-        // quick-return if object has already been notified
-        if (mNotified) {
-            return hardware::Void();
-        }
-
-        // store results and mark as notified
-        mDeadObject = deadObject;
-        mErrorStatus = errorStatus;
-        mPreparedModel = preparedModel;
-        mNotified = true;
-    }
-
-    mCondition.notify_all();
-    return hardware::Void();
-}
-
-hardware::Return<void> PreparedModelCallback::notify(
-        V1_0::ErrorStatus errorStatus, const sp<V1_0::IPreparedModel>& preparedModel) {
-    return notifyInternal(false, uncheckedConvert(errorStatus), preparedModel);
-}
-
-hardware::Return<void> PreparedModelCallback::notify_1_2(
-        V1_0::ErrorStatus errorStatus, const sp<V1_2::IPreparedModel>& preparedModel) {
-    return notifyInternal(false, uncheckedConvert(errorStatus), preparedModel);
-}
-
-hardware::Return<void> PreparedModelCallback::notify_1_3(
-        V1_3::ErrorStatus errorStatus, const sp<V1_3::IPreparedModel>& preparedModel) {
-    return notifyInternal(false, uncheckedConvert(errorStatus), preparedModel);
-}
-
-void PreparedModelCallback::notifyAsDeadObject() {
-    notifyInternal(true, ErrorStatus::GENERAL_FAILURE, nullptr);
-}
-
-void PreparedModelCallback::wait() const {
-    std::unique_lock<std::mutex> lock(mMutex);
-    mCondition.wait(lock, [this] { return mNotified; });
-}
-
-ErrorStatus PreparedModelCallback::getStatus() const {
-    wait();
-    return mErrorStatus;
-}
-
-sp<V1_0::IPreparedModel> PreparedModelCallback::getPreparedModel() const {
-    wait();
-    return mPreparedModel;
-}
-
-bool PreparedModelCallback::isDeadObject() const {
-    wait();
-    return mDeadObject;
-}
-
-// ExecutionCallback methods begin here
-
-hardware::Return<void> ExecutionCallback::notify(V1_0::ErrorStatus errorStatus) {
-    return notifyInternal(false, uncheckedConvert(errorStatus), {}, {});
-}
-
-hardware::Return<void> ExecutionCallback::notify_1_2(
-        V1_0::ErrorStatus errorStatus, const hardware::hidl_vec<V1_2::OutputShape>& outputShapes,
-        const V1_2::Timing& timing) {
-    return notifyInternal(false, uncheckedConvert(errorStatus), uncheckedConvert(outputShapes),
-                          uncheckedConvert(timing));
-}
-
-hardware::Return<void> ExecutionCallback::notify_1_3(
-        V1_3::ErrorStatus errorStatus, const hardware::hidl_vec<V1_2::OutputShape>& outputShapes,
-        const V1_2::Timing& timing) {
-    return notifyInternal(false, uncheckedConvert(errorStatus), uncheckedConvert(outputShapes),
-                          uncheckedConvert(timing));
-}
-
-void ExecutionCallback::notifyAsDeadObject() {
-    notifyInternal(true, ErrorStatus::GENERAL_FAILURE, {}, {});
+void ExecutionCallback::notify(ErrorStatus status, const std::vector<OutputShape>& outputShapes,
+                               const Timing& timing) {
+    notifyInternal(status, outputShapes, timing);
 }
 
 void ExecutionCallback::wait() const {
@@ -146,11 +65,6 @@ const std::vector<OutputShape>& ExecutionCallback::getOutputShapes() const {
 Timing ExecutionCallback::getTiming() const {
     wait();
     return mTiming;
-}
-
-bool ExecutionCallback::isDeadObject() const {
-    wait();
-    return mDeadObject;
 }
 
 bool ExecutionCallback::bindThread(std::thread asyncThread) {
@@ -198,11 +112,10 @@ void ExecutionCallback::setOnFinish(const ExecutionFinish& finish) {
     mOnFinish = finish;
 }
 
-hardware::Return<void> ExecutionCallback::notifyInternal(bool deadObject, ErrorStatus errorStatus,
-                                                         std::vector<OutputShape> outputShapes,
-                                                         Timing timing) {
+void ExecutionCallback::notifyInternal(ErrorStatus errorStatus,
+                                       std::vector<OutputShape> outputShapes, Timing timing) {
     // check results
-    if (!deadObject) {
+    {
         if (errorStatus == ErrorStatus::OUTPUT_INSUFFICIENT_SIZE) {
             // outputShapes must not be empty if OUTPUT_INSUFFICIENT_SIZE.
             if (outputShapes.size() == 0) {
@@ -231,10 +144,9 @@ hardware::Return<void> ExecutionCallback::notifyInternal(bool deadObject, ErrorS
 
         // quick-return if object has already been notified
         if (mNotified) {
-            return hardware::Void();
+            return;
         }
 
-        mDeadObject = deadObject;
         mErrorStatus = errorStatus;
         mOutputShapes = std::move(outputShapes);
         mTiming = timing;
@@ -249,7 +161,6 @@ hardware::Return<void> ExecutionCallback::notifyInternal(bool deadObject, ErrorS
         }
     }
     mCondition.notify_all();
-    return hardware::Void();
 }
 
 }  // namespace android::nn

@@ -26,6 +26,7 @@
 #include <vector>
 
 #include "HalInterfaces.h"
+#include "HalUtils.h"
 #include "Manager.h"
 #include "SampleDriver.h"
 #include "TestNeuralNetworksWrapper.h"
@@ -334,7 +335,7 @@ TEST_P(DeviceRegistrationTest, CachingFailure) {
         return;
     }
 
-    DeviceManager::get()->forTest_registerDevice(kDeviceName.data(), kDriver);
+    DeviceManager::get()->forTest_registerDevice(makeSharedDevice(kDeviceName.data(), kDriver));
     const auto cleanup = android::base::make_scope_guard(
             [] { DeviceManager::get()->forTest_reInitializeDeviceList(); });
 
@@ -373,7 +374,7 @@ class CompilationCachingTest : public ::testing::TestWithParam<CompilationCachin
     }
 
     void compileModel(const sp<CachingDriver>& driver, bool withToken) {
-        DeviceManager::get()->forTest_registerDevice(kDeviceName.data(), driver);
+        DeviceManager::get()->forTest_registerDevice(makeSharedDevice(kDeviceName.data(), driver));
         const auto cleanup = android::base::make_scope_guard(
                 [] { DeviceManager::get()->forTest_reInitializeDeviceList(); });
 

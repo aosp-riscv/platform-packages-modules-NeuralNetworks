@@ -219,6 +219,7 @@ cc_library_static {
         "neuralnetworks_utils_hal_1_2",
         "neuralnetworks_utils_hal_1_3",
         "neuralnetworks_utils_hal_common",
+        "neuralnetworks_utils_hal_service",
         "philox_random",
     ],
     static_libs: [

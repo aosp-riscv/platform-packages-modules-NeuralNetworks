@@ -37,6 +37,7 @@
 #include <vector>
 
 #include "HalInterfaces.h"
+#include "HalUtils.h"
 #include "Manager.h"
 #include "SampleDriverFull.h"
 
@@ -119,11 +120,6 @@ class TestDriverV1_0 : public V1_0::IDevice {
     const sp<V1_2::IDevice> mDriverV1_2;
 };
 
-template <class T_TestDriver>
-std::shared_ptr<Device> makeTestDevice() {
-    return DeviceManager::forTest_makeDriverDevice(T_TestDriver::name, new T_TestDriver);
-}
-
 #endif
 
 // NN API fuzzer logging setting comes from system property debug.nn.fuzzer.log and
@@ -147,9 +143,12 @@ class RandomGraphTest : public ::testing::TestWithParam<uint32_t> {
         mDetectMemoryLeak = ::android::base::GetProperty("debug.nn.fuzzer.detectleak", "") == "1";
 
         mStandardDevices = DeviceManager::get()->forTest_getDevices();
-        mSyntheticDevices.push_back(makeTestDevice<TestDriverV1_2>());
-        mSyntheticDevices.push_back(makeTestDevice<TestDriverV1_1>());
-        mSyntheticDevices.push_back(makeTestDevice<TestDriverV1_0>());
+        mSyntheticDevices.push_back(DeviceManager::forTest_makeDriverDevice(
+                makeSharedDevice(TestDriverV1_2::name, new TestDriverV1_2)));
+        mSyntheticDevices.push_back(DeviceManager::forTest_makeDriverDevice(
+                makeSharedDevice(TestDriverV1_1::name, new TestDriverV1_1)));
+        mSyntheticDevices.push_back(DeviceManager::forTest_makeDriverDevice(
+                makeSharedDevice(TestDriverV1_0::name, new TestDriverV1_0)));
 #endif
         mVndkVersion = ::android::base::GetIntProperty("ro.vndk.version", __ANDROID_API_FUTURE__);
 

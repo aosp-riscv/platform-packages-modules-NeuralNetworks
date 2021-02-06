@@ -21,23 +21,26 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "SupportLibraryTypes.h"
+#include <memory>
+#include <string>
 
-const int MAX_SUPPORT_LIBRARY_NAME_LEN = 255;
+#include "SupportLibraryTypes.h"
 
 struct NnApiSupportLibrary {
     bool nnapi_exists = false;
 
-    char lib_name[MAX_SUPPORT_LIBRARY_NAME_LEN + 1];
+    std::string lib_name;
 
     void* lib_handle = nullptr;
+
+    ~NnApiSupportLibrary();
 
     /**
      * Gets the version of the NNAPI Support Library.
      *
      * @return The NNAPI Support Library version number (e.g. 31).
      */
-    int32_t (*ANeuralNetworks_version)();
+    int32_t (*ANeuralNetworks_getRuntimeVersion)();
 
     /**
      * Gets the default timeout value for WHILE loops.
@@ -1531,8 +1534,6 @@ struct NnApiSupportLibrary {
  * The NnApiSupportLibrary structure is filled with all the pointers. If one
  * function doesn't exist, a null pointer is stored.
  */
-const NnApiSupportLibrary* LoadNnApiSupportLibrary(const char* lib_name);
-
-void FreeNnApiSupportLibrary(const NnApiSupportLibrary* nnapi);
+std::unique_ptr<const NnApiSupportLibrary> LoadNnApiSupportLibrary(const std::string& lib_name);
 
 #endif  // ANDROID_PACKAGES_MODULES_NEURALNETWORKS_SL_SUPPORT_LIBRARY_H

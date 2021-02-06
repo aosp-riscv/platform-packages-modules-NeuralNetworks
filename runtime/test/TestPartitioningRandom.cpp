@@ -37,6 +37,7 @@
 
 #include "CompilationBuilder.h"
 #include "HalInterfaces.h"
+#include "HalUtils.h"
 #include "Manager.h"
 #include "ModelBuilder.h"
 #include "NeuralNetworks.h"
@@ -106,6 +107,7 @@ namespace V1_3 = ::android::hardware::neuralnetworks::V1_3;
 using CompilationBuilder = nn::CompilationBuilder;
 using DeviceManager = nn::DeviceManager;
 using Device = nn::Device;
+using SharedDevice = nn::SharedDevice;
 using ExecutionPlan = nn::ExecutionPlan;
 using ExecutionStep = nn::ExecutionStep;
 using HalCacheToken = nn::HalCacheToken;
@@ -348,8 +350,8 @@ class RandomPartitioningTest : public ::testing::TestWithParam<unsigned> {
     static Signature getSignature(const HidlModel& model, const V1_3::Operation& operation);
 
    protected:
-    static V1_0::IDevice* makeTestDriver(HalVersion version, const char* name,
-                                         std::set<Signature> signatures);
+    static SharedDevice makeTestDriver(HalVersion version, const char* name,
+                                       std::set<Signature> signatures);
 
     static HalVersion getMinHalVersion(ANeuralNetworksOperationType type);
 
@@ -636,17 +638,17 @@ class TestDriverV1_0 : public V1_0::ADevice {
         : V1_0::ADevice(new TestDriver(name, std::move(signatures))) {}
 };
 
-V1_0::IDevice* RandomPartitioningTest::makeTestDriver(HalVersion version, const char* name,
-                                                      std::set<Signature> signatures) {
+SharedDevice RandomPartitioningTest::makeTestDriver(HalVersion version, const char* name,
+                                                    std::set<Signature> signatures) {
     switch (version) {
         case HalVersion::V1_0:
-            return new TestDriverV1_0(name, std::move(signatures));
+            return nn::makeSharedDevice(name, new TestDriverV1_0(name, std::move(signatures)));
         case HalVersion::V1_1:
-            return new TestDriverV1_1(name, std::move(signatures));
+            return nn::makeSharedDevice(name, new TestDriverV1_1(name, std::move(signatures)));
         case HalVersion::V1_2:
-            return new TestDriverV1_2(name, std::move(signatures));
+            return nn::makeSharedDevice(name, new TestDriverV1_2(name, std::move(signatures)));
         case HalVersion::V1_3:
-            return new TestDriver(name, std::move(signatures));
+            return nn::makeSharedDevice(name, new TestDriver(name, std::move(signatures)));
         default:
             ADD_FAILURE() << "Unexpected HalVersion " << static_cast<int32_t>(version);
             return nullptr;
@@ -1110,7 +1112,7 @@ TEST_P(RandomPartitioningTest, Test) {
                   << std::endl;
 #endif
         auto device = DeviceManager::forTest_makeDriverDevice(
-                name, makeTestDriver(actualHalVersion, name.c_str(), signaturesForThisDriver));
+                makeTestDriver(actualHalVersion, name.c_str(), signaturesForThisDriver));
         devices.push_back(device);
     }
     // CPU fallback device

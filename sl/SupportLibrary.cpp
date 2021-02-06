@@ -18,6 +18,8 @@
 
 #include <dlfcn.h>
 #include <cstring>
+#include <memory>
+#include <string>
 
 #define NNAPI_LOG(format, ...) fprintf(stderr, format "\n", __VA_ARGS__);
 
@@ -35,21 +37,30 @@ void* LoadFunction(void* handle, const char* name, bool optional) {
 }
 
 #define LOAD_FUNCTION(handle, name) \
-    nnapi.name = reinterpret_cast<name##_fn>(LoadFunction(handle, #name, /*optional*/ false));
+    nnapi->name = reinterpret_cast<name##_fn>(LoadFunction(handle, #name, /*optional*/ false));
 
-const NnApiSupportLibrary LoadNnApi(const char* lib_name) {
-    NnApiSupportLibrary nnapi = {};
+}  // namespace
+
+NnApiSupportLibrary::~NnApiSupportLibrary() {
+    if (lib_handle != nullptr) {
+        dlclose(lib_handle);
+        lib_handle = nullptr;
+    }
+}
+
+std::unique_ptr<const NnApiSupportLibrary> LoadNnApiSupportLibrary(const std::string& lib_name) {
+    auto nnapi = std::make_unique<NnApiSupportLibrary>();
 
     void* lib_handle = nullptr;
-    lib_handle = dlopen(lib_name, RTLD_LAZY | RTLD_LOCAL);
+    lib_handle = dlopen(lib_name.c_str(), RTLD_LAZY | RTLD_LOCAL);
     if (lib_handle == nullptr) {
-        NNAPI_LOG("nnapi error: unable to open library %s", lib_name);
+        NNAPI_LOG("nnapi error: unable to open library %s", lib_name.c_str());
     }
 
-    nnapi.nnapi_exists = lib_handle != nullptr;
-    strncpy(nnapi.lib_name, lib_name, MAX_SUPPORT_LIBRARY_NAME_LEN);
+    nnapi->nnapi_exists = lib_handle != nullptr;
+    nnapi->lib_name = lib_name;
 
-    LOAD_FUNCTION(lib_handle, ANeuralNetworks_version);
+    //    LOAD_FUNCTION(lib_handle, ANeuralNetworks_getRuntimeVersion);
     LOAD_FUNCTION(lib_handle, ANeuralNetworks_getDefaultLoopTimeout);
     LOAD_FUNCTION(lib_handle, ANeuralNetworks_getMaximumLoopTimeout);
     LOAD_FUNCTION(lib_handle, ANeuralNetworks_getDeviceCount);
@@ -112,20 +123,7 @@ const NnApiSupportLibrary LoadNnApi(const char* lib_name) {
     LOAD_FUNCTION(lib_handle, ANeuralNetworksModel_getExtensionOperationType);
     LOAD_FUNCTION(lib_handle, ANeuralNetworksModel_setOperandExtensionData);
 
-    nnapi.lib_handle = lib_handle;
+    nnapi->lib_handle = lib_handle;
 
     return nnapi;
-}
-
-}  // namespace
-
-const NnApiSupportLibrary* LoadNnApiSupportLibrary(const char* lib_name) {
-    static const NnApiSupportLibrary nnapi = LoadNnApi(lib_name);
-    return &nnapi;
-}
-
-void FreeNnApiSupportLibrary(const NnApiSupportLibrary* nnapi) {
-    if (dlclose(nnapi->lib_handle) != 0) {
-        NNAPI_LOG("nnapi error: failed to close library %s", nnapi->lib_name);
-    }
 }

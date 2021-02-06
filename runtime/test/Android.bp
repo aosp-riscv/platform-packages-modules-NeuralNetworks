@@ -118,6 +118,7 @@ cc_defaults {
         //
         // b/109953668, disable OpenMP
         // "TestOpenmpSettings.cpp",
+        "PreparedModelCallback.cpp",
         "TestCompilationCaching.cpp",
         "TestCompliance.cpp",
         "TestExecution.cpp",
@@ -129,7 +130,6 @@ cc_defaults {
         "TestPartitioning.cpp",
         "TestPartitioningRandom.cpp",
         "TestRemoveDefaultArguments.cpp",
-        "TestVersionedInterfaces.cpp",
         "fibonacci_extension/FibonacciDriver.cpp",
         "fibonacci_extension/FibonacciExtensionTest.cpp",
 
@@ -184,6 +184,11 @@ cc_test {
         "libgmock",
         "libneuralnetworks_common",
         "libneuralnetworks_static",
+        "neuralnetworks_types",
+        "neuralnetworks_utils_hal_1_0",
+        "neuralnetworks_utils_hal_1_1",
+        "neuralnetworks_utils_hal_1_2",
+        "neuralnetworks_utils_hal_1_3",
     ],
     shared_libs: ["libmemunreachable"],
     header_libs: [
@@ -483,17 +488,17 @@ cc_library_static {
 }
 
 cc_test {
-    name: "SupportLibraryTest",
+    name: "NeuralNetworksSupportLibraryTest",
     srcs: [
         "GeneratedTestUtils.cpp",
         "SupportLibraryTestGenerated.cpp",
-        "SupportLibraryTestWrapper.cpp",
         "SupportLibraryTestMain.cpp",
+        "SupportLibraryTestWrapper.cpp",
     ],
     cflags: [
-        "-DNNTEST_SLTS",
         "-DNNTEST_COMPUTE_MODE",
         "-DNNTEST_ONLY_PUBLIC_API",
+        "-DNNTEST_SLTS",
         "-Wall",
         "-Werror",
     ],

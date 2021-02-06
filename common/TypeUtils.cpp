@@ -768,8 +768,8 @@ std::ostream& operator<<(std::ostream& os, const Request::MemoryPool& memoryPool
         } else {
             os << "MemoryDomainToken=" << underlyingType(token);
         }
-    } else if (std::holds_alternative<std::shared_ptr<const IBuffer>>(memoryPool)) {
-        const auto& buffer = std::get<std::shared_ptr<const IBuffer>>(memoryPool);
+    } else if (std::holds_alternative<SharedBuffer>(memoryPool)) {
+        const auto& buffer = std::get<SharedBuffer>(memoryPool);
         os << (buffer != nullptr ? "<non-null IBuffer>" : "<null IBuffer>");
     }
     return os << "}";

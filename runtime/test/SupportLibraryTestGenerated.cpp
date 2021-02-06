@@ -88,7 +88,8 @@ class GeneratedTests : public GeneratedTestBase {
     bool mTestDeviceMemory = false;
     Execution::ComputeMode mComputeMode = Execution::getComputeMode();
 
-    const NnApiSupportLibrary* mNnApi = LoadNnApiSupportLibrary(SUPPORT_LIBRARY_NAME.c_str());
+    std::unique_ptr<const NnApiSupportLibrary> mNnApi =
+            LoadNnApiSupportLibrary(SUPPORT_LIBRARY_NAME.c_str());
 };
 
 int GeneratedTests::mVndkVersion = __ANDROID_API_FUTURE__;
@@ -127,19 +128,19 @@ std::optional<Compilation> GeneratedTests::compileModel(const Model& model,
         // exercised if supported by the driver.
         // No invalid model will be passed to this branch.
         EXPECT_FALSE(mExpectFailure);
-        auto resultCompilation1 = Compilation::createForDevice(mNnApi, &model, device);
+        auto resultCompilation1 = Compilation::createForDevice(mNnApi.get(), &model, device);
         EXPECT_EQ(resultCompilation1.first, Result::NO_ERROR);
         auto compilation1 = std::move(resultCompilation1.second);
         EXPECT_EQ(compilation1.setCaching(mCacheDir, mToken), Result::NO_ERROR);
         EXPECT_EQ(compilation1.finish(), Result::NO_ERROR);
-        auto resultCompilation2 = Compilation::createForDevice(mNnApi, &model, device);
+        auto resultCompilation2 = Compilation::createForDevice(mNnApi.get(), &model, device);
         EXPECT_EQ(resultCompilation2.first, Result::NO_ERROR);
         auto compilation2 = std::move(resultCompilation2.second);
         EXPECT_EQ(compilation2.setCaching(mCacheDir, mToken), Result::NO_ERROR);
         EXPECT_EQ(compilation2.finish(), Result::NO_ERROR);
         return compilation2;
     } else {
-        auto resultCompilation = Compilation::createForDevice(mNnApi, &model, device);
+        auto resultCompilation = Compilation::createForDevice(mNnApi.get(), &model, device);
         EXPECT_EQ(resultCompilation.first, Result::NO_ERROR);
         auto compilation = std::move(resultCompilation.second);
         Result result = compilation.finish();
@@ -217,10 +218,10 @@ void GeneratedTests::computeWithDeviceMemories(const Compilation& compilation,
             // Create device memory.
             ANeuralNetworksMemory* memory = createDeviceMemoryForInput(compilation, i);
             ASSERT_NE(memory, nullptr);
-            auto& wrapperMemory = inputMemories.emplace_back(Memory(mNnApi, memory));
+            auto& wrapperMemory = inputMemories.emplace_back(Memory(mNnApi.get(), memory));
 
             // Copy data from TestBuffer to device memory.
-            auto ashmem = TestAshmem::createFrom(mNnApi, operand.data);
+            auto ashmem = TestAshmem::createFrom(mNnApi.get(), operand.data);
             ASSERT_NE(ashmem, nullptr);
             ASSERT_EQ(mNnApi->ANeuralNetworksMemory_copy(ashmem->get()->get(), memory),
                       ANEURALNETWORKS_NO_ERROR);
@@ -232,7 +233,7 @@ void GeneratedTests::computeWithDeviceMemories(const Compilation& compilation,
             SCOPED_TRACE("Output index: " + std::to_string(i));
             ANeuralNetworksMemory* memory = createDeviceMemoryForOutput(compilation, i);
             ASSERT_NE(memory, nullptr);
-            auto& wrapperMemory = outputMemories.emplace_back(Memory(mNnApi, memory));
+            auto& wrapperMemory = outputMemories.emplace_back(Memory(mNnApi.get(), memory));
             ASSERT_EQ(Result::NO_ERROR, execution->setOutputFromMemory(i, &wrapperMemory, 0, 0));
         }
     }
@@ -246,7 +247,7 @@ void GeneratedTests::computeWithDeviceMemories(const Compilation& compilation,
         const size_t bufferSize = operand.data.size();
         auto& output = outputs->emplace_back(bufferSize);
 
-        auto ashmem = TestAshmem::createFrom(mNnApi, output);
+        auto ashmem = TestAshmem::createFrom(mNnApi.get(), output);
         ASSERT_NE(ashmem, nullptr);
         ASSERT_EQ(mNnApi->ANeuralNetworksMemory_copy(outputMemories[i].get(), ashmem->get()->get()),
                   ANEURALNETWORKS_NO_ERROR);
@@ -259,7 +260,7 @@ void GeneratedTests::executeWithCompilation(const Compilation& compilation,
                                             const TestModel& testModel) {
     NNTRACE_APP(NNTRACE_PHASE_EXECUTION, "executeWithCompilation example");
 
-    Execution execution(mNnApi, &compilation);
+    Execution execution(mNnApi.get(), &compilation);
     Result result;
     std::vector<TestBuffer> outputs;
 
@@ -354,8 +355,8 @@ void GeneratedTests::executeMultithreadedSharedCompilation(const Model& model,
 // Test driver for those generated from ml/nn/runtime/test/spec
 void GeneratedTests::execute(const TestModel& testModel) {
     NNTRACE_APP(NNTRACE_PHASE_OVERALL, "execute");
-    GeneratedModel model(mNnApi);
-    createModel(mNnApi, testModel, mTestDynamicOutputShape, &model);
+    GeneratedModel model(mNnApi.get());
+    createModel(mNnApi.get(), testModel, mTestDynamicOutputShape, &model);
     if (testModel.expectFailure && !model.isValid()) {
         return;
     }
@@ -415,7 +416,8 @@ void GeneratedTests::SetUp() {
 }
 
 void GeneratedTests::TearDown() {
-    FreeNnApiSupportLibrary(mNnApi);
+    mNnApi.reset(nullptr);
+
     if (!::testing::Test::HasFailure()) {
         // TODO: Switch to std::filesystem::remove_all once libc++fs is made available in CTS.
         // Remove the cache directory specified by path recursively.

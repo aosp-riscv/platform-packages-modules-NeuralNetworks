@@ -26,6 +26,7 @@
 #include <vector>
 
 #include "HalInterfaces.h"
+#include "HalUtils.h"
 #include "Manager.h"
 #include "Memory.h"
 #include "SampleDriver.h"
@@ -253,16 +254,17 @@ class MemoryDomainTest : public MemoryDomainTestBase,
     void createAndRegisterDriver(const char* name,
                                  std::set<V1_3::OperationType> supportedOperations,
                                  AllocateReturn allocateReturn) {
-        sp<V1_0::IDevice> driver;
         if (kUseV1_2Driver) {
             CHECK(allocateReturn == AllocateReturn::NOT_SUPPORTED);
             const sp<TestDriverLatest> testDriver =
                     new TestDriverLatest(name, supportedOperations, AllocateReturn::NOT_SUPPORTED);
-            driver = new V1_2::ADevice(testDriver);
+            DeviceManager::get()->forTest_registerDevice(
+                    makeSharedDevice(name, new V1_2::ADevice(testDriver)));
         } else {
-            driver = new TestDriverLatest(name, std::move(supportedOperations), allocateReturn);
+            DeviceManager::get()->forTest_registerDevice(makeSharedDevice(
+                    name,
+                    new TestDriverLatest(name, std::move(supportedOperations), allocateReturn)));
         }
-        DeviceManager::get()->forTest_registerDevice(name, driver);
     }
 
     // If not kCompileWithExplicitDeviceList, the input argument "deviceNames" is ignored.
@@ -443,9 +445,9 @@ INSTANTIATE_TEST_SUITE_P(DeviceVersionLatest, MemoryDomainTest,
 class MemoryDomainCopyTest : public MemoryDomainTestBase {};
 
 TEST_F(MemoryDomainCopyTest, MemoryCopyTest) {
-    sp<sample_driver::SampleDriverFull> driver(new sample_driver::SampleDriverFull(
-            "test_driver", {.execTime = 0.1f, .powerUsage = 0.1f}));
-    DeviceManager::get()->forTest_registerDevice("test_driver", driver);
+    DeviceManager::get()->forTest_registerDevice(makeSharedDevice(
+            "test_driver", new sample_driver::SampleDriverFull(
+                                   "test_driver", {.execTime = 0.1f, .powerUsage = 0.1f})));
     auto compilation = createCompilation({"test_driver"});
     ASSERT_NE(compilation.getHandle(), nullptr);
 

@@ -142,7 +142,8 @@ class TestRemoveDefaultArguments : public ::testing::Test {
             GTEST_SKIP();
         }
         mTestDriver = new TestDriver();
-        DeviceManager::get()->forTest_registerDevice(kTestDriverName, mTestDriver);
+        DeviceManager::get()->forTest_registerDevice(
+                makeSharedDevice(kTestDriverName, mTestDriver));
         mTestDevice = getDeviceByName(kTestDriverName);
         ASSERT_NE(mTestDevice, nullptr);
     }

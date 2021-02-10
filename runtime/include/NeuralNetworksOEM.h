@@ -36,8 +36,6 @@
  *   - DO NOT CHANGE THE LAYOUT OR SIZE OF STRUCTURES
  */
 
-#if __ANDROID_API__ >= 27
-
 enum {
     /**
      * DEPRECATED. Use Extensions instead.
@@ -68,7 +66,5 @@ enum {
      */
     ANEURALNETWORKS_OEM_OPERATION = 10000,
 };  // extends OperationCode
-
-#endif  //  __ANDROID_API__ >= 27
 
 #endif  // ANDROID_FRAMEWORKS_ML_NN_RUNTIME_NEURAL_NETWORKS_OEM_H

@@ -24,7 +24,7 @@
 #include <memory>
 #include <utility>
 
-#include "SupportLibraryTestWrapper.h"
+#include "SupportLibraryWrapper.h"
 
 namespace android::nn {
 
@@ -32,7 +32,7 @@ namespace android::nn {
 class TestAshmem {
    public:
     TestAshmem(::android::base::unique_fd fd, std::unique_ptr<::android::base::MappedFile> mapped,
-               test_wrapper::Memory memory)
+               sl_wrapper::Memory memory)
         : mFd(std::move(fd)), mMapped(std::move(mapped)), mMemory(std::move(memory)) {}
 
     // Factory function for TestAshmem; prefer this over the raw constructor
@@ -56,7 +56,7 @@ class TestAshmem {
         memcpy(mappedFile->data(), data, length);
 
         // Create NNAPI memory object.
-        test_wrapper::Memory memory(nnapi, length, PROT_READ | PROT_WRITE, fd, 0);
+        sl_wrapper::Memory memory(nnapi, length, PROT_READ | PROT_WRITE, fd, 0);
         if (!memory.isValid()) return nullptr;
 
         // Store everything in managing class.
@@ -65,7 +65,7 @@ class TestAshmem {
     }
 
     size_t size() { return mMapped->size(); }
-    test_wrapper::Memory* get() { return &mMemory; }
+    sl_wrapper::Memory* get() { return &mMemory; }
 
     template <typename Type>
     Type* dataAs() {
@@ -75,7 +75,7 @@ class TestAshmem {
    private:
     ::android::base::unique_fd mFd;
     std::unique_ptr<::android::base::MappedFile> mMapped;
-    test_wrapper::Memory mMemory;
+    sl_wrapper::Memory mMemory;
 };
 
 }  // namespace android::nn

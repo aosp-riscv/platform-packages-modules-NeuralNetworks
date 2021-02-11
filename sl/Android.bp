@@ -18,6 +18,17 @@ cc_library_static {
     name: "neuralnetworks_supportlibrary",
     srcs: [
         "SupportLibrary.cpp",
+        "SupportLibraryWrapper.cpp",
+    ],
+    shared_libs: [
+        "libnativewindow",
+    ],
+    cflags: [
+        "-DNNTEST_COMPUTE_MODE",
+        "-DNNTEST_ONLY_PUBLIC_API",
+        "-DNNTEST_SLTS",
+        "-Wall",
+        "-Werror",
     ],
     vendor_available: true,
     export_include_dirs: ["."],

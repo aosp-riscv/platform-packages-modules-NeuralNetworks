@@ -493,7 +493,6 @@ cc_test {
         "GeneratedTestUtils.cpp",
         "SupportLibraryTestGenerated.cpp",
         "SupportLibraryTestMain.cpp",
-        "SupportLibraryTestWrapper.cpp",
     ],
     cflags: [
         "-DNNTEST_COMPUTE_MODE",

@@ -27,8 +27,7 @@
 
 #ifdef NNTEST_SLTS
 #include <android/hardware_buffer.h>
-
-#include "SupportLibraryTestWrapper.h"
+#include "SupportLibraryWrapper.h"
 #else
 #include "TestNeuralNetworksWrapper.h"
 #endif

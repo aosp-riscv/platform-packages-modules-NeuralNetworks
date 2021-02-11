@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-#include "SupportLibraryTestWrapper.h"
+#include "SupportLibraryWrapper.h"
 
 namespace android {
 namespace nn {
-namespace test_wrapper {
+namespace sl_wrapper {
 
 Execution::ComputeMode Execution::mComputeMode = Execution::ComputeMode::SYNC;
 
-}  // namespace test_wrapper
+}  // namespace sl_wrapper
 }  // namespace nn
 }  // namespace android

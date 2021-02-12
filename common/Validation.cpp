@@ -1108,7 +1108,7 @@ Result<Version> validateOptionalTimeoutDuration(
 Result<Version> validateRequestArgumentsForModel(
         const std::vector<Request::Argument>& requestArguments,
         const std::vector<uint32_t>& operandIndexes, const std::vector<Operand>& operands,
-        bool isOutput) {
+        bool isOutput, bool allowUnspecifiedOutput) {
     auto version = Version::ANDROID_OC_MR1;
     // The request should specify as many arguments as were described in the model.
     const std::string_view type = isOutput ? "output" : "input";
@@ -1136,6 +1136,8 @@ Result<Version> validateRequestArgumentsForModel(
                         NN_VALIDATE(isOutput)
                                 << "Model has unknown input rank but the request does not "
                                    "specify the rank.";
+                        NN_VALIDATE(allowUnspecifiedOutput)
+                                << "Model has unknown output rank and request does not specify it.";
                         // Unspecified output dimensions introduced in Android Q.
                         version = combineVersions(version, Version::ANDROID_Q);
                     }
@@ -1143,7 +1145,7 @@ Result<Version> validateRequestArgumentsForModel(
                 // Validate that all the dimensions are specified in the model.
                 for (size_t i = 0; i < modelRank; i++) {
                     if (operand.dimensions[i] == 0) {
-                        NN_VALIDATE(isOutput)
+                        NN_VALIDATE(isOutput && allowUnspecifiedOutput)
                                 << "Model has dimension " << i
                                 << " set to 0 but the request does not specify the dimension.";
                         // Unspecified output dimensions introduced in Android Q.
@@ -1162,8 +1164,9 @@ Result<Version> validateRequestArgumentsForModel(
                             << " has dimension " << i << " of " << requestArgument.dimensions[i]
                             << " different than the model's " << operand.dimensions[i];
                     if (requestArgument.dimensions[i] == 0) {
-                        NN_VALIDATE(isOutput) << "Request " << type << " " << requestArgumentIndex
-                                              << " has dimension " << i << " of zero";
+                        NN_VALIDATE(isOutput && allowUnspecifiedOutput)
+                                << "Request " << type << " " << requestArgumentIndex
+                                << " has dimension " << i << " of zero";
                         // Unspecified output dimensions introduced in Android Q.
                         version = combineVersions(version, Version::ANDROID_Q);
                     }
@@ -1174,15 +1177,18 @@ Result<Version> validateRequestArgumentsForModel(
     return version;
 }
 
-Result<Version> validateRequestForModelImpl(const Request& request, const Model& model) {
+Result<Version> validateRequestForModelImpl(const Request& request, const Model& model,
+                                            bool allowUnspecifiedOutput) {
     auto version = NN_TRY(validateRequest(request));
     version = combineVersions(version, NN_TRY(validateModel(model)));
-    version = combineVersions(version, NN_TRY(validateRequestArgumentsForModel(
-                                               request.inputs, model.main.inputIndexes,
-                                               model.main.operands, /*isOutput=*/false)));
-    version = combineVersions(version, NN_TRY(validateRequestArgumentsForModel(
-                                               request.outputs, model.main.outputIndexes,
-                                               model.main.operands, /*isOutput=*/true)));
+    version = combineVersions(version,
+                              NN_TRY(validateRequestArgumentsForModel(
+                                      request.inputs, model.main.inputIndexes, model.main.operands,
+                                      /*isOutput=*/false, /*allowUnspecifiedOutput=*/true)));
+    version = combineVersions(
+            version, NN_TRY(validateRequestArgumentsForModel(
+                             request.outputs, model.main.outputIndexes, model.main.operands,
+                             /*isOutput=*/true, allowUnspecifiedOutput)));
     return version;
 }
 
@@ -2720,8 +2726,9 @@ Result<Version> validate(const std::vector<BufferRole>& bufferRoles) {
     return validateVector(bufferRoles, validateBufferRole);
 }
 
-Result<Version> validateRequestForModel(const Request& request, const Model& model) {
-    return validateRequestForModelImpl(request, model);
+Result<Version> validateRequestForModel(const Request& request, const Model& model,
+                                        bool allowUnspecifiedOutput) {
+    return validateRequestForModelImpl(request, model, allowUnspecifiedOutput);
 }
 
 Result<Version> validateMemoryDesc(

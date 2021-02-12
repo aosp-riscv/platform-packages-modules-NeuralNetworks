@@ -20,9 +20,9 @@
 #include <set>
 #include <tuple>
 
-#include <nnapi/TypeUtils.h>
-#include <nnapi/Validation.h>
 #include "HalInterfaces.h"
+#include "nnapi/TypeUtils.h"
+#include "nnapi/Validation.h"
 
 namespace android {
 namespace nn {

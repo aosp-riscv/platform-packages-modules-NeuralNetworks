@@ -37,6 +37,7 @@ enum class HalVersion : int32_t {
     V1_1,
     V1_2,
     V1_3,
+    AIDL_UNSTABLE,
     LATEST = V1_3,
 };
 

@@ -353,7 +353,7 @@ struct Timing {
     OptionalDuration timeInDriver;
 };
 
-enum class Version { ANDROID_OC_MR1, ANDROID_P, ANDROID_Q, ANDROID_R, CURRENT_RUNTIME };
+enum class Version { ANDROID_OC_MR1, ANDROID_P, ANDROID_Q, ANDROID_R, ANDROID_S, CURRENT_RUNTIME };
 
 }  // namespace android::nn
 

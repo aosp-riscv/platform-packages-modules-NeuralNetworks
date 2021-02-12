@@ -164,6 +164,8 @@ static Version convert(HalVersion halVersion) {
             return Version::ANDROID_Q;
         case HalVersion::V1_3:
             return Version::ANDROID_R;
+        case HalVersion::AIDL_UNSTABLE:
+            return Version::ANDROID_S;
     }
     LOG(FATAL) << "Cannot convert " << halVersion;
     return {};

@@ -84,6 +84,7 @@ cc_library_static {
     ],
     export_include_dirs: ["include"],
     srcs: [
+        "AidlHalUtils.cpp",
         "ExecutionBurstController.cpp",
         "ExecutionBurstServer.cpp",
         "LegacyHalUtils.cpp",
@@ -97,6 +98,7 @@ cc_library_static {
         "tensorflow_headers",
     ],
     shared_libs: [
+        "android.hardware.neuralnetworks-V1-ndk_platform",
         "android.hardware.neuralnetworks@1.0",
         "android.hardware.neuralnetworks@1.1",
         "android.hardware.neuralnetworks@1.2",
@@ -115,6 +117,7 @@ cc_library_static {
         "neuralnetworks_utils_hal_1_1",
         "neuralnetworks_utils_hal_1_2",
         "neuralnetworks_utils_hal_1_3",
+        "neuralnetworks_utils_hal_aidl",
         "neuralnetworks_utils_hal_common",
     ],
     cflags: [
@@ -151,6 +154,9 @@ cc_library_static {
         "include",
     ],
     srcs: [
+        "AidlBufferTracker.cpp",
+        "AidlHalUtils.cpp",
+        "AidlValidateHal.cpp",
         "BufferTracker.cpp",
         "CpuExecutor.cpp",
         "ExecutionBurstController.cpp",
@@ -187,6 +193,7 @@ cc_library_static {
         "operations/Tile.cpp",
     ],
     shared_libs: [
+        "android.hardware.neuralnetworks-V1-ndk_platform",
         "android.hardware.neuralnetworks@1.0",
         "android.hardware.neuralnetworks@1.1",
         "android.hardware.neuralnetworks@1.2",
@@ -218,6 +225,7 @@ cc_library_static {
         "neuralnetworks_utils_hal_1_1",
         "neuralnetworks_utils_hal_1_2",
         "neuralnetworks_utils_hal_1_3",
+        "neuralnetworks_utils_hal_aidl",
         "neuralnetworks_utils_hal_common",
         "neuralnetworks_utils_hal_service",
         "philox_random",
@@ -315,6 +323,7 @@ cc_defaults {
         "libutils",
     ],
     static_libs: [
+        "android.hardware.neuralnetworks-V1-ndk_platform",
         "android.hardware.neuralnetworks@1.0",
         "android.hardware.neuralnetworks@1.1",
         "android.hardware.neuralnetworks@1.2",

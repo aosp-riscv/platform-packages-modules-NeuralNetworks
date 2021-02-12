@@ -23,11 +23,14 @@
 #include <nnapi/hal/1.1/Conversions.h>
 #include <nnapi/hal/1.2/Conversions.h>
 #include <nnapi/hal/1.3/Conversions.h>
+#include <nnapi/hal/aidl/Conversions.h>
 
 #include <algorithm>
+#include <limits>
 #include <set>
 #include <string>
 #include <tuple>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -728,6 +731,27 @@ bool compliantWithV1_3(const V1_3::Operand& /*operand*/) {
     return true;
 }
 
+bool compliantWithAidl(const V1_3::Operand& operand) {
+    if (static_cast<std::underlying_type_t<V1_3::OperandType>>(operand.type) >
+        std::numeric_limits<int32_t>::max()) {
+        return false;
+    }
+    if (operand.location.poolIndex > std::numeric_limits<int32_t>::max()) {
+        return false;
+    }
+    if (operand.extraParams.getDiscriminator() ==
+                V1_2::Operand::ExtraParams::hidl_discriminator::channelQuant &&
+        operand.extraParams.channelQuant().channelDim > std::numeric_limits<int32_t>::max()) {
+        return false;
+    }
+    for (auto dim : operand.dimensions) {
+        if (dim > std::numeric_limits<int32_t>::max()) {
+            return false;
+        }
+    }
+    return true;
+}
+
 static bool compliantWith(HalVersion version, const V1_3::Model& model,
                           std::set<uint32_t>* noncompliantOperations) {
     // A boolean vector indicating whether each pool is compliant with the target HAL version.
@@ -759,6 +783,9 @@ static bool compliantWith(HalVersion version, const V1_3::Model& model,
                                break;
                            case HalVersion::V1_3:
                                is_operand_compliant = compliantWithV1_3(op);
+                               break;
+                           case HalVersion::AIDL_UNSTABLE:
+                               is_operand_compliant = compliantWithAidl(op);
                                break;
                        }
                        return is_operand_compliant &&

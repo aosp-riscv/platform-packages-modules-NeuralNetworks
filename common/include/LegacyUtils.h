@@ -27,10 +27,10 @@
 #include <utility>
 #include <vector>
 
-#include <nnapi/TypeUtils.h>
-#include <nnapi/Types.h>
 #include "NeuralNetworks.h"
 #include "OperationResolver.h"
+#include "nnapi/TypeUtils.h"
+#include "nnapi/Types.h"
 
 namespace android {
 namespace nn {
@@ -108,6 +108,15 @@ inline OptionalTimePoint makeDeadline(OptionalDuration duration) {
 }
 inline OptionalTimePoint makeDeadline(std::optional<uint64_t> duration) {
     return duration.has_value() ? std::make_optional(makeDeadline(*duration)) : OptionalTimePoint{};
+}
+inline OptionalTimePoint makeDeadline(int64_t duration) {
+    // NN AIDL interface defines -1 to indicate that the duration has been omitted and forbids all
+    // other negative values.
+    CHECK_GE(duration, -1);
+    if (duration == -1) {
+        return OptionalTimePoint{};
+    }
+    return makeDeadline(static_cast<uint64_t>(duration));
 }
 
 // Returns true if the deadline has passed. Returns false if either the deadline

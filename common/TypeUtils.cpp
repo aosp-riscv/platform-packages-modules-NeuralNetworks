@@ -826,6 +826,8 @@ std::ostream& operator<<(std::ostream& os, const Version& version) {
             return os << "ANDROID_Q";
         case Version::ANDROID_R:
             return os << "ANDROID_R";
+        case Version::ANDROID_S:
+            return os << "ANDROID_S";
         case Version::CURRENT_RUNTIME:
             return os << "CURRENT_RUNTIME";
     }
@@ -844,6 +846,8 @@ std::ostream& operator<<(std::ostream& os, const HalVersion& halVersion) {
             return os << "HAL version 1.2";
         case HalVersion::V1_3:
             return os << "HAL version 1.3";
+        case HalVersion::AIDL_UNSTABLE:
+            return os << "HAL uses unstable AIDL";
     }
     return os << "HalVersion{" << underlyingType(halVersion) << "}";
 }

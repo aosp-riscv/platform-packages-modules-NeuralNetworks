@@ -79,6 +79,7 @@ cc_defaults {
     // TODO(pszczepaniak, b/144488395): Use system libnativewindow,
     // this would remove half of dependencies here.
     static_libs: [
+        "android.hardware.neuralnetworks-V1-ndk_platform",
         "android.hardware.neuralnetworks@1.0",
         "android.hardware.neuralnetworks@1.1",
         "android.hardware.neuralnetworks@1.2",

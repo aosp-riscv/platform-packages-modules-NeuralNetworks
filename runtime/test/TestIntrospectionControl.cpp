@@ -590,10 +590,17 @@ class TestPreparedModelLatest : public SamplePreparedModel {
     static void pauseExecutions(bool v) { mPauseExecutions.store(v); }
 
     // This function is only guaranteed to work in the following pattern:
-    // - pauseExecutions(true);
-    // - // launch execution
-    // - // thread A: waitForExecutionToBegin()
-    // - // thread B: pauseExecutions(false);
+    // Consider thread A as primary thread
+    // - thread A: pauseExecutions(true);
+    // - thread A: launch execution (as thread B)
+    // - thread A: waitForExecutionToBegin(), block until call to dummyExecution by
+    //                                        thread B makes mExecutionsInFlight nonzero
+    // - thread B: dummyExecution(), which makes mExecutionsInFlight nonzero and blocks
+    //                               until thread A calls pauseExecutions(false)
+    // - thread A: waitForExecutionToBegin() returns
+    // - thread A: pauseExecutions(false), allowing dummyExecution() on thread B to continue
+    // - thread B: dummyExecution() zeroes mExecutionsInFlight and returns
+    // - thread B: thread exits
     static void waitForExecutionToBegin() {
         CHECK(mPauseExecutions.load());
         while (mExecutionsInFlight.load() == 0) {

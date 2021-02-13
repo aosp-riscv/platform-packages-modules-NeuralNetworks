@@ -26,6 +26,7 @@
 #include <vector>
 
 #include "CompilationBuilder.h"
+#include "ExecutionBurstServer.h"
 #include "ExecutionCallback.h"
 #include "HalInterfaces.h"
 #include "HalUtils.h"
@@ -176,6 +177,9 @@ class TestPreparedModelLatest : public V1_3::IPreparedModel {
         }
     }
 
+    // ExecutionBurstServer::create has an overload that will use
+    // IPreparedModel::executeSynchronously(), so we can rely on that, rather
+    // than having to implement ExecutionBurstServer::IExecutorWithCache.
     hardware::Return<void> configureExecutionBurst(
             const sp<V1_2::IBurstCallback>& callback,
             const MQDescriptorSync<V1_2::FmqRequestDatum>& requestChannel,
@@ -183,8 +187,12 @@ class TestPreparedModelLatest : public V1_3::IPreparedModel {
             configureExecutionBurst_cb cb) override {
         CHECK(mPreparedModelV1_2 != nullptr) << "V1_2 prepared model is nullptr.";
         if (mErrorStatus == V1_3::ErrorStatus::NONE) {
-            return mPreparedModelV1_2->configureExecutionBurst(callback, requestChannel,
-                                                               resultChannel, cb);
+            const sp<V1_2::IBurstContext> burst = nn::ExecutionBurstServer::create(
+                    callback, requestChannel, resultChannel, this);
+
+            cb(burst == nullptr ? V1_0::ErrorStatus::GENERAL_FAILURE : V1_0::ErrorStatus::NONE,
+               burst);
+            return hardware::Void();
         } else {
             cb(convertToV1_0(mErrorStatus), nullptr);
             return hardware::Void();
@@ -225,13 +233,20 @@ class TestPreparedModelLatest : public V1_3::IPreparedModel {
     static void pauseExecutions(bool v) { mPauseExecutions.store(v); }
 
     // This function is only guaranteed to work in the following pattern:
-    // - pauseExecutions(true);
-    // - // launch execution
-    // - // thread A: waitForExecutionToBegin()
-    // - // thread B: pauseExecutions(false);
+    // Consider thread A as primary thread
+    // - thread A: pauseExecutions(true);
+    // - thread A: launch execution (as thread B)
+    // - thread A: waitForExecutionToBegin(), block until call to dummyExecution by
+    //                                        thread B makes mExecutionsInFlight nonzero
+    // - thread B: dummyExecution(), which makes mExecutionsInFlight nonzero and blocks
+    //                               until thread A calls pauseExecutions(false)
+    // - thread A: waitForExecutionToBegin() returns
+    // - thread A: pauseExecutions(false), allowing dummyExecution() on thread B to continue
+    // - thread B: dummyExecution() zeroes mExecutionsInFlight and returns
+    // - thread B: thread exits
     static void waitForExecutionToBegin() {
         CHECK(mPauseExecutions.load());
-        while (mExecutionsInFlight.load()) {
+        while (mExecutionsInFlight.load() == 0) {
         }
     }
 

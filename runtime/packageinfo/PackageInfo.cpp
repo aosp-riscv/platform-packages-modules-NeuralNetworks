@@ -17,9 +17,11 @@
 #define LOG_TAG "PackageInfo"
 
 #include "PackageInfo.h"
+
 #include <android-base/logging.h>
 #include <android/content/pm/IPackageManagerNative.h>
 #include <binder/IServiceManager.h>
+
 #include <string>
 #include <vector>
 

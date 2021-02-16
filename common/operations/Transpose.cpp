@@ -16,14 +16,17 @@
 
 #define LOG_TAG "Operations"
 
+#include <vector>
+
+#include "OperationResolver.h"
+#include "Tracing.h"
+
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 #include <tensorflow/lite/kernels/internal/optimized/legacy_optimized_ops.h>
 #include <tensorflow/lite/kernels/internal/reference/reference_ops.h>
 
-#include <vector>
-
 #include "CpuOperationUtils.h"
-#include "OperationResolver.h"
-#include "Tracing.h"
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 namespace android {
 namespace nn {
@@ -38,6 +41,7 @@ constexpr uint32_t kPermTensor = 1;
 constexpr uint32_t kNumOutputs = 1;
 constexpr uint32_t kOutputTensor = 0;
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 namespace {
 
 template <typename T>
@@ -68,6 +72,7 @@ bool transposeGeneric(const T* inputData, const Shape& inputShape, const int32_t
 }
 
 }  // namespace
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 Result<Version> validate(const IOperationValidationContext* context) {
     NN_RET_CHECK_EQ(context->getNumInputs(), kNumInputs);
@@ -93,6 +98,7 @@ Result<Version> validate(const IOperationValidationContext* context) {
     return minSupportedVersion;
 }
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 bool prepare(IOperationExecutionContext* context) {
     // Only the permutation tensor can be omitted.
     NN_RET_CHECK(!context->isOmittedInput(kInputTensor));
@@ -168,6 +174,7 @@ bool execute(IOperationExecutionContext* context) {
             NN_RET_CHECK_FAIL() << "Unsupported tensor type for operation " << kOperationName;
     }
 }
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 }  // namespace transpose
 

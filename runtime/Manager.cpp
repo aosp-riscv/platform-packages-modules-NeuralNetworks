@@ -18,13 +18,15 @@
 
 #include "Manager.h"
 
-#include <android-base/properties.h>
-#include <build/version.h>
-#include <cutils/native_handle.h>
+#include <CpuExecutor.h>
+#include <ExecutionBurstController.h>
+#include <LegacyUtils.h>
+#include <MetaModel.h>
+#include <Tracing.h>
 #include <nnapi/IDevice.h>
 #include <nnapi/IPreparedModel.h>
-#include <nnapi/hal/1.3/Buffer.h>
-#include <nnapi/hal/Service.h>
+#include <nnapi/SharedMemory.h>
+#include <nnapi/Validation.h>
 
 #include <algorithm>
 #include <functional>
@@ -34,17 +36,25 @@
 #include <utility>
 #include <vector>
 
-#include "AppInfoFetcher.h"
-#include "CpuExecutor.h"
-#include "ExecutionBurstController.h"
 #include "ExecutionCallback.h"
-#include "HalInterfaces.h"
 #include "Memory.h"
-#include "MetaModel.h"
 #include "ModelArgumentInfo.h"
-#include "Tracing.h"
 #include "TypeManager.h"
-#include "Utils.h"
+
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
+#include <build/version.h>
+#include <cutils/native_handle.h>
+#include <nnapi/hal/1.3/Buffer.h>
+#include <nnapi/hal/Service.h>
+
+#include "AppInfoFetcher.h"
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
+
+#ifndef NN_NO_BURST
+#include <HalInterfaces.h>
+#include <LegacyHalUtils.h>
+#include <android-base/properties.h>
+#endif  // NN_NO_BURST
 
 namespace android {
 namespace nn {
@@ -122,6 +132,7 @@ class DriverDevice : public Device {
 #endif  // NN_DEBUGGABLE
 };
 
+#ifndef NN_NO_BURST
 // This is the amount of time the ExecutionBurstController should spend polling
 // the FMQ to see if it has data available before it should fall back to
 // waiting on the futex.
@@ -137,6 +148,7 @@ static std::chrono::microseconds getPollingTimeWindow() {
     return std::chrono::microseconds{defaultPollingTimeWindow};
 #endif  // NN_DEBUGGABLE
 }
+#endif  // NN_NO_BURST
 
 // A RuntimePreparedModel with underlying IPreparedModel instance return by actual driver.
 class DriverPreparedModel : public RuntimePreparedModel {
@@ -167,6 +179,7 @@ class DriverPreparedModel : public RuntimePreparedModel {
 
     std::shared_ptr<ExecutionBurstController> configureExecutionBurst(
             bool preferPowerOverLatency) const override {
+#ifndef NN_NO_BURST
         std::any resource = mPreparedModel->getUnderlyingResource();
         sp<V1_2::IPreparedModel> preparedModel;
         if (auto* preparedModelV1_3 = std::any_cast<sp<V1_3::IPreparedModel>>(&resource)) {
@@ -179,6 +192,11 @@ class DriverPreparedModel : public RuntimePreparedModel {
         const auto pollingTimeWindow =
                 (preferPowerOverLatency ? std::chrono::microseconds{0} : getPollingTimeWindow());
         return ExecutionBurstController::create(preparedModel, pollingTimeWindow);
+#else
+        (void)preferPowerOverLatency;
+        LOG(ERROR) << "DriverPreparedModel::configureExecutionBurst: built without burst support";
+        return nullptr;
+#endif  // NN_NO_BURST
     }
 
    private:
@@ -549,6 +567,7 @@ std::tuple<int, std::vector<OutputShape>, Timing> DriverPreparedModel::execute(
     // compute using burst if present
     const bool burstCompute = (burstController != nullptr);
     bool burstFallback = true;
+#ifndef NN_NO_BURST
     if (burstCompute) {
         const bool compliant = compliantWithV1_2(convertToV1_3(request));
         if (compliant) {
@@ -570,6 +589,9 @@ std::tuple<int, std::vector<OutputShape>, Timing> DriverPreparedModel::execute(
             timing = uncheckedConvert(halTiming);
         }
     }
+#else
+    CHECK(!burstCompute) << "built without burst";
+#endif  // NN_NO_BURST
 
     // compute from IPreparedModel if either:
     // (1) burst was not supplied, or
@@ -675,7 +697,7 @@ std::tuple<int, int, ExecuteFencedInfoCallback, Timing> DriverPreparedModel::exe
     SyncFence syncFence = SyncFence::createAsSignaled();
     ExecuteFencedInfoCallback executeFencedInfoCallback = nullptr;
     Timing timing = {};
-    if (mDevice->getFeatureLevel() >= __ANDROID_API_R__) {
+    if (mDevice->getFeatureLevel() >= kHalVersionV1_3ToApi.android) {
         auto result = mPreparedModel->executeFenced(request, waitForHandles, measure, deadline,
                                                     loopTimeoutDuration, timeoutDurationAfterFence);
         if (!result.ok()) {
@@ -784,7 +806,11 @@ class CpuDevice : public Device {
     CpuDevice() = default;
     const int64_t kFeatureLevel = __ANDROID_API__;
     const std::string kName = "nnapi-reference";
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
     const std::string kVersionString = build::GetBuildNumber();
+#else
+    const std::string kVersionString = "UNKNOWN";
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
     // Since the performance is a ratio compared to the CPU performance,
     // by definition the performance of the CPU is 1.0.
     const Capabilities::PerformanceInfo kPerformance = {.execTime = 1.0f, .powerUsage = 1.0f};
@@ -1024,26 +1050,39 @@ std::shared_ptr<Device> DeviceManager::forTest_makeDriverDevice(const SharedDevi
     return driverDevice;
 }
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
+std::vector<SharedDevice> getDevices() {
+    return hal::getDevices();
+}
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
+
 void DeviceManager::findAvailableDevices() {
     VLOG(MANAGER) << "findAvailableDevices";
 
     // register driver devices
-    std::vector<SharedDevice> devices = hal::getDevices();
+    std::vector<SharedDevice> devices = getDevices();
     for (const auto& device : devices) {
         VLOG(MANAGER) << "Found interface " << device->getName();
         registerDevice(device);
     }
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
     // register CPU fallback device
     mDevices.push_back(CpuDevice::get());
     mDevicesCpuOnly.push_back(CpuDevice::get());
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 }
 
 static bool updatableDriversAreAllowed() {
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
     const auto& appInfo = AppInfoFetcher::get()->getAppInfo();
     const bool currentProcessIsOnThePlatform =
             appInfo.appIsSystemApp || appInfo.appIsOnVendorImage || appInfo.appIsOnProductImage;
     return !currentProcessIsOnThePlatform;
+#else
+    // The concept does not exist in the compatibility library build.
+    return true;
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 }
 
 void DeviceManager::registerDevice(const SharedDevice& device) {

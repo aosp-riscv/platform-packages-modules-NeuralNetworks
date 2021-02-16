@@ -17,6 +17,9 @@
 #ifndef ANDROID_FRAMEWORKS_ML_NN_COMMON_VALIDATE_HAL_H
 #define ANDROID_FRAMEWORKS_ML_NN_COMMON_VALIDATE_HAL_H
 
+#include <nnapi/TypeUtils.h>
+#include <nnapi/Validation.h>
+
 #include <set>
 #include <tuple>
 

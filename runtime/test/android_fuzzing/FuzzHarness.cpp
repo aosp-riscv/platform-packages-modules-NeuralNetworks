@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <LegacyUtils.h>
 #include <nnapi/TypeUtils.h>
 #include <src/libfuzzer/libfuzzer_macro.h>
 

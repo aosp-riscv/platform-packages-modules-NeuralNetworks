@@ -17,10 +17,11 @@
 #ifndef ANDROID_FRAMEWORKS_ML_NN_RUNTIME_BURST_BUILDER_H
 #define ANDROID_FRAMEWORKS_ML_NN_RUNTIME_BURST_BUILDER_H
 
+#include <ExecutionBurstController.h>
+
 #include <atomic>
 #include <memory>
 #include <vector>
-#include "ExecutionBurstController.h"
 
 namespace android {
 namespace nn {

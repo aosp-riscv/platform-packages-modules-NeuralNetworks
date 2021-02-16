@@ -14,13 +14,15 @@
  * limitations under the License.
  */
 
+#include <HalInterfaces.h>
+#include <SampleDriver.h>
+#include <ValidateHal.h>
 #include <android-base/logging.h>
-#include <gtest/gtest.h>
-#include <unistd.h>
-
 #include <android/hardware/neuralnetworks/1.0/ADevice.h>
 #include <android/hardware/neuralnetworks/1.1/ADevice.h>
 #include <android/hardware/neuralnetworks/1.2/ADevice.h>
+#include <gtest/gtest.h>
+#include <unistd.h>
 
 #include <algorithm>
 #include <cassert>
@@ -36,15 +38,11 @@
 #include <vector>
 
 #include "CompilationBuilder.h"
-#include "HalInterfaces.h"
 #include "HalUtils.h"
 #include "Manager.h"
 #include "ModelBuilder.h"
 #include "NeuralNetworks.h"
-#include "SampleDriver.h"
 #include "TestNeuralNetworksWrapper.h"
-#include "Utils.h"
-#include "ValidateHal.h"
 
 // Uncomment the following line to generate some debugging output that
 // may be useful when analyzing failures:
@@ -1140,7 +1138,7 @@ TEST_P(RandomPartitioningTest, Test) {
     if (compilationResult == Result::OP_FAILED && hasUnknownDimensions &&
         cNoFallback.getExecutionPlan().hasDynamicTemporaries() &&
         std::any_of(devices.begin(), devices.end(), [](const std::shared_ptr<Device>& device) {
-            return device->getFeatureLevel() < __ANDROID_API_Q__;
+            return device->getFeatureLevel() < nn::kHalVersionV1_2ToApi.android;
         })) {
         ASSERT_EQ(cWithFallback.setPartitioning(DeviceManager::kPartitioningWithFallback),
                   Result::NO_ERROR);

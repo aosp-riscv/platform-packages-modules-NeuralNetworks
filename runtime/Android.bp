@@ -151,6 +151,46 @@ cc_library_static {
     apex_available: ["//apex_available:platform"],
 }
 
+cc_library_static {
+    name: "libneuralnetworks_cl",
+    defaults: [
+        "neuralnetworks_cl_defaults",
+        "neuralnetworks_defaults",
+    ],
+    apex_available: ["//apex_available:platform"],
+    // b/109953668, disable OpenMP
+    // openmp: true,
+    srcs: [
+        "BurstBuilder.cpp",
+        "CompilationBuilder.cpp",
+        "ExecutionBuilder.cpp",
+        "ExecutionCallback.cpp",
+        "ExecutionPlan.cpp",
+        "Manager.cpp",
+        "Memory.cpp",
+        "ModelArgumentInfo.cpp",
+        "ModelBuilder.cpp",
+        "NeuralNetworks.cpp",
+        "TypeManager.cpp",
+    ],
+    static_libs: [
+        "libbase_ndk",
+        "libcrypto_static",
+        "libneuralnetworks_common_cl",
+        "libtextclassifier_hash_static",
+        "neuralnetworks_types_cl",
+    ],
+    shared_libs: [
+        "libnativewindow",
+    ],
+    header_libs: [
+        "libneuralnetworks_headers_ndk",
+    ],
+    export_header_lib_headers: [
+        "libneuralnetworks_headers_ndk",
+    ],
+}
+
 ndk_headers {
     name: "libneuralnetworks_ndk_headers",
     from: "include",

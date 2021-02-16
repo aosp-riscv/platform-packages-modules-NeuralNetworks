@@ -19,23 +19,13 @@
 #include "CpuExecutor.h"
 
 #include <android-base/scopeguard.h>
-#include <android/hardware_buffer.h>
-#include <sys/mman.h>
-#include <vndk/hardware_buffer.h>
+#include <nnapi/SharedMemory.h>
+#include <nnapi/TypeUtils.h>
 
-#include <Eigen/Core>
 #include <limits>
 #include <memory>
 #include <utility>
 #include <vector>
-
-// b/109953668, disable OpenMP
-#ifdef NNAPI_OPENMP
-#include <omp.h>
-#endif  // NNAPI_OPENMP
-
-#include <nnapi/SharedMemory.h>
-#include <nnapi/TypeUtils.h>
 
 #include "ControlFlow.h"
 #include "NeuralNetworks.h"
@@ -43,6 +33,13 @@
 #include "Operations.h"
 #include "OperationsUtils.h"
 #include "Tracing.h"
+
+// b/109953668, disable OpenMP
+#ifdef NNAPI_OPENMP
+#include <omp.h>
+
+#include <Eigen/Core>
+#endif  // NNAPI_OPENMP
 
 namespace android {
 namespace nn {
@@ -387,6 +384,7 @@ bool setRunTimePoolInfosFromMemoryPools(std::vector<RunTimePoolInfo>* poolInfos,
     return true;
 }
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 template <typename T>
 inline bool convertToNhwcImpl(T* to, const T* from, const std::vector<uint32_t>& fromDim) {
     uint32_t spatialSize = fromDim[2] * fromDim[3];
@@ -504,6 +502,7 @@ static bool convertFromNhwc(RunTimeOperandInfo& to, const RunTimeOperandInfo& fr
     }
     return true;
 }
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 // Decrements the usage count for the operands listed.  Frees the memory
 // allocated for any temporary variable with a count of zero.
@@ -698,6 +697,7 @@ void CpuExecutor::updateForArguments(const std::vector<uint32_t>& indexes,
 }
 
 int CpuExecutor::executeOperation(const Operation& operation, RunTimeOperandInfo* operands) {
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
     if (hasDeadlinePassed(mDeadline)) {
         return ANEURALNETWORKS_MISSED_DEADLINE_TRANSIENT;
     }
@@ -1654,6 +1654,10 @@ int CpuExecutor::executeOperation(const Operation& operation, RunTimeOperandInfo
 
     consumeOperationInputs(ins, operands);
     return result;
+#else
+    LOG(ERROR) << "Compabibility layer build does not support CPU execution";
+    return ANEURALNETWORKS_OP_FAILED;
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 }
 
 // Copies RunTimeOperandInfo, preserving the original lifetime and numberOfUsesLeft

@@ -23,15 +23,19 @@
 #include <utility>
 #include <vector>
 
-#include "CpuOperationUtils.h"
 #include "OperationResolver.h"
 #include "OperationsUtils.h"
 #include "Tracing.h"
+
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
+#include "CpuOperationUtils.h"
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 namespace android {
 namespace nn {
 namespace bbox_ops {
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 namespace {
 
 struct BoxEncodingCorner {
@@ -183,6 +187,7 @@ float getIoUAxisAligned(const float* roi1, const float* roi2) {
 }
 
 }  // namespace
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 namespace axis_aligned_bbox_transform {
 
@@ -221,6 +226,7 @@ Result<Version> validate(const IOperationValidationContext* context) {
     return Version::ANDROID_Q;
 }
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 bool prepare(IOperationExecutionContext* context) {
     Shape roiShape = context->getInputShape(kRoiTensor);
     Shape bboxDeltasShape = context->getInputShape(kDeltaTensor);
@@ -322,6 +328,7 @@ bool execute(IOperationExecutionContext* context) {
             NN_RET_CHECK_FAIL() << "Unsupported tensor type for operation " << kOperationName;
     }
 }
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 }  // namespace axis_aligned_bbox_transform
 
@@ -346,6 +353,7 @@ constexpr uint32_t kOutputRoiTensor = 1;
 constexpr uint32_t kOutputClassTensor = 2;
 constexpr uint32_t kOutputBatchesTensor = 3;
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 namespace {
 
 // TODO(xusongw): Reduce code duplication with hard/soft nms path.
@@ -700,6 +708,7 @@ bool boxWithNmsLimitQuant(const int8_t* scoresData, const Shape& scoresShape,
 }
 
 }  // namespace
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 Result<Version> validate(const IOperationValidationContext* context) {
     NN_RET_CHECK_EQ(context->getNumInputs(), kNumInputs);
@@ -746,6 +755,7 @@ Result<Version> validate(const IOperationValidationContext* context) {
     }
 }
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 bool prepare(IOperationExecutionContext* context) {
     Shape scoreShape = context->getInputShape(kScoreTensor);
     Shape roiShape = context->getInputShape(kRoiTensor);
@@ -898,6 +908,7 @@ bool execute(IOperationExecutionContext* context) {
             NN_RET_CHECK_FAIL() << "Unsupported tensor type for operation " << kOperationName;
     }
 }
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 }  // namespace box_with_nms_limit
 
@@ -923,6 +934,7 @@ constexpr uint32_t kOutputScoreTensor = 0;
 constexpr uint32_t kOutputRoiTensor = 1;
 constexpr uint32_t kOutputBatchesTensor = 2;
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 namespace {
 
 void filterBoxes(const float* roiBase, const float* imageInfoBase, float minSize,
@@ -1210,6 +1222,7 @@ bool generateProposalsQuant(const T_8QInput* scoresData, const Shape& scoresShap
 }
 
 }  // namespace
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 Result<Version> validate(const IOperationValidationContext* context) {
     NN_RET_CHECK_EQ(context->getNumInputs(), kNumInputs);
@@ -1272,6 +1285,7 @@ Result<Version> validate(const IOperationValidationContext* context) {
     }
 }
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 bool prepare(IOperationExecutionContext* context) {
     bool useNchw = context->getInputValue<bool>(kLayoutScalar);
     Shape scoreShape = context->getInputShape(kScoreTensor);
@@ -1401,6 +1415,7 @@ bool execute(IOperationExecutionContext* context) {
             NN_RET_CHECK_FAIL() << "Unsupported tensor type for operation " << kOperationName;
     }
 }
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 }  // namespace generate_proposals
 
@@ -1430,6 +1445,7 @@ constexpr uint32_t kOutputRoiTensor = 1;
 constexpr uint32_t kOutputClassTensor = 2;
 constexpr uint32_t kOutputDetectionTensor = 3;
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 namespace {
 
 bool detectionPostprocessFloat32(
@@ -1566,6 +1582,7 @@ bool detectionPostprocessFloat16(
 }
 
 }  // namespace
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 Result<Version> validate(const IOperationValidationContext* context) {
     NN_RET_CHECK_EQ(context->getNumInputs(), kNumInputs);
@@ -1598,6 +1615,7 @@ Result<Version> validate(const IOperationValidationContext* context) {
     return Version::ANDROID_Q;
 }
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 bool prepare(IOperationExecutionContext* context) {
     Shape scoreShape = context->getInputShape(kScoreTensor);
     Shape deltasShape = context->getInputShape(kDeltaTensor);
@@ -1734,6 +1752,7 @@ bool execute(IOperationExecutionContext* context) {
             NN_RET_CHECK_FAIL() << "Unsupported tensor type for operation " << kOperationName;
     }
 }
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 }  // namespace detection_postprocess
 

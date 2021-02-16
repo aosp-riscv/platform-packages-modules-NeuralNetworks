@@ -206,7 +206,6 @@ class OperationValidationContext : public IOperationValidationContext {
     uint32_t outputCount;
     const uint32_t* outputIndexes;
     const Operand* operands;
-    Version version;
 };
 
 const char* OperationValidationContext::getOperationName() const {

@@ -18,17 +18,16 @@
 // files, including NN API HIDL definitions.
 // It is not part of CTS.
 
-#include "TestMemory.h"
-
-#include "Manager.h"
-#include "Memory.h"
-#include "TestNeuralNetworksWrapper.h"
-
 #include <android/sharedmem.h>
 #include <gtest/gtest.h>
 
 #include <fstream>
 #include <string>
+
+#include "Manager.h"
+#include "Memory.h"
+#include "TestMemory.h"
+#include "TestNeuralNetworksWrapper.h"
 
 using WrapperCompilation = ::android::nn::test_wrapper::Compilation;
 using WrapperExecution = ::android::nn::test_wrapper::Execution;

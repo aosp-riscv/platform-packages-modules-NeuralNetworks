@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
+#include <HalInterfaces.h>
+#include <MemoryUtils.h>
+#include <Utils.h>
 #include <android-base/scopeguard.h>
 #include <gtest/gtest.h>
 
 #include "GeneratedTestUtils.h"
-#include "HalInterfaces.h"
 #include "Memory.h"
-#include "MemoryUtils.h"
 #include "ModelBuilder.h"
 #include "TestNeuralNetworksWrapper.h"
-#include "Utils.h"
 
 namespace android::nn::compliance_test {
 

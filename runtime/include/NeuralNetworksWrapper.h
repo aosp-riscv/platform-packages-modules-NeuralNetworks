@@ -19,12 +19,6 @@
 #ifndef ANDROID_FRAMEWORKS_ML_NN_RUNTIME_NEURAL_NETWORKS_WRAPPER_H
 #define ANDROID_FRAMEWORKS_ML_NN_RUNTIME_NEURAL_NETWORKS_WRAPPER_H
 
-#ifdef NNTEST_SLTS
-#include "SupportLibrary.h"
-#else
-#include "NeuralNetworks.h"
-#endif
-
 #include <assert.h>
 #include <math.h>
 
@@ -33,6 +27,12 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+#ifdef NNTEST_SLTS
+#include "SupportLibrary.h"
+#else
+#include "NeuralNetworks.h"
+#endif
 
 namespace android {
 namespace nn {

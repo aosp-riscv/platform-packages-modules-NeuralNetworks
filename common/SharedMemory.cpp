@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include "SharedMemory.h"
+
 #include <android-base/logging.h>
 
 #include <limits>
@@ -23,7 +25,6 @@
 #include <vector>
 
 #include "Result.h"
-#include "SharedMemory.h"
 #include "Types.h"
 
 namespace android::nn {

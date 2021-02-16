@@ -25,6 +25,7 @@
 #include <cutils/properties.h>
 #else
 #include <string.h>
+
 #include <algorithm>
 static const char property_value[] = "[HOST]";
 #define PROPERTY_VALUE_MAX (sizeof(property_value) - 1)

@@ -178,20 +178,6 @@ class RunTimePoolInfo;
 bool setRunTimePoolInfosFromHidlMemories(std::vector<RunTimePoolInfo>* poolInfos,
                                          const hardware::hidl_vec<hardware::hidl_memory>& pools);
 
-struct ApiVersion {
-    Version canonical;
-    int64_t android;
-};
-
-constexpr auto kHalVersionV1_0ToApi =
-        ApiVersion{.canonical = Version::ANDROID_OC_MR1, .android = __ANDROID_API_O_MR1__};
-constexpr auto kHalVersionV1_1ToApi =
-        ApiVersion{.canonical = Version::ANDROID_P, .android = __ANDROID_API_P__};
-constexpr auto kHalVersionV1_2ToApi =
-        ApiVersion{.canonical = Version::ANDROID_Q, .android = __ANDROID_API_Q__};
-constexpr auto kHalVersionV1_3ToApi =
-        ApiVersion{.canonical = Version::ANDROID_R, .android = __ANDROID_API_R__};
-
 // Versioning
 
 bool compliantWithV1_0(const V1_0::Capabilities& capabilities);

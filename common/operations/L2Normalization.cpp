@@ -16,15 +16,18 @@
 
 #define LOG_TAG "Operations"
 
-#include <tensorflow/lite/kernels/internal/optimized/optimized_ops.h>
-#include <tensorflow/lite/kernels/internal/reference/integer_ops/l2normalization.h>
-
 #include <algorithm>
 #include <vector>
 
-#include "CpuOperationUtils.h"
 #include "OperationResolver.h"
 #include "Tracing.h"
+
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
+#include <tensorflow/lite/kernels/internal/optimized/optimized_ops.h>
+#include <tensorflow/lite/kernels/internal/reference/integer_ops/l2normalization.h>
+
+#include "CpuOperationUtils.h"
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 namespace android {
 namespace nn {
@@ -39,6 +42,7 @@ constexpr uint32_t kAxisScalar = 1;
 constexpr uint32_t kNumOutputs = 1;
 constexpr uint32_t kOutputTensor = 0;
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 namespace {
 
 inline bool l2normFloat32Impl(const float* inputData, const Shape& inputShape, int32_t axis,
@@ -195,6 +199,7 @@ bool l2normQuant8Signed(const int8_t* inputData, const Shape& inputShape, int32_
 }
 
 }  // namespace
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 Result<Version> validate(const IOperationValidationContext* context) {
     NN_RET_CHECK(context->getNumInputs() == kNumInputs ||
@@ -228,6 +233,7 @@ Result<Version> validate(const IOperationValidationContext* context) {
     return minSupportedVersion;
 }
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 bool prepare(IOperationExecutionContext* context) {
     const Shape& input = context->getInputShape(kInputTensor);
     int32_t numDimensions = getNumberOfDimensions(input);
@@ -283,6 +289,7 @@ bool execute(IOperationExecutionContext* context) {
             NN_RET_CHECK_FAIL() << "Unsupported tensor type for operation " << kOperationName;
     }
 }
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 }  // namespace l2_norm
 

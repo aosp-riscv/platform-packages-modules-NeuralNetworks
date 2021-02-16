@@ -16,14 +16,6 @@
 
 #define LOG_TAG "NeuralNetworksTest"
 
-#include "LogTestCaseToLogcat.h"
-#include "TestNeuralNetworksWrapper.h"
-
-#ifndef NNTEST_ONLY_PUBLIC_API
-#include "Manager.h"
-#include "Utils.h"
-#endif
-
 #include <android-base/logging.h>
 #include <gtest/gtest.h>
 
@@ -31,6 +23,15 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+
+#include "LogTestCaseToLogcat.h"
+#include "TestNeuralNetworksWrapper.h"
+
+#ifndef NNTEST_ONLY_PUBLIC_API
+#include <Utils.h>
+
+#include "Manager.h"
+#endif
 
 namespace {
 

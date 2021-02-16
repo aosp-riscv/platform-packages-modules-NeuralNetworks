@@ -16,10 +16,10 @@
 
 #define LOG_TAG "TestControlFlow"
 
+#include <ControlFlow.h>
 #include <android-base/logging.h>
 #include <gtest/gtest.h>
 
-#include "ControlFlow.h"
 #include "TestNeuralNetworksWrapper.h"
 
 namespace android {

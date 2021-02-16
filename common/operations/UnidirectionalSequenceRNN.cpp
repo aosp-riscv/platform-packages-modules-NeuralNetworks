@@ -42,6 +42,7 @@ constexpr uint32_t kNumOutputsWithState = 2;
 constexpr uint32_t kOutputTensor = 0;
 constexpr uint32_t kStateOutputTensor = 1;
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 namespace {
 
 template <typename T>
@@ -125,6 +126,7 @@ bool executeTyped(IOperationExecutionContext* context) {
 }
 
 }  // namespace
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 Result<Version> validate(const IOperationValidationContext* context) {
     NN_RET_CHECK_EQ(context->getNumInputs(), kNumInputs);
@@ -147,6 +149,7 @@ Result<Version> validate(const IOperationValidationContext* context) {
     return minVersionSupported;
 }
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 bool prepare(IOperationExecutionContext* context) {
     Shape input = context->getInputShape(kInputTensor);
     Shape weights = context->getInputShape(kWeightsTensor);
@@ -202,6 +205,7 @@ bool execute(IOperationExecutionContext* context) {
     }
     return true;
 }
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 }  // namespace unidirectional_sequence_rnn
 

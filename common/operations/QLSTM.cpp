@@ -20,7 +20,10 @@
 
 #include "CpuExecutor.h"
 #include "OperationsUtils.h"
+
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 #include "QuantUtils.h"
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 namespace android {
 namespace nn {
@@ -360,6 +363,7 @@ bool prepare(IOperationExecutionContext* context) {
            context->setOutputShape(kOutputTensor, outputShape);
 }
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 bool execute(IOperationExecutionContext* context) {
     // Gets the inputs.
     const Shape inputShape = context->getInputShape(kInputTensor);
@@ -792,6 +796,7 @@ bool execute(IOperationExecutionContext* context) {
 
     return true;
 }
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 }  // namespace qlstm
 

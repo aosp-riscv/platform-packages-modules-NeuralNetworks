@@ -17,12 +17,12 @@
 #ifndef ANDROID_FRAMEWORKS_ML_NN_DRIVER_CACHE_NN_CACHE_NN_CACHE_H
 #define ANDROID_FRAMEWORKS_ML_NN_DRIVER_CACHE_NN_CACHE_NN_CACHE_H
 
-#include "BlobCache.h"
-
 #include <functional>
 #include <memory>
 #include <mutex>
 #include <string>
+
+#include "BlobCache.h"
 
 // ----------------------------------------------------------------------------
 namespace android {

@@ -17,6 +17,8 @@
 #ifndef ANDROID_FRAMEWORKS_ML_NN_RUNTIME_EXECUTION_BUILDER_H
 #define ANDROID_FRAMEWORKS_ML_NN_RUNTIME_EXECUTION_BUILDER_H
 
+#include <ControlFlow.h>
+#include <CpuExecutor.h>
 #include <nnapi/IPreparedModel.h>
 #include <nnapi/Validation.h>
 
@@ -27,10 +29,7 @@
 #include <utility>
 #include <vector>
 
-#include "ControlFlow.h"
-#include "CpuExecutor.h"
 #include "ExecutionCallback.h"
-#include "HalInterfaces.h"
 #include "Memory.h"
 #include "ModelArgumentInfo.h"
 #include "ModelBuilder.h"

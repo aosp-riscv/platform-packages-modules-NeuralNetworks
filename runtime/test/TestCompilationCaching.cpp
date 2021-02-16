@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include <HalInterfaces.h>
+#include <SampleDriver.h>
 #include <android-base/scopeguard.h>
 #include <gtest/gtest.h>
 
@@ -25,10 +27,8 @@
 #include <tuple>
 #include <vector>
 
-#include "HalInterfaces.h"
 #include "HalUtils.h"
 #include "Manager.h"
-#include "SampleDriver.h"
 #include "TestNeuralNetworksWrapper.h"
 
 using namespace android::nn;

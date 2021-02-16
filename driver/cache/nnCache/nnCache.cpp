@@ -18,13 +18,12 @@
 
 #include <fcntl.h>
 #include <inttypes.h>
+#include <log/log.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
 #include <thread>
-
-#include <log/log.h>
 
 // Cache file header
 static const char* cacheFileMagic = "nn$$";

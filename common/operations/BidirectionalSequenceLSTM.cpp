@@ -18,6 +18,8 @@
 
 #include "BidirectionalSequenceLSTM.h"
 
+#include <tensorflow/lite/kernels/internal/tensor_utils.h>
+
 #include <algorithm>
 #include <vector>
 

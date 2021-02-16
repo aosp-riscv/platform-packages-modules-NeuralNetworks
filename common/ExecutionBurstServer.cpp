@@ -31,6 +31,7 @@
 
 #include "HalInterfaces.h"
 #include "Tracing.h"
+#include "Utils.h"
 
 namespace android::nn {
 namespace {

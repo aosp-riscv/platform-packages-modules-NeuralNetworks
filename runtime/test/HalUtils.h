@@ -17,6 +17,8 @@
 #ifndef ANDROID_FRAMEWORKS_ML_NN_RUNTIME_TEST_HAL_UTILS_H
 #define ANDROID_FRAMEWORKS_ML_NN_RUNTIME_TEST_HAL_UTILS_H
 
+#include <HalInterfaces.h>
+#include <Utils.h>
 #include <nnapi/hal/1.0/Device.h>
 #include <nnapi/hal/1.1/Device.h>
 #include <nnapi/hal/1.2/Device.h>
@@ -25,9 +27,6 @@
 
 #include <string>
 #include <utility>
-
-#include "HalInterfaces.h"
-#include "Utils.h"
 
 namespace android::nn {
 

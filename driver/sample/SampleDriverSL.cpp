@@ -14,20 +14,17 @@
  * limitations under the License.
  */
 
-#include <gtest/gtest.h>
+#include <CanonicalDevice.h>
+#include <nnapi/IDevice.h>
 
-#include <iostream>
-#include <string>
+#include <memory>
+#include <vector>
 
-std::string SUPPORT_LIBRARY_NAME;
+namespace android::nn {
 
-int main(int argc, char** argv) {
-    testing::InitGoogleTest(&argc, argv);
-    if (argc < 2) {
-        std::cerr << "Usage: SupportLibraryTest <support_library_file_name>" << std::endl;
-        return -1;
-    }
-    SUPPORT_LIBRARY_NAME = argv[1];
-
-    return RUN_ALL_TESTS();
+std::vector<SharedDevice> getDevices() {
+    auto device = std::make_shared<sample::Device>("nnapi-sample_sl");
+    return {device};
 }
+
+}  // namespace android::nn

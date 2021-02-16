@@ -41,7 +41,7 @@
 // constraints. We reuse the NNTEST_ONLY_PUBLIC_API flag, as that should also be
 // the case for CTS (public APIs only).
 #ifndef NNTEST_ONLY_PUBLIC_API
-#include "Tracing.h"
+#include <Tracing.h>
 #else
 #define NNTRACE_FULL_RAW(...)
 #define NNTRACE_APP(...)

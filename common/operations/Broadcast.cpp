@@ -18,6 +18,16 @@
 
 #define LOG_TAG "Operations"
 
+#include <algorithm>
+#include <vector>
+
+#include "IndexedShapeWrapper.h"
+#include "OperationResolver.h"
+#include "Tracing.h"
+#include "nnapi/Types.h"
+#include "nnapi/Validation.h"
+
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 #include <tensorflow/lite/kernels/internal/optimized/integer_ops/add.h>
 #include <tensorflow/lite/kernels/internal/optimized/integer_ops/mul.h>
 #include <tensorflow/lite/kernels/internal/optimized/legacy_optimized_ops.h>
@@ -25,15 +35,8 @@
 #include <tensorflow/lite/kernels/internal/reference/integer_ops/mul.h>
 #include <tensorflow/lite/kernels/internal/types.h>
 
-#include <algorithm>
-#include <vector>
-
 #include "CpuOperationUtils.h"
-#include "IndexedShapeWrapper.h"
-#include "OperationResolver.h"
-#include "Tracing.h"
-#include "nnapi/Types.h"
-#include "nnapi/Validation.h"
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 namespace android {
 namespace nn {
@@ -48,6 +51,7 @@ constexpr uint32_t kActivationScalar = 2;
 constexpr uint32_t kNumOutputs = 1;
 constexpr uint32_t kOutputTensor = 0;
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 namespace {
 
 #define ANDROID_NN_MACRO_DISPATCH(macro)                                \
@@ -433,6 +437,7 @@ bool divFloat16(const _Float16* in1, const Shape& shape1, const _Float16* in2, c
 }
 
 }  // namespace
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 Result<Version> validate(OperationType opType, const IOperationValidationContext* context) {
     auto minSupportedVersion = (opType == OperationType::DIV || opType == OperationType::SUB)
@@ -476,6 +481,7 @@ Result<Version> validate(OperationType opType, const IOperationValidationContext
     return minSupportedVersion;
 }
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 bool prepare(IOperationExecutionContext* context) {
     Shape input1 = context->getInputShape(kInputTensor1);
     Shape input2 = context->getInputShape(kInputTensor2);
@@ -677,6 +683,7 @@ bool executeDiv(IOperationExecutionContext* context) {
             NN_RET_CHECK_FAIL() << "Unsupported tensor type for operation DIV";
     }
 }
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 }  // namespace broadcast
 

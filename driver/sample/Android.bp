@@ -141,3 +141,26 @@ cc_library_static {
         "libnativewindow",
     ],
 }
+
+cc_library_shared {
+    name: "neuralnetworks_sample_sl_driver",
+    defaults: ["neuralnetworks_defaults"],
+    srcs: [
+        "SampleDriverSL.cpp",
+    ],
+    shared_libs: [
+        "liblog",
+        "libnativewindow",
+    ],
+    static_libs: [
+        "libbase_ndk",
+        "libcrypto_static",
+        "libcutils",
+        "libneuralnetworks_common_cl",
+        "neuralnetworks_canonical_sample_driver",
+        "neuralnetworks_types_cl",
+    ],
+    whole_static_libs: [
+        "libneuralnetworks_cl",
+    ],
+}

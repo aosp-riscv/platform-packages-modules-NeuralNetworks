@@ -18,14 +18,13 @@
 
 #include "Memory.h"
 
+#include <CpuExecutor.h>
+#include <ExecutionBurstController.h>
+#include <LegacyUtils.h>
 #include <android-base/scopeguard.h>
-#include <android/hardware_buffer.h>
-#include <cutils/native_handle.h>
-#include <hidl/HidlSupport.h>
 #include <nnapi/SharedMemory.h>
 #include <nnapi/TypeUtils.h>
 #include <nnapi/Types.h>
-#include <vndk/hardware_buffer.h>
 
 #include <algorithm>
 #include <memory>
@@ -35,11 +34,13 @@
 #include <vector>
 
 #include "CompilationBuilder.h"
-#include "CpuExecutor.h"
-#include "ExecutionBurstController.h"
 #include "Manager.h"
 #include "TypeManager.h"
-#include "Utils.h"
+
+#ifndef NN_NO_AHWB
+#include <android/hardware_buffer.h>
+#include <vndk/hardware_buffer.h>
+#endif  // NN_NO_AHWB
 
 namespace android {
 namespace nn {
@@ -193,11 +194,13 @@ RuntimeMemory::RuntimeMemory(Memory memory, std::unique_ptr<MemoryValidatorBase>
 RuntimeMemory::RuntimeMemory(SharedBuffer buffer) : kBuffer(std::move(buffer)) {}
 
 RuntimeMemory::~RuntimeMemory() {
+#ifndef NN_NO_BURST
     for (const auto& [ptr, weakBurst] : mUsedBy) {
         if (const std::shared_ptr<ExecutionBurstController> burst = weakBurst.lock()) {
             burst->freeMemory(getKey());
         }
     }
+#endif  // NN_NO_BURST
 }
 
 Request::MemoryPool RuntimeMemory::getMemoryPool() const {
@@ -466,9 +469,13 @@ int MemoryBuilder::finish() {
         LOG(INFO) << "MemoryBuilder::finish -- cannot handle multiple devices.";
         mAllocator = nullptr;
     }
+#ifndef NN_NO_AHWB
     mSupportsAhwb = std::all_of(devices.begin(), devices.end(), [](const auto* device) {
-        return device->getFeatureLevel() >= __ANDROID_API_R__;
+        return device->getFeatureLevel() >= kHalVersionV1_3ToApi.android;
     });
+#else
+    mSupportsAhwb = false;
+#endif  // NN_NO_AHWB
     mShouldFallback = std::none_of(mRoles.begin(), mRoles.end(), [](const auto& role) {
         const auto* cb = std::get<const CompilationBuilder*>(role);
         return cb->createdWithExplicitDeviceList();

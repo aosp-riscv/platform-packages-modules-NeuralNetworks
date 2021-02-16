@@ -17,13 +17,13 @@
 #ifndef ANDROID_FRAMEWORKS_ML_NN_RUNTIME_EVENT_H
 #define ANDROID_FRAMEWORKS_ML_NN_RUNTIME_EVENT_H
 
+#include <android-base/logging.h>
 #include <nnapi/IPreparedModel.h>
 
 #include <memory>
 #include <utility>
 
 #include "ExecutionCallback.h"
-#include "HalInterfaces.h"
 
 namespace android::nn {
 

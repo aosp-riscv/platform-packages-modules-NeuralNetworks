@@ -18,13 +18,15 @@
 
 #include "LSTM.h"
 
+#include <tensorflow/lite/kernels/internal/tensor_utils.h>
+
 #include <vector>
 
 #include "CpuExecutor.h"
 #include "CpuOperationUtils.h"
+#include "LegacyUtils.h"
 #include "OperationsUtils.h"
 #include "Tracing.h"
-#include "Utils.h"
 #include "nnapi/Types.h"
 
 namespace android {

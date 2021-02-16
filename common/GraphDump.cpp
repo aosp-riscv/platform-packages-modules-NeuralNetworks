@@ -27,7 +27,7 @@
 #include <string>
 #include <utility>
 
-#include "Utils.h"
+#include "LegacyUtils.h"
 
 namespace android {
 namespace nn {

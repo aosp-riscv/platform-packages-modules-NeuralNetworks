@@ -16,6 +16,10 @@
 
 #define LOG_TAG "SampleDriverFloatXNNPACK"
 
+#include <CpuExecutor.h>
+#include <HalInterfaces.h>
+#include <Utils.h>
+#include <ValidateHal.h>
 #include <android-base/logging.h>
 #include <hidl/LegacySupport.h>
 #include <hwbinder/IPCThreadState.h>
@@ -32,12 +36,8 @@
 #include <utility>
 #include <vector>
 
-#include "CpuExecutor.h"
-#include "HalInterfaces.h"
 #include "SampleDriverPartial.h"
 #include "SampleDriverUtils.h"
-#include "Utils.h"
-#include "ValidateHal.h"
 
 namespace android {
 namespace nn {

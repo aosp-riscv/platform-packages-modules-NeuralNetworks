@@ -17,7 +17,8 @@
 #ifndef ANDROID_FRAMEWORKS_ML_NN_DRIVER_SAMPLE_SAMPLE_DRIVER_FULL_H
 #define ANDROID_FRAMEWORKS_ML_NN_DRIVER_SAMPLE_SAMPLE_DRIVER_FULL_H
 
-#include "HalInterfaces.h"
+#include <HalInterfaces.h>
+
 #include "SampleDriver.h"
 
 namespace android {

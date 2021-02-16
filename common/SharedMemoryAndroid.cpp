@@ -19,12 +19,6 @@
 #include <android-base/logging.h>
 #include <android-base/mapped_file.h>
 #include <android-base/scopeguard.h>
-#include <android/hardware_buffer.h>
-#include <android/hidl/allocator/1.0/IAllocator.h>
-#include <hidl/HidlSupport.h>
-#include <hidlmemory/mapping.h>
-#include <sys/mman.h>
-#include <vndk/hardware_buffer.h>
 
 #include <algorithm>
 #include <any>
@@ -40,9 +34,22 @@
 #include "TypeUtils.h"
 #include "Types.h"
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
+#include <android/hidl/allocator/1.0/IAllocator.h>
+#include <hidl/HidlSupport.h>
+#include <hidlmemory/mapping.h>
+#include <sys/mman.h>
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
+
+#ifndef NN_NO_AHWB
+#include <android/hardware_buffer.h>
+#include <vndk/hardware_buffer.h>
+#endif  // NN_NO_AHWB
+
 namespace android::nn {
 namespace {
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 using ::android::hardware::hidl_memory;
 using ::android::hidl::allocator::V1_0::IAllocator;
 
@@ -157,6 +164,8 @@ GeneralResult<Mapping> mapAshmem(const Memory& memory) {
     };
 }
 
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
+
 struct MmapFdMappingContext {
     int prot;
     std::any context;
@@ -178,6 +187,8 @@ GeneralResult<Mapping> mapMemFd(const Memory& memory) {
     auto context = MmapFdMappingContext{.prot = prot, .context = std::move(mapping)};
     return Mapping{.pointer = data, .size = size, .context = std::move(context)};
 }
+
+#ifndef NN_NO_AHWB
 
 static uint32_t roundUpToMultiple(uint32_t value, uint32_t multiple) {
     return (value + multiple - 1) / multiple * multiple;
@@ -245,11 +256,18 @@ GeneralResult<Mapping> mapAhwbMemory(const Memory& /*memory*/) {
            << "Unable to map non-BLOB AHardwareBuffer memory";
 }
 
+#endif  // NN_NO_AHWB
+
 }  // namespace
 
 GeneralResult<Memory> createSharedMemory(size_t size) {
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
     const auto memory = NN_TRY(allocateSharedMemory(size));
     return createSharedMemoryFromHidlMemory(memory);
+#else
+    (void)size;
+    return NN_ERROR(ErrorStatus::INVALID_ARGUMENT) << "Unimplemented";
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 }
 
 GeneralResult<Memory> createSharedMemoryFromFd(size_t size, int prot, int fd, size_t offset) {
@@ -278,10 +296,16 @@ GeneralResult<Memory> createSharedMemoryFromFd(size_t size, int prot, int fd, si
 }
 
 GeneralResult<Memory> createSharedMemoryFromHidlMemory(const hardware::hidl_memory& memory) {
+#ifndef NN_NO_AHWB
     return createMemory(memory);
+#else
+    (void)memory;
+    return NN_ERROR(ErrorStatus::INVALID_ARGUMENT) << "hidl_memory not supported";
+#endif  // NN_NO_AHWB
 }
 
 GeneralResult<Memory> createSharedMemoryFromAHWB(const AHardwareBuffer& ahwb) {
+#ifndef NN_NO_AHWB
     AHardwareBuffer_Desc bufferDesc;
     AHardwareBuffer_describe(&ahwb, &bufferDesc);
     const native_handle_t* handle = AHardwareBuffer_getNativeHandle(&ahwb);
@@ -300,14 +324,20 @@ GeneralResult<Memory> createSharedMemoryFromAHWB(const AHardwareBuffer& ahwb) {
             .size = 0,
             .name = "hardware_buffer",
     };
+#else
+    (void)ahwb;
+    return NN_ERROR(ErrorStatus::INVALID_ARGUMENT)
+           << "AHardwareBuffer memory not implemented for support library build yet";
+#endif  // NN_NO_AHWB
 }
 
 GeneralResult<Mapping> map(const Memory& memory) {
-    if (memory.name == "ashmem") {
-        return mapAshmem(memory);
-    }
     if (memory.name == "mmap_fd") {
         return mapMemFd(memory);
+    }
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
+    if (memory.name == "ashmem") {
+        return mapAshmem(memory);
     }
     if (memory.name == "hardware_buffer_blob") {
         return mapAhwbBlobMemory(memory);
@@ -315,6 +345,7 @@ GeneralResult<Mapping> map(const Memory& memory) {
     if (memory.name == "hardware_buffer") {
         return mapAhwbMemory(memory);
     }
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
     return NN_ERROR(ErrorStatus::INVALID_ARGUMENT) << "Cannot map unknown memory " << memory.name;
 }
 

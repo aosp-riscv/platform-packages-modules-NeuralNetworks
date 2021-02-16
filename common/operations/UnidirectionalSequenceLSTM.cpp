@@ -19,9 +19,12 @@
 #include <vector>
 
 #include "IndexedShapeWrapper.h"
-#include "LSTM.h"
 #include "OperationResolver.h"
 #include "OperationsUtils.h"
+
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
+#include "LSTM.h"
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 namespace android {
 namespace nn {
@@ -85,6 +88,7 @@ constexpr uint32_t kOutputTensor = 0;
 constexpr uint32_t kOutputStateOutTensor = 1;
 constexpr uint32_t kCellStateOutTensor = 2;
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 namespace {
 
 inline bool hasTensor(IOperationExecutionContext* context, const uint32_t tensor) {
@@ -111,6 +115,7 @@ inline LSTMParams getLSTMParams(IOperationExecutionContext* context) {
 }
 
 }  // namespace
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 Result<Version> validate(const IOperationValidationContext* context) {
     NN_RET_CHECK_EQ(context->getNumInputs(), kNumInputs);
@@ -166,6 +171,7 @@ Result<Version> validate(const IOperationValidationContext* context) {
     return minVersionSupported;
 }
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 bool prepare(IOperationExecutionContext* context) {
     // Check that none of the required inputs are omitted
     const std::vector<int> requiredInputs = {
@@ -512,6 +518,7 @@ bool execute(IOperationExecutionContext* context) {
     }
     return true;
 }
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 }  // namespace unidirectional_sequence_lstm
 

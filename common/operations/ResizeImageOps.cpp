@@ -16,16 +16,19 @@
 
 #define LOG_TAG "Operations"
 
-#include <tensorflow/lite/kernels/internal/reference/reference_ops.h>
-
 #include <algorithm>
 #include <functional>
 #include <vector>
 
-#include "CpuOperationUtils.h"
 #include "OperationResolver.h"
 #include "Tracing.h"
 #include "nnapi/Validation.h"
+
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
+#include <tensorflow/lite/kernels/internal/reference/reference_ops.h>
+
+#include "CpuOperationUtils.h"
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 namespace android {
 namespace nn {
@@ -45,6 +48,7 @@ constexpr uint32_t kHalfPixelCentersScalar = 5;
 constexpr uint32_t kNumOutputs = 1;
 constexpr uint32_t kOutputTensor = 0;
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 namespace {
 
 inline float scaleHalfPixel(const int x, const float scale) {
@@ -168,6 +172,7 @@ inline bool getOptionalScalar(const IOperationExecutionContext* context, uint32_
 }
 
 }  // namespace
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 Result<Version> validate(OperationType opType, const IOperationValidationContext* context) {
     const auto numInputs = context->getNumInputs();
@@ -221,6 +226,7 @@ Result<Version> validate(OperationType opType, const IOperationValidationContext
     return minSupportedVersion;
 }
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 bool prepare(OperationType opType, IOperationExecutionContext* context) {
     Shape input = context->getInputShape(kInputTensor);
     NN_RET_CHECK_EQ(getNumberOfDimensions(input), 4);
@@ -307,6 +313,7 @@ bool execute(OperationType opType, IOperationExecutionContext* context) {
             NN_RET_CHECK_FAIL() << "Unsupported tensor type for operation " << opType;
     }
 }
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 }  // namespace resize_image
 

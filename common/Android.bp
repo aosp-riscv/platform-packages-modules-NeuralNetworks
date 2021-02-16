@@ -253,6 +253,73 @@ cc_library_static {
 }
 
 cc_defaults {
+    name: "neuralnetworks_cl_defaults",
+    host_supported: false,
+    vendor_available: false,
+    stl: "libc++_static",
+    sdk_version: "current",
+    cflags: [
+        "-DNN_COMPATIBILITY_LIBRARY_BUILD",
+        "-DNN_NO_AHWB",
+        "-DNN_NO_BURST",
+    ],
+}
+
+cc_library_static {
+    name: "libneuralnetworks_common_cl",
+    defaults: [
+        "neuralnetworks_cl_defaults",
+        "neuralnetworks_defaults",
+        "neuralnetworks_operations",
+    ],
+    apex_available: [
+        "//apex_available:platform",
+        "com.android.neuralnetworks",
+        "test_com.android.neuralnetworks",
+    ],
+    // b/109953668, disable OpenMP
+    // openmp: true,
+    export_include_dirs: [
+        "include",
+    ],
+    srcs: [
+        "BufferTracker.cpp",
+        "CpuExecutor.cpp",
+        "GraphDump.cpp",
+        "IndexedShapeWrapper.cpp",
+        "LegacyUtils.cpp",
+        "MetaModel.cpp",
+        "OperationsUtils.cpp",
+        "TokenHasher.cpp",
+    ],
+    header_libs: [
+        "libneuralnetworks_headers_ndk",
+    ],
+    static_libs: [
+        "libbase_ndk",
+        "libcrypto_static",
+    ],
+    shared_libs: [
+        "libnativewindow",
+    ],
+    cflags: [
+        "-DNAMESPACE_FOR_HASH_FUNCTIONS=farmhash",
+        "-DTF_LITE_DISABLE_X86_NEON",
+        "-Wall",
+        "-Werror",
+        "-Wextra",
+        "-Wno-array-bounds",
+        "-Wno-extern-c-compat",
+        "-Wno-invalid-partial-specialization",
+        "-Wno-sign-compare",
+        "-Wno-unused-local-typedef",
+        "-Wno-unused-parameter",
+        "-Wno-unused-private-field",
+        "-Wno-unused-variable",
+    ],
+}
+
+cc_defaults {
     name: "neuralnetworks_utils_defaults",
     // b/146324523, NNAPI host build capability
     host_supported: false,
@@ -306,6 +373,29 @@ cc_library_static {
         "libbase",
         "libcutils",
         "libutils",
+    ],
+}
+
+cc_library_static {
+    name: "neuralnetworks_types_cl",
+    defaults: [
+        "neuralnetworks_cl_defaults",
+        "neuralnetworks_utils_defaults",
+    ],
+    srcs: [
+        "SharedMemory.cpp",
+        "SharedMemoryAndroid.cpp",
+        "TypeUtils.cpp",
+        "Types.cpp",
+        "Validation.cpp",
+    ],
+    local_include_dirs: ["include/nnapi"],
+    export_include_dirs: ["include"],
+    static_libs: [
+        "libbase_ndk",
+    ],
+    export_static_lib_headers: [
+        "libbase_ndk",
     ],
 }
 

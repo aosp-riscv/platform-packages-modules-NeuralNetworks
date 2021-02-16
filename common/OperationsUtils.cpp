@@ -24,8 +24,8 @@
 #include <sstream>
 #include <vector>
 
+#include "LegacyUtils.h"
 #include "Operations.h"
-#include "Utils.h"
 
 namespace android {
 namespace nn {

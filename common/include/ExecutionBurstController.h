@@ -16,6 +16,13 @@
 
 #ifndef ANDROID_FRAMEWORKS_ML_NN_COMMON_EXECUTION_BURST_CONTROLLER_H
 #define ANDROID_FRAMEWORKS_ML_NN_COMMON_EXECUTION_BURST_CONTROLLER_H
+#ifdef NN_NO_BURST
+
+namespace android::nn {
+class ExecutionBurstController;
+}  // namespace android::nn
+
+#else
 
 #include <android-base/macros.h>
 #include <android/hardware/neuralnetworks/1.0/types.h>
@@ -342,4 +349,5 @@ class ExecutionBurstController {
 
 }  // namespace android::nn
 
+#endif  // NN_NO_BURST
 #endif  // ANDROID_FRAMEWORKS_ML_NN_COMMON_EXECUTION_BURST_CONTROLLER_H

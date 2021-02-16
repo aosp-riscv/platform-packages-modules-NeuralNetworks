@@ -19,6 +19,7 @@
 #include "AppInfoFetcher.h"
 
 #include <PackageInfo.h>
+#include <Utils.h>
 #include <android-base/file.h>
 #include <android-base/properties.h>
 #include <binder/IServiceManager.h>
@@ -31,8 +32,6 @@
 #include <string>
 #include <string_view>
 #include <vector>
-
-#include "Utils.h"
 
 namespace android {
 namespace nn {

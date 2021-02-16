@@ -22,8 +22,11 @@
 
 #include "NeuralNetworks.h"
 
+#include <ControlFlow.h>
+#include <LegacyUtils.h>
+#include <MetaModel.h>
+#include <Tracing.h>
 #include <nnapi/Types.h>
-#include <vndk/hardware_buffer.h>
 
 #include <algorithm>
 #include <cstddef>
@@ -33,18 +36,14 @@
 
 #include "BurstBuilder.h"
 #include "CompilationBuilder.h"
-#include "ControlFlow.h"
 #include "Event.h"
 #include "ExecutionBuilder.h"
 #include "ExecutionCallback.h"
 #include "Manager.h"
 #include "Memory.h"
-#include "MetaModel.h"
 #include "ModelBuilder.h"
 #include "NeuralNetworksExtensions.h"
 #include "NeuralNetworksOEM.h"
-#include "Tracing.h"
-#include "Utils.h"
 
 using namespace android::nn;
 

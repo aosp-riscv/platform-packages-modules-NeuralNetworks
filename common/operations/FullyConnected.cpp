@@ -14,18 +14,21 @@
  * limitations under the License.
  */
 
-#include "tensorflow/lite/kernels/internal/types.h"
 #define LOG_TAG "Operations"
-
-#include <tensorflow/lite/kernels/internal/optimized/legacy_optimized_ops.h>
-#include <tensorflow/lite/kernels/internal/reference/integer_ops/fully_connected.h>
-#include <tensorflow/lite/kernels/internal/reference/reference_ops.h>
 
 #include <vector>
 
-#include "CpuOperationUtils.h"
 #include "OperationResolver.h"
 #include "Tracing.h"
+
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
+#include <tensorflow/lite/kernels/internal/optimized/legacy_optimized_ops.h>
+#include <tensorflow/lite/kernels/internal/reference/integer_ops/fully_connected.h>
+#include <tensorflow/lite/kernels/internal/reference/reference_ops.h>
+#include <tensorflow/lite/kernels/internal/types.h>
+
+#include "CpuOperationUtils.h"
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 namespace android {
 namespace nn {
@@ -44,6 +47,7 @@ constexpr uint32_t kOutputTensor = 0;
 
 namespace {
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 // executionMutex is used to protect concurrent access of non-threadsafe resources
 // like gemmlowp::GemmContext.
 // std::mutex is safe for pthreads on Android.
@@ -176,6 +180,7 @@ bool fullyConnectedQuant8(const int8_t* inputData, const Shape& inputShape,
 
     return true;
 }
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 bool validateShapes(const Shape& input, const Shape& weights, const Shape& bias,
                     Shape* output = nullptr) {
@@ -286,6 +291,7 @@ Result<Version> validate(const IOperationValidationContext* context) {
     return minSupportedVersion;
 }
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 bool prepare(IOperationExecutionContext* context) {
     Shape input = context->getInputShape(kInputTensor);
     Shape weights = context->getInputShape(kWeightsTensor);
@@ -343,6 +349,7 @@ bool execute(IOperationExecutionContext* context) {
             NN_RET_CHECK_FAIL() << "Unsupported tensor type for operation " << kOperationName;
     }
 }
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 }  // namespace fully_connected
 

@@ -17,7 +17,9 @@
 #ifndef ANDROID_FRAMEWORKS_ML_NN_RUNTIME_MANAGER_H
 #define ANDROID_FRAMEWORKS_ML_NN_RUNTIME_MANAGER_H
 
+#include <LegacyUtils.h>
 #include <android-base/macros.h>
+#include <nnapi/IDevice.h>
 #include <nnapi/IPreparedModel.h>
 
 #include <map>
@@ -29,9 +31,7 @@
 #include <vector>
 
 #include "ExecutionCallback.h"
-#include "HalInterfaces.h"
 #include "Memory.h"
-#include "Utils.h"
 
 namespace android {
 namespace nn {
@@ -210,6 +210,8 @@ class DeviceManager {
 
     bool mStrictSlicing = false;
 };
+
+std::vector<SharedDevice> getDevices();
 
 }  // namespace nn
 }  // namespace android

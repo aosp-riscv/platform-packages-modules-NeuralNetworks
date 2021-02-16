@@ -24,9 +24,9 @@
 #include <vector>
 
 #include "CpuOperationUtils.h"
+#include "LegacyUtils.h"
 #include "Operations.h"
 #include "Tracing.h"
-#include "Utils.h"
 
 namespace android {
 namespace nn {

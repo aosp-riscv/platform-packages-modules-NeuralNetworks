@@ -17,13 +17,7 @@
 #ifndef ANDROID_FRAMEWORKS_ML_NN_RUNTIME_APP_INFO_FETCHER_H
 #define ANDROID_FRAMEWORKS_ML_NN_RUNTIME_APP_INFO_FETCHER_H
 
-#include <map>
-#include <set>
 #include <string>
-#include <vector>
-
-#include "HalInterfaces.h"
-#include "Manager.h"
 
 namespace android {
 namespace nn {

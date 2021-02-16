@@ -17,15 +17,14 @@
 #ifndef ANDROID_FRAMEWORKS_ML_NN_DRIVER_SAMPLE_SAMPLE_DRIVER_PARTIAL_H
 #define ANDROID_FRAMEWORKS_ML_NN_DRIVER_SAMPLE_SAMPLE_DRIVER_PARTIAL_H
 
+#include <HalInterfaces.h>
+#include <Utils.h>
 #include <android-base/logging.h>
 
 #include <thread>
 #include <vector>
 
-#include "HalInterfaces.h"
 #include "SampleDriver.h"
-#include "Utils.h"
-#include "ValidateHal.h"
 
 namespace android {
 namespace nn {

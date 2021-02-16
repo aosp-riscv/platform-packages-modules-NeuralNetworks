@@ -16,20 +16,23 @@
 
 #define LOG_TAG "Operations"
 
+#include <algorithm>
+#include <iterator>
+#include <vector>
+
+#include "OperationResolver.h"
+#include "OperationsUtils.h"
+#include "Tracing.h"
+#include "nnapi/Validation.h"
+
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 #include <tensorflow/lite/kernels/internal/optimized/legacy_optimized_ops.h>
 #include <tensorflow/lite/kernels/internal/reference/legacy_reference_ops.h>
 #include <tensorflow/lite/kernels/internal/reference/reference_ops.h>
 #include <tensorflow/lite/kernels/internal/types.h>
 
-#include <algorithm>
-#include <iterator>
-#include <vector>
-
 #include "CpuOperationUtils.h"
-#include "OperationResolver.h"
-#include "OperationsUtils.h"
-#include "Tracing.h"
-#include "nnapi/Validation.h"
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 namespace android {
 namespace nn {
@@ -40,6 +43,7 @@ constexpr char kOperationName[] = "CONCATENATION";
 constexpr uint32_t kNumOutputs = 1;
 constexpr uint32_t kOutputTensor = 0;
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 namespace {
 
 template <typename T>
@@ -135,6 +139,7 @@ inline bool concatenation<int8_t>(IOperationExecutionContext* context) {
 }
 
 }  // namespace
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 Result<Version> validate(const IOperationValidationContext* context) {
     uint32_t inputCount = context->getNumInputs();
@@ -173,6 +178,7 @@ Result<Version> validate(const IOperationValidationContext* context) {
     return minSupportedVersion;
 }
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 bool prepare(IOperationExecutionContext* context) {
     uint32_t numInputs = context->getNumInputs();
     NN_RET_CHECK_GE(numInputs, 2);
@@ -220,6 +226,7 @@ bool execute(IOperationExecutionContext* context) {
             NN_RET_CHECK_FAIL() << "Unsupported tensor type for operation " << kOperationName;
     }
 }
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 }  // namespace concatenation
 

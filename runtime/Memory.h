@@ -17,13 +17,14 @@
 #ifndef ANDROID_FRAMEWORKS_ML_NN_RUNTIME_MEMORY_H
 #define ANDROID_FRAMEWORKS_ML_NN_RUNTIME_MEMORY_H
 
+#include <CpuExecutor.h>
+#include <LegacyUtils.h>
 #include <android-base/macros.h>
 #include <android-base/scopeguard.h>
 #include <nnapi/IBuffer.h>
 #include <nnapi/SharedMemory.h>
 #include <nnapi/Validation.h>
 #include <sys/mman.h>
-#include <vndk/hardware_buffer.h>
 
 #include <algorithm>
 #include <map>
@@ -35,9 +36,7 @@
 #include <utility>
 #include <vector>
 
-#include "CpuExecutor.h"
 #include "NeuralNetworks.h"
-#include "Utils.h"
 
 namespace android {
 namespace nn {

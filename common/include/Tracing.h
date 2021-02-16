@@ -17,8 +17,10 @@
 #ifndef ANDROID_FRAMEWORKS_ML_NN_COMMON_TRACING_H
 #define ANDROID_FRAMEWORKS_ML_NN_COMMON_TRACING_H
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 #define ATRACE_TAG ATRACE_TAG_NNAPI
 #include <utils/Trace.h>
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 // Neural Networks API (NNAPI) systracing
 //
@@ -149,6 +151,8 @@
 #define NNTRACE_LAYER_OTHER "LO"
 #define NNTRACE_LAYER_UTILITY "LU"  // Code used from multiple layers
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
+
 // Implementation
 //
 // Almost same as ATRACE_NAME, but enforcing explicit distinction between
@@ -162,6 +166,13 @@
 #define NNTRACE_NAME_SWITCH(name)                                      \
     android::ScopedTrace PASTE(___tracer, __LINE__)(ATRACE_TAG, name); \
     (void)___tracer_1  // ensure switch is only used after a basic trace
+
+#else
+
+#define NNTRACE_NAME_1(name)       // empty
+#define NNTRACE_NAME_SWITCH(name)  // empty
+
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 // Disallow use of raw ATRACE macros
 #undef ATRACE_NAME

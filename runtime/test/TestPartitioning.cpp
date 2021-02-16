@@ -14,6 +14,11 @@
  * limitations under the License.
  */
 
+#include <ControlFlow.h>
+#include <HalInterfaces.h>
+#include <SampleDriver.h>
+#include <Utils.h>
+#include <ValidateHal.h>
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -30,18 +35,13 @@
 #include <vector>
 
 #include "CompilationBuilder.h"
-#include "ControlFlow.h"
 #include "ExecutionPlan.h"
-#include "HalInterfaces.h"
 #include "HalUtils.h"
 #include "Manager.h"
 #include "ModelBuilder.h"
 #include "NeuralNetworks.h"
 #include "NeuralNetworksOEM.h"
-#include "SampleDriver.h"
 #include "TestNeuralNetworksWrapper.h"
-#include "Utils.h"
-#include "ValidateHal.h"
 
 // Uncomment the following line to generate some debugging output that
 // may be useful when analyzing failures:

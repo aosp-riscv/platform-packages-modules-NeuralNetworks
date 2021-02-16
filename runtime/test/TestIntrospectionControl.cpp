@@ -14,6 +14,10 @@
  * limitations under the License.
  */
 
+#include <ExecutionBurstServer.h>
+#include <HalInterfaces.h>
+#include <SampleDriver.h>
+#include <ValidateHal.h>
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -29,16 +33,11 @@
 #include <vector>
 
 #include "CompilationBuilder.h"
-#include "ExecutionBurstServer.h"
-#include "HalInterfaces.h"
 #include "HalUtils.h"
 #include "Manager.h"
 #include "NeuralNetworks.h"
 #include "NeuralNetworksOEM.h"
-#include "SampleDriver.h"
 #include "TestNeuralNetworksWrapper.h"
-#include "Utils.h"
-#include "ValidateHal.h"
 
 namespace {
 

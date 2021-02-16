@@ -28,8 +28,7 @@
 #include <vector>
 
 #include "GraphDump.h"
-#include "Utils.h"
-#include "ValidateHal.h"
+#include "LegacyUtils.h"
 #include "nnapi/TypeUtils.h"
 #include "nnapi/Types.h"
 #include "nnapi/Validation.h"

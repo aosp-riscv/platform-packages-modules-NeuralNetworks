@@ -24,12 +24,13 @@
 #include <utility>
 #include <vector>
 
+#include "TestHarness.h"
+
 #ifdef NNTEST_SLTS
 #include "SupportLibraryWrapper.h"
 #else
 #include "TestNeuralNetworksWrapper.h"
 #endif
-#include "TestHarness.h"
 
 namespace android::nn::generated_tests {
 

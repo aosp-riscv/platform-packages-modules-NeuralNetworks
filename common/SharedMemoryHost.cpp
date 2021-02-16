@@ -19,7 +19,6 @@
 #include <android-base/logging.h>
 #include <android-base/mapped_file.h>
 #include <cutils/ashmem.h>
-#include <cutils/native_handle.h>
 #include <sys/mman.h>
 
 #include <limits>

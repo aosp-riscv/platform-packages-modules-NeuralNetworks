@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
+#include <HalInterfaces.h>
+#include <ValidateHal.h>
 #include <gtest/gtest.h>
 
 #include <vector>
 
 #include "FibonacciDriver.h"
 #include "FibonacciExtension.h"
-#include "HalInterfaces.h"
 #include "HalUtils.h"
 #include "Manager.h"
 #include "NeuralNetworks.h"
@@ -28,8 +29,6 @@
 #include "NeuralNetworksWrapperExtensions.h"
 #include "TestNeuralNetworksWrapper.h"
 #include "TypeManager.h"
-#include "Utils.h"
-#include "ValidateHal.h"
 
 namespace android {
 namespace nn {

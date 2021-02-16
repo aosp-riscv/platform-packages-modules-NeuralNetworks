@@ -16,6 +16,7 @@
 
 #include "CanonicalPreparedModel.h"
 
+#include <Tracing.h>
 #include <nnapi/IPreparedModel.h>
 #include <nnapi/Result.h>
 #include <nnapi/TypeUtils.h>
@@ -29,7 +30,6 @@
 
 #include "CanonicalBurst.h"
 #include "CanonicalDevice.h"
-#include "Tracing.h"
 
 namespace android::nn::sample {
 namespace {

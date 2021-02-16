@@ -18,10 +18,10 @@
 
 #include "SampleDriverFull.h"
 
-#include <vector>
+#include <Utils.h>
+#include <ValidateHal.h>
 
-#include "Utils.h"
-#include "ValidateHal.h"
+#include <vector>
 
 namespace android {
 namespace nn {

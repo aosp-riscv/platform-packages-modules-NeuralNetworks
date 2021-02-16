@@ -58,6 +58,7 @@ constexpr uint32_t kBwOutputTensor = 1;  // Only if mergeOutputs parameter is fa
 constexpr uint32_t kFwOutputHiddenStateTensor = 2;
 constexpr uint32_t kBwOutputHiddenStateTensor = 3;
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 namespace {
 
 template <typename T>
@@ -312,6 +313,7 @@ bool executeTyped(IOperationExecutionContext* context) {
 }
 
 }  // namespace
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 Result<Version> validate(const IOperationValidationContext* context) {
     NN_RET_CHECK_EQ(context->getNumInputs(), kNumInputs);
@@ -341,6 +343,7 @@ Result<Version> validate(const IOperationValidationContext* context) {
     return minSupportedVersion;
 }
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 bool prepare(IOperationExecutionContext* context) {
     const bool mergeOutputs = context->getInputValue<bool>(kMergeOutputsParam);
     const int32_t numOutputs = context->getNumOutputs();
@@ -468,6 +471,7 @@ bool execute(IOperationExecutionContext* context) {
     }
     return true;
 }
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 }  // namespace bidirectional_sequence_rnn
 

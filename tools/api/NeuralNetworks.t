@@ -61,19 +61,19 @@ typedef enum {
 
 %insert Operation_1.0_Comment
 typedef enum {
-    // Operations below are available since API level 27.
+    // Operations below are available since NNAPI feature level 1.
 
 %insert Operation_1.0
 
-    // Operations below are available since API level 28.
+    // Operations below are available since NNAPI feature level 2.
 
 %insert Operation_1.1
 
-    // Operations below are available since API level 29.
+    // Operations below are available since NNAPI feature level 3.
 
 %insert Operation_1.2
 
-    // Operations below are available since API level 30.
+    // Operations below are available since NNAPI feature level 4.
 
 %insert Operation_1.3
 } OperationCode;
@@ -82,7 +82,7 @@ typedef enum {
  * Fused activation function types.
  *
  *
- * Available since API level 27.
+ * Available since NNAPI feature level 1.
  */
 typedef enum {
     /** NO fused activation function. */
@@ -99,7 +99,7 @@ typedef enum {
  * Implicit padding algorithms.
  *
  *
- * Available since API level 27.
+ * Available since NNAPI feature level 1.
  */
 typedef enum {
     /**
@@ -133,7 +133,7 @@ typedef enum {
 /**
  * Execution preferences.
  *
- * Available since API level 27.
+ * Available since NNAPI feature level 1.
  */
 typedef enum {
     /**
@@ -173,6 +173,38 @@ typedef enum {
 } DeviceTypeCode;
 
 /**
+ * NNAPI feature levels.
+ *
+ * Each update of the NNAPI specification yields a new NNAPI feature level enum value.
+ * NNAPI feature level corrseponds to an NNAPI specification version that a driver
+ * and/or the NNAPI runtime can implement.
+ *
+ * A feature level up to and including "FEATURE_LEVEL_5" maps directly to
+ * the Android API level that introduced the corresponding update of the NNAPI
+ * specification. Feature levels after Android API level 31 have no association with
+ * API level because the NNAPI specification can be updated between Android API
+ * releases. Outputs of {@link ANeuralNetworksDevice_getFeatureLevel} and
+ * {@link ANeuralNetworks_getRuntimeFeatureLevel} must be compared against
+ * these enum values instead of the Android API level.
+ */
+typedef enum {
+    /** NNAPI specification available in Android O-MR1, Android NNAPI feature level 1 */
+    ANEURALNETWORKS_FEATURE_LEVEL_1 = 27,
+    /** NNAPI specification available in Android P, Android NNAPI feature level 2 */
+    ANEURALNETWORKS_FEATURE_LEVEL_2 = 28,
+    /** NNAPI specification available in Android Q, Android NNAPI feature level 3 */
+    ANEURALNETWORKS_FEATURE_LEVEL_3 = 29,
+    /** NNAPI specification available in Android R, Android NNAPI feature level 4 */
+    ANEURALNETWORKS_FEATURE_LEVEL_4 = 30,
+    /**
+     * NNAPI specification available in Android S, Android NNAPI feature level 5.
+     * After Android S, the NNAPI specification can be updated between Android
+     * API releases.
+     */
+    ANEURALNETWORKS_FEATURE_LEVEL_5 = 31,
+} FeatureLevelCode;
+
+/**
  * Result codes.
  *
  * <p>Any NNAPI function can return any result code, including result codes not
@@ -183,7 +215,7 @@ typedef enum {
  * the device log after enabling NNAPI debugging by setting the debug.nn.vlog
  * property to 1, e.g., by calling "adb shell setprop debug.nn.vlog 1".</p>
  *
- * Available since API level 27.
+ * Available since NNAPI feature level 1.
  */
 typedef enum {
     /**
@@ -241,7 +273,7 @@ typedef enum {
      * Failure because a deadline could not be met for a task, but future
      * deadlines may still be met for the same task after a short delay.
      *
-     * Available since API level 30.
+     * Available since NNAPI feature level 4.
      */
     ANEURALNETWORKS_MISSED_DEADLINE_TRANSIENT = 10,
 
@@ -250,7 +282,7 @@ typedef enum {
      * deadlines will likely also not be met for the same task even after a
      * short delay.
      *
-     * Available since API level 30.
+     * Available since NNAPI feature level 4.
      */
     ANEURALNETWORKS_MISSED_DEADLINE_PERSISTENT = 11,
 
@@ -258,7 +290,7 @@ typedef enum {
      * Failure because of a resource limitation within the driver, but future
      * calls for the same task may still succeed after a short delay.
      *
-     * Available since API level 30.
+     * Available since NNAPI feature level 4.
      */
     ANEURALNETWORKS_RESOURCE_EXHAUSTED_TRANSIENT = 12,
 
@@ -267,14 +299,14 @@ typedef enum {
      * calls for the same task will likely also fail even after a short
      * delay.
      *
-     * Available since API level 30.
+     * Available since NNAPI feature level 4.
      */
     ANEURALNETWORKS_RESOURCE_EXHAUSTED_PERSISTENT = 13,
 
     /**
      * Failure indicating an object is in a dead state.
      *
-     * Available since API level 30.
+     * Available since NNAPI feature level 4.
      */
     ANEURALNETWORKS_DEAD_OBJECT = 14,
 } ResultCode;
@@ -284,7 +316,7 @@ typedef enum {
  * length smaller or equal to this will be immediately copied into
  * the model. The size is in bytes.
  *
- * Available since API level 27.
+ * Available since NNAPI feature level 1.
  */
 enum { ANEURALNETWORKS_MAX_SIZE_OF_IMMEDIATELY_COPIED_VALUES = 128 };
 
@@ -292,7 +324,7 @@ enum { ANEURALNETWORKS_MAX_SIZE_OF_IMMEDIATELY_COPIED_VALUES = 128 };
  * For {@link ANeuralNetworksCompilation_setCaching}, specify the size
  * of the cache token required from the application. The size is in bytes.
  *
- * Available since API level 29.
+ * Available since NNAPI feature level 3.
  */
 enum { ANEURALNETWORKS_BYTE_SIZE_OF_CACHE_TOKEN = 32 };
 
@@ -301,7 +333,7 @@ enum { ANEURALNETWORKS_BYTE_SIZE_OF_CACHE_TOKEN = 32 };
  *
  * Durations are measured in nanoseconds.
  *
- * Available since API level 29.
+ * Available since NNAPI feature level 3.
  */
 typedef enum {
     // Execution time on hardware (not driver, which runs on host processor).
@@ -314,7 +346,7 @@ typedef enum {
     // If no dependencies specified (for example, if the execution was scheduled other
     // than with {@link ANeuralNetworksExecution_startComputeWithDependencies}), the
     // reported time will be the same as ANEURALNETWORKS_DURATION_ON_HARDWARE.
-    // Available since API level 30.
+    // Available since NNAPI feature level 4.
     ANEURALNETWORKS_FENCED_DURATION_ON_HARDWARE = 2,
     // Execution time in driver, after all dependencies have been signaled. Excludes
     // overhead such as that of the runtime itself and the IPC needed for the runtime
@@ -322,14 +354,14 @@ typedef enum {
     // If no dependencies specified (for example, if the execution was scheduled other
     // than with {@link ANeuralNetworksExecution_startComputeWithDependencies}), the
     // reported time will be the same as ANEURALNETWORKS_DURATION_IN_DRIVER.
-    // Available since API level 30.
+    // Available since NNAPI feature level 4.
     ANEURALNETWORKS_FENCED_DURATION_IN_DRIVER = 3,
 } DurationCode;
 
 /**
  * Relative execution priority.
  *
- * Available since API level 30.
+ * Available since NNAPI feature level 4.
  */
 typedef enum {
     ANEURALNETWORKS_PRIORITY_LOW = 90,
@@ -373,10 +405,10 @@ typedef enum {
  * because of a call to {@link ANeuralNetworksExecution_setInputFromMemory} or
  * {@link ANeuralNetworksExecution_setOutputFromMemory}.
  *
- * Available since API level 27.
+ * Available since NNAPI feature level 1.
  *
- * Starting at API level 30, the application may request creation of device native memory from
- * {@link ANeuralNetworksMemoryDesc} to avoid potential memory copying and transformation
+ * Starting at NNAPI feature level 4, the application may request creation of device native memory
+ * from {@link ANeuralNetworksMemoryDesc} to avoid potential memory copying and transformation
  * overhead between executions. See also {@link ANeuralNetworksMemoryDesc} and
  * {@link ANeuralNetworksMemory_createFromDesc}.
  */
@@ -413,7 +445,7 @@ typedef struct ANeuralNetworksMemory ANeuralNetworksMemory;
  * This includes any compilation, execution object or burst object created using
  * the model.</p>
  *
- * Available since API level 27.
+ * Available since NNAPI feature level 1.
  */
 typedef struct ANeuralNetworksModel ANeuralNetworksModel;
 
@@ -454,7 +486,7 @@ typedef struct ANeuralNetworksModel ANeuralNetworksModel;
  * {@link ANeuralNetworksMemoryDesc_addInputRole} or
  * {@link ANeuralNetworksMemoryDesc_addOutputRole}.</p>
  *
- * Available since API level 27.
+ * Available since NNAPI feature level 1.
  */
 typedef struct ANeuralNetworksCompilation ANeuralNetworksCompilation;
 
@@ -531,7 +563,7 @@ typedef struct ANeuralNetworksCompilation ANeuralNetworksCompilation;
  * {@link ANeuralNetworksExecution_startComputeWithDependencies} to make the execution wait for a
  * list of events to be signaled before starting the actual evaluation.</p>
  *
- * Available since API level 27.
+ * Available since NNAPI feature level 1.
  */
 typedef struct ANeuralNetworksExecution ANeuralNetworksExecution;
 
@@ -576,7 +608,7 @@ typedef struct ANeuralNetworksSymmPerChannelQuantParams {
  *    <li>Destroy the burst with
  *        {@link ANeuralNetworksBurst_free}.</li></ul></p>
  *
- * Available since API level 29.
+ * Available since NNAPI feature level 3.
  */
 typedef struct ANeuralNetworksBurst ANeuralNetworksBurst;
 
@@ -628,9 +660,9 @@ typedef struct ANeuralNetworksBurst ANeuralNetworksBurst;
  * unspecified dimensions is represented by setting dimensionCount to
  * the rank and each unspecified dimension to 0.
  *
- * Available since API level 27.
+ * Available since NNAPI feature level 1.
  *
- * Starting at API level 29, a tensor operand type of unspecified rank is
+ * Starting at NNAPI feature level 3, a tensor operand type of unspecified rank is
  * represented by setting dimensionCount to 0 and dimensions to NULL (just as if
  * it were a scalar operand type).
  */
@@ -679,7 +711,7 @@ typedef int32_t ANeuralNetworksOperationType;
  * ANeuralNetworksEvent is an opaque type that represents an event
  * that will be signaled once an execution completes.
  *
- * Available since API level 27.
+ * Available since NNAPI feature level 1.
  */
 typedef struct ANeuralNetworksEvent ANeuralNetworksEvent;
 
@@ -689,7 +721,7 @@ typedef struct ANeuralNetworksEvent ANeuralNetworksEvent;
  * This type is used to query basic properties and supported operations of the corresponding
  * device, and control which device(s) a model is to be run on.
  *
- * Available since API level 29.
+ * Available since NNAPI feature level 3.
  */
 typedef struct ANeuralNetworksDevice ANeuralNetworksDevice;
 
@@ -727,7 +759,7 @@ typedef struct ANeuralNetworksDevice ANeuralNetworksDevice;
  * It is however safe to continue using a {@link ANeuralNetworksMemory} object created
  * from the memory descriptor.
  *
- * Available since API level 30.
+ * Available since NNAPI feature level 4.
  */
 typedef struct ANeuralNetworksMemoryDesc ANeuralNetworksMemoryDesc;
 
@@ -744,7 +776,7 @@ typedef struct ANeuralNetworksMemoryDesc ANeuralNetworksMemoryDesc;
  * {@link ANeuralNetworksMemoryDesc_free} must be called once the memory descriptor
  * is no longer needed.
  *
- * Available since API level 30.
+ * Available since NNAPI feature level 4.
  *
  * @param desc The {@link ANeuralNetworksMemoryDesc} to be created.
  *             Set to NULL if unsuccessful.
@@ -761,7 +793,7 @@ int ANeuralNetworksMemoryDesc_create(ANeuralNetworksMemoryDesc** desc) __INTRODU
  *
  * See {@link ANeuralNetworksMemoryDesc} for information on multithreaded usage.
  *
- * Available since API level 30.
+ * Available since NNAPI feature level 4.
  *
  * @param desc The memory descriptor to be destroyed. Passing NULL is acceptable and
  *             results in no operation.
@@ -793,7 +825,7 @@ void ANeuralNetworksMemoryDesc_free(ANeuralNetworksMemoryDesc* desc) __INTRODUCE
  *
  * See {@link ANeuralNetworksMemoryDesc} for information on multithreaded usage.
  *
- * Available since API level 30.
+ * Available since NNAPI feature level 4.
  *
  * @param desc The memory descriptor to be modified.
  * @param compilation The compilation object. It must already have been finished by calling
@@ -839,7 +871,7 @@ int ANeuralNetworksMemoryDesc_addInputRole(ANeuralNetworksMemoryDesc* desc,
  *
  * See {@link ANeuralNetworksMemoryDesc} for information on multithreaded usage.
  *
- * Available since API level 30.
+ * Available since NNAPI feature level 4.
  *
  * @param desc The memory descriptor to be modified.
  * @param compilation The compilation object. It must already have been finished by calling
@@ -874,7 +906,7 @@ int ANeuralNetworksMemoryDesc_addOutputRole(ANeuralNetworksMemoryDesc* desc,
  *
  * See {@link ANeuralNetworksMemoryDesc} for information on multithreaded usage.
  *
- * Available since API level 30.
+ * Available since NNAPI feature level 4.
  *
  * @param desc The memory descriptor to be modified.
  * @param rank The number of dimensions. Must be 0 for scalars.
@@ -894,7 +926,7 @@ int ANeuralNetworksMemoryDesc_setDimensions(ANeuralNetworksMemoryDesc* desc, uin
  *
  * See {@link ANeuralNetworksMemoryDesc} for information on multithreaded usage.
  *
- * Available since API level 30.
+ * Available since NNAPI feature level 4.
  *
  * @param desc The memory descriptor to be finished.
  *
@@ -945,7 +977,7 @@ int ANeuralNetworksMemoryDesc_finish(ANeuralNetworksMemoryDesc* desc) __INTRODUC
  * The provided {@link ANeuralNetworksMemoryDesc} need not outlive the {@link ANeuralNetworksMemory}
  * object.
  *
- * Available since API level 30.
+ * Available since NNAPI feature level 4.
  *
  * @param desc The memory descriptor.
  * @param memory The memory object to be created.
@@ -987,7 +1019,7 @@ int ANeuralNetworksMemory_createFromDesc(const ANeuralNetworksMemoryDesc* desc,
  * The src and dst may have different data layout, in which case the data copying is performed
  * logically with data layout transformation.
  *
- * Available since API level 30.
+ * Available since NNAPI feature level 4.
  *
  * @param src The source memory object.
  * @param dst The destination memory object.
@@ -1004,7 +1036,7 @@ int ANeuralNetworksMemory_copy(const ANeuralNetworksMemory* src, const ANeuralNe
  *
  * @return ANEURALNETWORKS_NO_ERROR if successful.
  *
- * Available since API level 29.
+ * Available since NNAPI feature level 3.
  */
 int ANeuralNetworks_getDeviceCount(uint32_t* numDevices) __INTRODUCED_IN(29);
 
@@ -1019,7 +1051,7 @@ int ANeuralNetworks_getDeviceCount(uint32_t* numDevices) __INTRODUCED_IN(29);
  *
  * @return ANEURALNETWORKS_NO_ERROR if successful.
  *
- * Available since API level 29.
+ * Available since NNAPI feature level 3.
  */
 int ANeuralNetworks_getDevice(uint32_t devIndex, ANeuralNetworksDevice** device)
         __INTRODUCED_IN(29);
@@ -1031,14 +1063,15 @@ int ANeuralNetworks_getDevice(uint32_t devIndex, ANeuralNetworksDevice** device)
  * @param name   The returned name of the specified device. The name will be in UTF-8
  *               and will be null-terminated. It will be recognizable as a known device name
  *               rather than a cryptic string. For devices with feature level reported by
- *               {@link ANeuralNetworksDevice_getFeatureLevel} that is 29 and above, the
- *               format of the name is {VENDOR}-{DEVICE}. For devices with feature level 28
- *               or lower, the format of the name is undefined.
- *               The name will remain valid for the duration of the application.
+ *               {@link ANeuralNetworksDevice_getFeatureLevel} that is
+ *               (@link ANEURALNETWORKS_FEATURE_LEVEL_3} and above, the format of the name is
+ *               {VENDOR}-{DEVICE}. For devices with feature level
+ *               (@link ANEURALNETWORKS_FEATURE_LEVEL_2} or lower, the format of the name is
+ *               undefined. The name will remain valid for the duration of the application.
  *
  * @return ANEURALNETWORKS_NO_ERROR if successful.
  *
- * Available since API level 29.
+ * Available since NNAPI feature level 3.
  */
 int ANeuralNetworksDevice_getName(const ANeuralNetworksDevice* device, const char** name)
         __INTRODUCED_IN(29);
@@ -1057,7 +1090,7 @@ int ANeuralNetworksDevice_getName(const ANeuralNetworksDevice* device, const cha
  *
  * @return ANEURALNETWORKS_NO_ERROR if successful.
  *
- * Available since API level 29.
+ * Available since NNAPI feature level 3.
  */
 int ANeuralNetworksDevice_getType(const ANeuralNetworksDevice* device, int32_t* type)
         __INTRODUCED_IN(29);
@@ -1087,26 +1120,34 @@ int ANeuralNetworksDevice_getType(const ANeuralNetworksDevice* device, int32_t* 
  *
  * @return ANEURALNETWORKS_NO_ERROR if successful.
  *
- * Available since API level 29.
+ * Available since NNAPI feature level 3.
  */
 int ANeuralNetworksDevice_getVersion(const ANeuralNetworksDevice* device, const char** version)
         __INTRODUCED_IN(29);
 
 /**
- * Get the supported NNAPI version of the specified device.
+ * Get the NNAPI feature level of the specified NNAPI device.
  *
- * Each device has a supported feature level, which is the most advanced feature this driver
- * implements. For example, if the driver implements the features introduced in Android P,
- * but does not implement the features introduced after Android P, the value would be 28.
- * Developers could decide whether or not the specified device should be used for a Model that
- * has certain feature requirements.
+ * Each device has a supported feature level, which is the most advanced NNAPI specification
+ * and features this driver implements. For example, if the driver implements the features
+ * introduced in {@link ANEURALNETWORKS_FEATURE_LEVEL_2}, but does not implement the features
+ * introduced after {@link ANEURALNETWORKS_FEATURE_LEVEL_2}, the value would be
+ * {@link ANEURALNETWORKS_FEATURE_LEVEL_2}. Developers could decide whether or not the specified
+ * device should be used for a model that has certain feature requirements.
+ *
+ * NNAPI device feature level is closely related to NNAPI runtime feature level
+ * ({@link ANeuralNetworks_getRuntimeFeatureLevel}), which indicates an NNAPI runtime feature
+ * level (the most advanced NNAPI specification and features that the runtime implements).
+ * An NNAPI device feature level is always less than or equal to the runtime feature level.
+ *
+ * This function produces a {@link FeatureLevelCode} enum value, NOT an Android API level.
  *
  * @param device The representation of the specified device.
- * @param featureLevel The API level of the most advanced feature this driver implements.
+ * @param featureLevel {@link FeatureLevelCode} of the most advanced feature this driver implements.
  *
  * @return ANEURALNETWORKS_NO_ERROR if successful.
  *
- * Available since API level 29.
+ * Available since NNAPI feature level 3.
  */
 int ANeuralNetworksDevice_getFeatureLevel(const ANeuralNetworksDevice* device,
                                           int64_t* featureLevel) __INTRODUCED_IN(29);
@@ -1123,7 +1164,7 @@ int ANeuralNetworksDevice_getFeatureLevel(const ANeuralNetworksDevice* device,
  *
  * @return ANEURALNETWORKS_NO_ERROR if successful.
  *
- * Available since API level 30.
+ * Available since NNAPI feature level 4.
  */
 int ANeuralNetworksDevice_wait(const ANeuralNetworksDevice* device) __INTRODUCED_IN(30);
 
@@ -1142,7 +1183,7 @@ int ANeuralNetworksDevice_wait(const ANeuralNetworksDevice* device) __INTRODUCED
  *
  * @return ANEURALNETWORKS_NO_ERROR if successful.
  *
- * Available since API level 29.
+ * Available since NNAPI feature level 3.
  */
 int ANeuralNetworksModel_getSupportedOperationsForDevices(
         const ANeuralNetworksModel* model, const ANeuralNetworksDevice* const* devices,
@@ -1173,7 +1214,7 @@ int ANeuralNetworksModel_getSupportedOperationsForDevices(
  * @return ANEURALNETWORKS_NO_ERROR if successful, ANEURALNETWORKS_BAD_DATA
  *         if the model is invalid.
  *
- * Available since API level 29.
+ * Available since NNAPI feature level 3.
  */
 int ANeuralNetworksCompilation_createForDevices(ANeuralNetworksModel* model,
                                                 const ANeuralNetworksDevice* const* devices,
@@ -1204,7 +1245,7 @@ int ANeuralNetworksCompilation_createForDevices(ANeuralNetworksModel* model,
  *
  * @return ANEURALNETWORKS_NO_ERROR if successful.
  *
- * Available since API level 29.
+ * Available since NNAPI feature level 3.
  */
 int ANeuralNetworksCompilation_setCaching(ANeuralNetworksCompilation* compilation,
                                           const char* cacheDir, const uint8_t* token)
@@ -1236,7 +1277,7 @@ int ANeuralNetworksCompilation_setCaching(ANeuralNetworksCompilation* compilatio
  * See {@link ANeuralNetworksExecution_startComputeWithDependencies} for
  * asynchronous execution with dependencies.
  *
- * Available since API level 29.
+ * Available since NNAPI feature level 3.
  *
  * @param execution The execution to be scheduled and executed.
  *
@@ -1266,7 +1307,7 @@ int ANeuralNetworksExecution_compute(ANeuralNetworksExecution* execution) __INTR
  *         if the target output is provided an insufficient buffer at execution time,
  *         ANEURALNETWORKS_BAD_DATA if the index is invalid.
  *
- * Available since API level 29.
+ * Available since NNAPI feature level 3.
  */
 int ANeuralNetworksExecution_getOutputOperandRank(ANeuralNetworksExecution* execution,
                                                   int32_t index, uint32_t* rank)
@@ -1292,7 +1333,7 @@ int ANeuralNetworksExecution_getOutputOperandRank(ANeuralNetworksExecution* exec
  *         if the target output is provided an insufficient buffer at execution time,
  *         ANEURALNETWORKS_BAD_DATA if the index is invalid or if the target is a scalar.
  *
- * Available since API level 29.
+ * Available since NNAPI feature level 3.
  */
 int ANeuralNetworksExecution_getOutputOperandDimensions(ANeuralNetworksExecution* execution,
                                                         int32_t index, uint32_t* dimensions)
@@ -1306,7 +1347,7 @@ int ANeuralNetworksExecution_getOutputOperandDimensions(ANeuralNetworksExecution
  *
  * <p>The provided compilation must outlive the burst object.</p>
  *
- * Available since API level 29.
+ * Available since NNAPI feature level 3.
  *
  * @param compilation The {@link ANeuralNetworksCompilation} to be evaluated.
  * @param burst The newly created object or NULL if unsuccessful.
@@ -1320,7 +1361,7 @@ int ANeuralNetworksBurst_create(ANeuralNetworksCompilation* compilation,
 /**
  * Destroys the burst object.
  *
- * Available since API level 29.
+ * Available since NNAPI feature level 3.
  *
  * @param burst The burst object to be destroyed. Passing NULL is acceptable and
  *              results in no operation.
@@ -1342,8 +1383,8 @@ void ANeuralNetworksBurst_free(ANeuralNetworksBurst* burst) __INTRODUCED_IN(29);
  * the condition model does not output false within the loop timeout duration,
  * then execution will be aborted and {@link ANEURALNETWORKS_MISSED_DEADLINE_*}
  * will be returned. If the device has a feature level reported by
- * {@link ANeuralNetworksDevice_getFeatureLevel} that is lower than 30, then the
- * timeout duration hint will be ignored.
+ * {@link ANeuralNetworksDevice_getFeatureLevel} that is lower than
+ * {@link ANEURALNETWORKS_FEATURE_LEVEL_4}, then the timeout duration hint will be ignored.
  *
  * <p>There must be at most one {@link ANeuralNetworksExecution} processing at
  * any given time for any given burst object. Any
@@ -1355,7 +1396,7 @@ void ANeuralNetworksBurst_free(ANeuralNetworksBurst* burst) __INTRODUCED_IN(29);
  * See {@link ANeuralNetworksExecution_startComputeWithDependencies} for
  * asynchronous execution with dependencies.
  *
- * Available since API level 29.
+ * Available since NNAPI feature level 3.
  *
  * @param burst The burst object to execute on.
  * @param execution The execution to be scheduled and executed. The execution
@@ -1375,7 +1416,7 @@ int ANeuralNetworksExecution_burstCompute(ANeuralNetworksExecution* execution,
  * {@link ANeuralNetworksMemory} for a description on how to use this shared memory.
  *
  * If the shared memory is backed by an AHardwareBuffer of a format other than
- * AHARDWAREBUFFER_FORMAT_BLOB, it can only be used for Model inputs and outputs.
+ * AHARDWAREBUFFER_FORMAT_BLOB, it can only be used for model inputs and outputs.
  * When calling {@link ANeuralNetworksExecution_setInputFromMemory} or
  * {@link ANeuralNetworksExecution_setOutputFromMemory} with the shared memory, both
  * offset and length must be set to zero and the entire memory region will be
@@ -1390,7 +1431,7 @@ int ANeuralNetworksExecution_burstCompute(ANeuralNetworksExecution* execution,
  *
  * The provided AHardwareBuffer must outlive the ANeuralNetworksMemory object.
  *
- * Available since API level 29.
+ * Available since NNAPI feature level 3.
  *
  * @param ahwb The AHardwareBuffer handle.
  * @param memory The memory object to be created.
@@ -1415,12 +1456,12 @@ int ANeuralNetworksMemory_createFromAHardwareBuffer(const AHardwareBuffer* ahwb,
  * {@link ANeuralNetworksCompilation} which in turn was created from
  * {@link ANeuralNetworksCompilation_createForDevices} with numDevices = 1.
  * If the device has a feature level reported by
- * {@link ANeuralNetworksDevice_getFeatureLevel} that is lower than 29, then the
- * duration will not be measured.
+ * {@link ANeuralNetworksDevice_getFeatureLevel} that is lower than
+ * {@link ANEURALNETWORKS_FEATURE_LEVEL_3}, then the duration will not be measured.
  *
  * See {@link ANeuralNetworksExecution} for information on multithreaded usage.
  *
- * Available since API level 29.
+ * Available since NNAPI feature level 3.
  *
  * @param execution The execution to be modified.
  * @param measure 'true' if duration is to be measured, 'false' if not.
@@ -1444,13 +1485,13 @@ int ANeuralNetworksExecution_setMeasureTiming(ANeuralNetworksExecution* executio
  *                 {@link ANeuralNetworksExecution_setMeasureTiming}, if the
  *                 device is has a feature level reported by
  *                 {@link ANeuralNetworksDevice_getFeatureLevel} that is lower
- *                 than 29, or for some other reason the duration is not
- *                 available, UINT64_MAX will be returned. A particular device
- *                 need not support any given measurement.
+ *                 than {@link ANEURALNETWORKS_FEATURE_LEVEL_3}, or for some other
+ *                 reason the duration is not available, UINT64_MAX will be returned.
+ *                 A particular device need not support any given measurement.
  *
  * @return ANEURALNETWORKS_NO_ERROR if successful.
  *
- * Available since API level 29.
+ * Available since NNAPI feature level 3.
  */
 int ANeuralNetworksExecution_getDuration(const ANeuralNetworksExecution* execution,
                                          int32_t durationCode, uint64_t* duration)
@@ -1463,7 +1504,7 @@ int ANeuralNetworksExecution_getDuration(const ANeuralNetworksExecution* executi
  * See {@link ANeuralNetworksMemory} for a description on how to use
  * this shared memory.
  *
- * Available since API level 27.
+ * Available since NNAPI feature level 1.
  *
  * @param size The requested size in bytes.
  *             Must not be larger than the file size.
@@ -1490,7 +1531,7 @@ int ANeuralNetworksMemory_createFromFd(size_t size, int protect, int fd, size_t 
  * This will free the underlying actual memory if no other code has open
  * handles to this memory.
  *
- * Available since API level 27.
+ * Available since NNAPI feature level 1.
  *
  * @param memory The memory object to be freed. Passing NULL is acceptable and
  *               results in no operation.
@@ -1516,7 +1557,7 @@ void ANeuralNetworksMemory_free(ANeuralNetworksMemory* memory) __INTRODUCED_IN(2
  * <p>{@link ANeuralNetworksModel_free} should be called once the model
  * is no longer needed.</p>
  *
- * Available since API level 27.
+ * Available since NNAPI feature level 1.
  *
  * @param model The {@link ANeuralNetworksModel} to be created.
  *              Set to NULL if unsuccessful.
@@ -1533,7 +1574,7 @@ int ANeuralNetworksModel_create(ANeuralNetworksModel** model) __INTRODUCED_IN(27
  *
  * See {@link ANeuralNetworksModel} for information on multithreaded usage.
  *
- * Available since API level 27.
+ * Available since NNAPI feature level 1.
  *
  * @param model The model to be destroyed. Passing NULL is acceptable and
  *              results in no operation.
@@ -1552,7 +1593,7 @@ void ANeuralNetworksModel_free(ANeuralNetworksModel* model) __INTRODUCED_IN(27);
  *
  * See {@link ANeuralNetworksModel} for information on multithreaded usage.
  *
- * Available since API level 27.
+ * Available since NNAPI feature level 1.
  *
  * @param model The model to be finished.
  *
@@ -1600,7 +1641,7 @@ int ANeuralNetworksModel_finish(ANeuralNetworksModel* model) __INTRODUCED_IN(27)
  *
  * See {@link ANeuralNetworksModel} for information on multithreaded usage.
  *
- * Available since API level 27.
+ * Available since NNAPI feature level 1.
  *
  * @param model The model to be modified.
  * @param type The {@link ANeuralNetworksOperandType} that describes the shape
@@ -1639,7 +1680,7 @@ int ANeuralNetworksModel_addOperand(ANeuralNetworksModel* model,
  *
  * See {@link ANeuralNetworksModel} for information on multithreaded usage.
  *
- * Available since API level 27.
+ * Available since NNAPI feature level 1.
  *
  * @param model The model to be modified.
  * @param index The index of the model operand we're setting.
@@ -1660,7 +1701,7 @@ int ANeuralNetworksModel_setOperandValue(ANeuralNetworksModel* model, int32_t in
  * {@link ANEURALNETWORKS_TENSOR_QUANT8_SYMM_PER_CHANNEL} before
  * calling {@link ANeuralNetworksModel_finish}.
  *
- * Available since API level 29.
+ * Available since NNAPI feature level 3.
  *
  * @param model The model to be modified.
  * @param index The index of the model operand we're setting.
@@ -1701,7 +1742,7 @@ int ANeuralNetworksModel_setOperandSymmPerChannelQuantParams(
  * See {@link ANeuralNetworksMemory_createFromAHardwareBuffer} for information on
  * AHardwareBuffer usage.
  *
- * Available since API level 27.
+ * Available since NNAPI feature level 1.
  *
  * @param model The model to be modified.
  * @param index The index of the model operand we're setting.
@@ -1735,7 +1776,7 @@ int ANeuralNetworksModel_setOperandValueFromMemory(ANeuralNetworksModel* model, 
  *
  * See {@link ANeuralNetworksModel} for information on multithreaded usage.
  *
- * Available since API level 30.
+ * Available since NNAPI feature level 4.
  *
  * @param model The model to be modified.
  * @param index The index of the model operand we're setting.
@@ -1765,7 +1806,7 @@ int ANeuralNetworksModel_setOperandValueFromModel(ANeuralNetworksModel* model, i
  *
  * See {@link ANeuralNetworksModel} for information on multithreaded usage.
  *
- * Available since API level 27.
+ * Available since NNAPI feature level 1.
  *
  * @return ANEURALNETWORKS_NO_ERROR if successful.
  */
@@ -1795,7 +1836,7 @@ int ANeuralNetworksModel_addOperation(ANeuralNetworksModel* model,
  *
  * See {@link ANeuralNetworksModel} for information on multithreaded usage.
  *
- * Available since API level 27.
+ * Available since NNAPI feature level 1.
  *
  */
 int ANeuralNetworksModel_identifyInputsAndOutputs(ANeuralNetworksModel* model, uint32_t inputCount,
@@ -1823,7 +1864,7 @@ int ANeuralNetworksModel_identifyInputsAndOutputs(ANeuralNetworksModel* model, u
  * Attempting to modify a model once {@link ANeuralNetworksModel_finish} has been
  * called will return an error.
  *
- * Available since API level 28.
+ * Available since NNAPI feature level 2.
  *
  * See {@link ANeuralNetworksModel} for information on multithreaded usage.
  */
@@ -1853,7 +1894,7 @@ int ANeuralNetworksModel_relaxComputationFloat32toFloat16(ANeuralNetworksModel* 
  *
  * See {@link ANeuralNetworksCompilation} for information on multithreaded usage.
  *
- * Available since API level 27.
+ * Available since NNAPI feature level 1.
  *
  * @param model The {@link ANeuralNetworksModel} to be compiled.
  * @param compilation The newly created object or NULL if unsuccessful.
@@ -1872,7 +1913,7 @@ int ANeuralNetworksCompilation_create(ANeuralNetworksModel* model,
  *
  * See {@link ANeuralNetworksCompilation} for information on multithreaded usage.
  *
- * Available since API level 27.
+ * Available since NNAPI feature level 1.
  *
  * @param compilation The compilation to be destroyed. Passing NULL is acceptable and
  *                    results in no operation.
@@ -1887,7 +1928,7 @@ void ANeuralNetworksCompilation_free(ANeuralNetworksCompilation* compilation) __
  *
  * See {@link ANeuralNetworksCompilation} for information on multithreaded usage.
  *
- * Available since API level 27.
+ * Available since NNAPI feature level 1.
  *
  * @param compilation The compilation to be modified.
  * @param preference Either {@link PREFER_LOW_POWER},
@@ -1916,7 +1957,7 @@ int ANeuralNetworksCompilation_setPreference(ANeuralNetworksCompilation* compila
  *
  * See {@link ANeuralNetworksCompilation} for information on multithreaded usage.
  *
- * Available since API level 27.
+ * Available since NNAPI feature level 1.
  *
  * @param compilation The compilation to be finished.
  *
@@ -1938,7 +1979,7 @@ int ANeuralNetworksCompilation_finish(ANeuralNetworksCompilation* compilation) _
  *
  * See {@link ANeuralNetworksCompilation} for information on multithreaded usage.
  *
- * Available since API level 30.
+ * Available since NNAPI feature level 4.
  *
  * @param compilation The compilation to be modified.
  * @param priority The relative priority of the execution compared to other
@@ -1974,8 +2015,9 @@ int ANeuralNetworksCompilation_setPriority(ANeuralNetworksCompilation* compilati
  * {@link ANeuralNetworksCompilation_createForDevices} with numDevices = 1,
  * otherwise this function will fail with ANEURALNETWORKS_BAD_DATA. If the
  * device has a feature level reported by
- * {@link ANeuralNetworksDevice_getFeatureLevel} that is lower than 30, then the
- * timeout duration hint will be ignored.
+ * {@link ANeuralNetworksDevice_getFeatureLevel} that is lower than
+ * {@link ANEURALNETWORKS_FEATURE_LEVEL_4}, then the timeout duration hint will
+ * be ignored.
  *
  * See {@link ANeuralNetworksCompilation} for information on multithreaded usage.
  *
@@ -1987,7 +2029,7 @@ int ANeuralNetworksCompilation_setPriority(ANeuralNetworksCompilation* compilati
  *
  * @return ANEURALNETWORKS_NO_ERROR if successful.
  *
- * Available since API level 30.
+ * Available since NNAPI feature level 4.
  */
 int ANeuralNetworksCompilation_setTimeout(ANeuralNetworksCompilation* compilation,
                                           uint64_t duration) __INTRODUCED_IN(30);
@@ -2004,7 +2046,7 @@ int ANeuralNetworksCompilation_setTimeout(ANeuralNetworksCompilation* compilatio
  *
  * See {@link ANeuralNetworksExecution} for information on multithreaded usage.
  *
- * Available since API level 27.
+ * Available since NNAPI feature level 1.
  *
  * @param compilation The {@link ANeuralNetworksCompilation} to be evaluated.
  * @param execution The newly created object or NULL if unsuccessful.
@@ -2031,7 +2073,7 @@ int ANeuralNetworksExecution_create(ANeuralNetworksCompilation* compilation,
  *
  * See {@link ANeuralNetworksExecution} for information on multithreaded usage.
  *
- * Available since API level 27.
+ * Available since NNAPI feature level 1.
  *
  * @param execution The execution to be destroyed. Passing NULL is acceptable and
  *                  results in no operation.
@@ -2053,7 +2095,7 @@ void ANeuralNetworksExecution_free(ANeuralNetworksExecution* execution) __INTROD
  *
  * See {@link ANeuralNetworksExecution} for information on multithreaded usage.
  *
- * Available since API level 27.
+ * Available since NNAPI feature level 1.
  *
  * @param execution The execution to be modified.
  * @param index The index of the input argument we are setting. It is
@@ -2101,7 +2143,7 @@ int ANeuralNetworksExecution_setInput(ANeuralNetworksExecution* execution, int32
  * See {@link ANeuralNetworksMemory_createFromDesc} for information on usage of memory objects
  * created from memory descriptors.
  *
- * Available since API level 27.
+ * Available since NNAPI feature level 1.
  *
  * @param execution The execution to be modified.
  * @param index The index of the input argument we are setting. It is
@@ -2144,7 +2186,7 @@ int ANeuralNetworksExecution_setInputFromMemory(ANeuralNetworksExecution* execut
  *
  * See {@link ANeuralNetworksExecution} for information on multithreaded usage.
  *
- * Available since API level 27.
+ * Available since NNAPI feature level 1.
  *
  * @param execution The execution to be modified.
  * @param index The index of the output argument we are setting. It is
@@ -2161,7 +2203,7 @@ int ANeuralNetworksExecution_setInputFromMemory(ANeuralNetworksExecution* execut
  *             passed. Neither the {@link ANeuralNetworksOperandType}
  *             nor the dimensions it points to need to outlive the call
  *             to {@link ANeuralNetworksExecution_setOutput}.
- *             Since API level 29, the output operand can have unspecified
+ *             Since NNAPI feature level 3, the output operand can have unspecified
  *             dimensions or rank to be deduced dynamically during the execution.
  *             However, the user must provide a large enough buffer. The user
  *             can retrieve the output dimensional information after the execution
@@ -2196,7 +2238,7 @@ int ANeuralNetworksExecution_setOutput(ANeuralNetworksExecution* execution, int3
  * See {@link ANeuralNetworksMemory_createFromDesc} for information on usage of memory objects
  * created from memory descriptors.
  *
- * Available since API level 27.
+ * Available since NNAPI feature level 1.
  *
  * @param execution The execution to be modified.
  * @param index The index of the output argument we are setting. It is
@@ -2212,7 +2254,7 @@ int ANeuralNetworksExecution_setOutput(ANeuralNetworksExecution* execution, int3
  *             passed. Neither the {@link ANeuralNetworksOperandType}
  *             nor the dimensions it points to need to outlive the call
  *             to {@link ANeuralNetworksExecution_setOutputFromMemory}.
- *             Since API level 29, the output operand can have unspecified
+ *             Since NNAPI feature level 3, the output operand can have unspecified
  *             dimensions or rank to be deduced dynamically during the execution.
  *             However, the user must provide a large enough memory. The user
  *             can retrieve the output dimensional information after the execution
@@ -2250,7 +2292,8 @@ int ANeuralNetworksExecution_setOutputFromMemory(ANeuralNetworksExecution* execu
  * {@link ANeuralNetworksExecution_startCompute} or
  * {@link ANeuralNetworksEvent_wait} on the event object. If the device has a
  * feature level reported by {@link ANeuralNetworksDevice_getFeatureLevel} that
- * is lower than 30, then the timeout duration hint will be ignored.
+ * is lower than {@link ANEURALNETWORKS_FEATURE_LEVEL_4}, then the timeout
+ * duration hint will be ignored.
  *
  * If this execution contains a {@link ANEURALNETWORKS_WHILE} operation, and
  * the condition model does not output false within the loop timeout duration,
@@ -2269,7 +2312,7 @@ int ANeuralNetworksExecution_setOutputFromMemory(ANeuralNetworksExecution* execu
  * See {@link ANeuralNetworksExecution_startComputeWithDependencies} for
  * asynchronous execution with dependencies.
  *
- * Available since API level 27.
+ * Available since NNAPI feature level 1.
  *
  * @param execution The execution to be scheduled and executed.
  * @param event The event that will be signaled on completion. event is set to
@@ -2309,8 +2352,9 @@ int ANeuralNetworksExecution_startCompute(ANeuralNetworksExecution* execution,
  * {@link ANeuralNetworksCompilation_createForDevices} with numDevices = 1,
  * otherwise this function will fail with ANEURALNETWORKS_BAD_DATA. If the
  * device has a feature level reported by
- * {@link ANeuralNetworksDevice_getFeatureLevel} that is lower than 30, then the
- * timeout duration hint will be ignored.
+ * {@link ANeuralNetworksDevice_getFeatureLevel} that is lower than
+ * {@link ANEURALNETWORKS_FEATURE_LEVEL_4}, then the timeout duration hint will
+ * be ignored.
  *
  * See {@link ANeuralNetworksExecution} for information on multithreaded usage.
  *
@@ -2321,7 +2365,7 @@ int ANeuralNetworksExecution_startCompute(ANeuralNetworksExecution* execution,
  *
  * @return ANEURALNETWORKS_NO_ERROR if successful.
  *
- * Available since API level 30.
+ * Available since NNAPI feature level 4.
  */
 int ANeuralNetworksExecution_setTimeout(ANeuralNetworksExecution* execution, uint64_t duration)
         __INTRODUCED_IN(30);
@@ -2350,7 +2394,7 @@ int ANeuralNetworksExecution_setTimeout(ANeuralNetworksExecution* execution, uin
  *         ANEURALNETWORKS_BAD_STATE if execution has started.
  *         ANEURALNETWORKS_UNEXPECTED_NULL if execution is NULL.
  *
- * Available since API level 30.
+ * Available since NNAPI feature level 4.
  */
 int ANeuralNetworksExecution_setLoopTimeout(ANeuralNetworksExecution* execution, uint64_t duration)
         __INTRODUCED_IN(30);
@@ -2360,7 +2404,7 @@ int ANeuralNetworksExecution_setLoopTimeout(ANeuralNetworksExecution* execution,
  *
  * @return The default timeout value in nanoseconds.
  *
- * Available since API level 30.
+ * Available since NNAPI feature level 4.
  */
 uint64_t ANeuralNetworks_getDefaultLoopTimeout() __INTRODUCED_IN(30);
 
@@ -2369,7 +2413,7 @@ uint64_t ANeuralNetworks_getDefaultLoopTimeout() __INTRODUCED_IN(30);
  *
  * @return The maximum timeout value in nanoseconds.
  *
- * Available since API level 30.
+ * Available since NNAPI feature level 4.
  */
 uint64_t ANeuralNetworks_getMaximumLoopTimeout() __INTRODUCED_IN(30);
 
@@ -2391,7 +2435,7 @@ uint64_t ANeuralNetworks_getMaximumLoopTimeout() __INTRODUCED_IN(30);
  *
  * See {@link ANeuralNetworksExecution} for information on multithreaded usage.
  *
- * Available since API level 27.
+ * Available since NNAPI feature level 1.
  *
  * @param event The event that will be signaled on completion.
  * @return ANEURALNETWORKS_NO_ERROR if the execution completed normally.
@@ -2405,7 +2449,7 @@ int ANeuralNetworksEvent_wait(ANeuralNetworksEvent* event) __INTRODUCED_IN(27);
  *
  * See {@link ANeuralNetworksExecution} for information on multithreaded usage.
  *
- * Available since API level 27.
+ * Available since NNAPI feature level 1.
  *
  * @param event The event object to be destroyed. Passing NULL is acceptable and
  *              results in no operation.
@@ -2423,7 +2467,7 @@ void ANeuralNetworksEvent_free(ANeuralNetworksEvent* event) __INTRODUCED_IN(27);
  *
  * @return ANEURALNETWORKS_NO_ERROR if successful.
  *
- * Available since API level 30.
+ * Available since NNAPI feature level 4.
  */
 int ANeuralNetworksEvent_createFromSyncFenceFd(int sync_fence_fd, ANeuralNetworksEvent** event)
         __INTRODUCED_IN(30);
@@ -2447,7 +2491,7 @@ int ANeuralNetworksEvent_createFromSyncFenceFd(int sync_fence_fd, ANeuralNetwork
  *
  * @return ANEURALNETWORKS_NO_ERROR if successful.
  *
- * Available since API level 30.
+ * Available since NNAPI feature level 4.
  */
 int ANeuralNetworksEvent_getSyncFenceFd(const ANeuralNetworksEvent* event, int* sync_fence_fd)
         __INTRODUCED_IN(30);
@@ -2493,7 +2537,8 @@ int ANeuralNetworksEvent_getSyncFenceFd(const ANeuralNetworksEvent* event, int* 
  * returned through {@link ANeuralNetworksExecution_startComputeWithDependencies}
  * or {@link ANeuralNetworksEvent_wait} on the event object. If the device has a
  * feature level reported by {@link ANeuralNetworksDevice_getFeatureLevel} that
- * is lower than 30, then the timeout duration hints will be ignored.
+ * is lower than {@link ANEURALNETWORKS_FEATURE_LEVEL_4}, then the timeout duration
+ * hints will be ignored.
  *
  * If this execution contains a {@link ANEURALNETWORKS_WHILE} operation, and
  * the condition model does not output false within the loop timeout duration,
@@ -2520,12 +2565,50 @@ int ANeuralNetworksEvent_getSyncFenceFd(const ANeuralNetworksEvent* event, int* 
  *
  * @return ANEURALNETWORKS_NO_ERROR if the evaluation is successfully scheduled.
  *
- * Available since API level 30.
+ * Available since NNAPI feature level 4.
  */
 int ANeuralNetworksExecution_startComputeWithDependencies(
         ANeuralNetworksExecution* execution, const ANeuralNetworksEvent* const* dependencies,
         uint32_t num_dependencies, uint64_t duration, ANeuralNetworksEvent** event)
         __INTRODUCED_IN(30);
+
+/**
+ * Get the NNAPI runtime feature level.
+ *
+ * Since API level 31 (NNAPI feature level 5), the NNAPI runtime (libneuralnetworks.so) and its
+ * API specification can be updated between Android API releases.
+ *
+ * On Android devices with API level 31 and newer, for NNAPI runtime feature discovery,
+ * the NNAPI runtime feature level must be used instead of the Android device API level.
+ *
+ * On Android devices with API level 30 and older, the Android API level of the Android
+ * device must be used for NNAPI runtime feature discovery. Enum values in
+ * {@link FeatureLevelCode} from feature level 1 to 5 have their corresponding Android
+ * API levels listed in their documentation, and each such enum value equals the corresponding
+ * API level. This allows using the Android API level as the feature level.
+ * This mapping between enum value and Android API level does not exist for feature levels
+ * after NNAPI feature level 5 and API levels after S (31).
+ *
+ * Example usage:
+ * int device_api_level = android_get_device_api_level();
+ * int64_t runtime_feature_level = (device_api_level < __ANDROID_API_S__) ?
+ *                                  device_api_level : ANeuralNetworks_getRuntimeFeatureLevel();
+ *
+ * Runtime feature level is closely related to NNAPI device feature level
+ * ({@link ANeuralNetworksDevice_getFeatureLevel}), which indicates an NNAPI device feature level
+ * (the most advanced NNAPI specification and features that the driver implements).
+ * This function expresses NNAPI runtime feature level, which indicates the most advanced
+ * NNAPI specification and features the runtime implements. An NNAPI device feature level is
+ * always less than or equal to the runtime feature level.
+ *
+ * This function returns a {@link FeatureLevelCode} enum value, NOT an Android API level.
+ *
+ * @param featureLevel {@link FeatureLevelCode} of the NNAPI specification version that this
+ *                     NNAPI runtime implements.
+ *
+ * Available since NNAPI feature level 5.
+ */
+int64_t ANeuralNetworks_getRuntimeFeatureLevel() __INTRODUCED_IN(31);
 
 __END_DECLS
 

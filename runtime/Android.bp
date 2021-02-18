@@ -136,6 +136,7 @@ cc_library_shared {
     stubs: {
         versions: [
             "30",
+            "31",
         ],
         symbol_file: "libneuralnetworks.map.txt",
     },
@@ -177,7 +178,6 @@ cc_library_static {
         "libbase_ndk",
         "libcrypto_static",
         "libneuralnetworks_common_cl",
-        "libtextclassifier_hash_static",
         "neuralnetworks_types_cl",
     ],
     shared_libs: [

@@ -471,7 +471,7 @@ int MemoryBuilder::finish() {
     }
 #ifndef NN_NO_AHWB
     mSupportsAhwb = std::all_of(devices.begin(), devices.end(), [](const auto* device) {
-        return device->getFeatureLevel() >= kHalVersionV1_3ToApi.android;
+        return device->getFeatureLevel() >= kHalVersionV1_3ToApi.featureLevel;
     });
 #else
     mSupportsAhwb = false;

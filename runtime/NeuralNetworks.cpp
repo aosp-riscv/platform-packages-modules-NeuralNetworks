@@ -39,6 +39,7 @@
 #include "Event.h"
 #include "ExecutionBuilder.h"
 #include "ExecutionCallback.h"
+#include "FeatureLevel.h"
 #include "Manager.h"
 #include "Memory.h"
 #include "ModelBuilder.h"
@@ -608,6 +609,13 @@ static_assert(ANEURALNETWORKS_PRIORITY_MEDIUM == 100,
 static_assert(ANEURALNETWORKS_PRIORITY_HIGH == 110, "ANEURALNETWORKS_PRIORITY_HIGH has changed");
 static_assert(ANEURALNETWORKS_PRIORITY_DEFAULT == ANEURALNETWORKS_PRIORITY_MEDIUM,
               "ANEURALNETWORKS_PRIORITY_DEFAULT has changed");
+
+// Asserts for feature levels
+static_assert(ANEURALNETWORKS_FEATURE_LEVEL_1 == 27, "ANEURALNETWORKS_FEATURE_LEVEL_1 has changed");
+static_assert(ANEURALNETWORKS_FEATURE_LEVEL_2 == 28, "ANEURALNETWORKS_FEATURE_LEVEL_2 has changed");
+static_assert(ANEURALNETWORKS_FEATURE_LEVEL_3 == 29, "ANEURALNETWORKS_FEATURE_LEVEL_3 has changed");
+static_assert(ANEURALNETWORKS_FEATURE_LEVEL_4 == 30, "ANEURALNETWORKS_FEATURE_LEVEL_4 has changed");
+static_assert(ANEURALNETWORKS_FEATURE_LEVEL_5 == 31, "ANEURALNETWORKS_FEATURE_LEVEL_5 has changed");
 
 int ANeuralNetworks_getDeviceCount(uint32_t* numDevices) {
     if (numDevices == nullptr) {
@@ -1559,4 +1567,8 @@ int ANeuralNetworksExecution_startComputeWithDependencies(
         *event = reinterpret_cast<ANeuralNetworksEvent*>(e.release());
     }
     return n;
+}
+
+int64_t ANeuralNetworks_getRuntimeFeatureLevel() {
+    return kCurrentNNAPIRuntimeFeatureLevel;
 }

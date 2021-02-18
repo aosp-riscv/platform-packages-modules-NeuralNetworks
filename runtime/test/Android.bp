@@ -74,7 +74,7 @@ cc_defaults {
         "TestTrivialModel.cpp",
         "TestUnknownDimensions.cpp",
         "TestUnspecifiedDimensions.cpp",
-
+        "TestUpdatability.cpp",
         "TestValidateModel.cpp",
         "TestValidateOperations.cpp",
         "TestValidation.cpp",

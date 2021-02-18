@@ -317,18 +317,17 @@ uint32_t getProp(const char* str, uint32_t defaultValue = 0);
 
 struct ApiVersion {
     Version canonical;
-    int64_t android;
+    int64_t featureLevel;
 };
 
-constexpr auto kHalVersionV1_0ToApi =
-        ApiVersion{.canonical = Version::ANDROID_OC_MR1, .android = __ANDROID_API_O_MR1__};
-constexpr auto kHalVersionV1_1ToApi =
-        ApiVersion{.canonical = Version::ANDROID_P, .android = __ANDROID_API_P__};
-constexpr auto kHalVersionV1_2ToApi =
-        ApiVersion{.canonical = Version::ANDROID_Q, .android = __ANDROID_API_Q__};
-constexpr auto kHalVersionV1_3ToApi =
-        ApiVersion{.canonical = Version::ANDROID_R, .android = __ANDROID_API_R__};
-
+constexpr auto kHalVersionV1_0ToApi = ApiVersion{.canonical = Version::ANDROID_OC_MR1,
+                                                 .featureLevel = ANEURALNETWORKS_FEATURE_LEVEL_1};
+constexpr auto kHalVersionV1_1ToApi = ApiVersion{.canonical = Version::ANDROID_P,
+                                                 .featureLevel = ANEURALNETWORKS_FEATURE_LEVEL_2};
+constexpr auto kHalVersionV1_2ToApi = ApiVersion{.canonical = Version::ANDROID_Q,
+                                                 .featureLevel = ANEURALNETWORKS_FEATURE_LEVEL_3};
+constexpr auto kHalVersionV1_3ToApi = ApiVersion{.canonical = Version::ANDROID_R,
+                                                 .featureLevel = ANEURALNETWORKS_FEATURE_LEVEL_4};
 }  // namespace nn
 }  // namespace android
 

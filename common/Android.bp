@@ -260,7 +260,6 @@ cc_defaults {
     sdk_version: "current",
     cflags: [
         "-DNN_COMPATIBILITY_LIBRARY_BUILD",
-        "-DNN_NO_AHWB",
         "-DNN_NO_BURST",
     ],
 }
@@ -358,9 +357,6 @@ cc_library_static {
             ],
             static_libs: ["libarect"],
         },
-        host: {
-            srcs: ["SharedMemoryHost.cpp"],
-        },
     },
     local_include_dirs: ["include/nnapi"],
     export_include_dirs: ["include"],
@@ -396,6 +392,9 @@ cc_library_static {
     ],
     export_static_lib_headers: [
         "libbase_ndk",
+    ],
+    shared_libs: [
+        "libandroid",
     ],
 }
 

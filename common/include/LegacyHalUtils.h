@@ -328,7 +328,7 @@ Extension::OperandTypeInformation uncheckedConvert(const V1_2::Extension::Operan
 Extension uncheckedConvert(const V1_2::Extension& extension);
 hardware::hidl_vec<uint8_t> uncheckedConvert(const Operand::ExtensionParams& params);
 MeasureTiming uncheckedConvert(V1_2::MeasureTiming measure);
-Memory uncheckedConvert(const hardware::hidl_memory& memory);
+SharedMemory uncheckedConvert(const hardware::hidl_memory& memory);
 Model::ExtensionNameAndPrefix uncheckedConvert(const V1_2::Model::ExtensionNameAndPrefix&);
 Model::Subgraph uncheckedConvert(const V1_3::Subgraph& subgraph);
 Model uncheckedConvert(const V1_3::Model& model);
@@ -346,7 +346,8 @@ Request::Argument uncheckedConvert(const V1_0::RequestArgument& requestArgument)
 Request::MemoryPool uncheckedConvert(const V1_3::Request::MemoryPool& memoryPool);
 Request uncheckedConvert(const V1_3::Request& request);
 std::vector<Extension> uncheckedConvert(const hardware::hidl_vec<V1_2::Extension>& extensions);
-std::vector<Memory> uncheckedConvert(const hardware::hidl_vec<hardware::hidl_memory>& memories);
+std::vector<SharedMemory> uncheckedConvert(
+        const hardware::hidl_vec<hardware::hidl_memory>& memories);
 std::vector<Model::Subgraph> uncheckedConvert(const hardware::hidl_vec<V1_3::Subgraph>& subgraphs);
 std::vector<Operand> uncheckedConvert(const hardware::hidl_vec<V1_3::Operand>& operands);
 std::vector<OutputShape> uncheckedConvert(
@@ -356,8 +357,8 @@ std::vector<Request::MemoryPool> uncheckedConvert(
 Timing uncheckedConvert(const V1_2::Timing& timing);
 
 // DEPRECATED. Use conversions from nnapi/hal/1.X/Conversions.h.
-hardware::hidl_memory convertToV1_0(const Memory& memory);
-hardware::hidl_vec<hardware::hidl_memory> convertToV1_0(const std::vector<Memory>& memories);
+hardware::hidl_memory convertToV1_0(const SharedMemory& memory);
+hardware::hidl_vec<hardware::hidl_memory> convertToV1_0(const std::vector<SharedMemory>& memories);
 hardware::hidl_vec<uint8_t> convertToV1_0(const Model::OperandValues& operandValues);
 hardware::hidl_vec<V1_2::OutputShape> convertToV1_2(const std::vector<OutputShape>& outputShapes);
 hardware::hidl_vec<V1_3::BufferRole> convertToV1_3(const std::vector<BufferRole>& bufferRoles);

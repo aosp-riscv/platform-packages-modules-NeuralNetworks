@@ -43,7 +43,7 @@ Result<Version> validate(const Timing& timing);
 Result<Version> validate(const Capabilities& capabilities);
 Result<Version> validate(const Extension& extension);
 Result<Version> validate(const SharedHandle& handle);
-Result<Version> validate(const Memory& memory);
+Result<Version> validate(const SharedMemory& memory);
 Result<Version> validate(const Model& model);
 Result<Version> validate(const BufferDesc& bufferDesc);
 Result<Version> validate(const BufferRole& bufferRole);

@@ -313,7 +313,7 @@ createRunTimePoolInfos(const Request& request, const SampleDriver& driver,
     bufferWrappers.reserve(request.pools.size());
     for (uint32_t i = 0; i < request.pools.size(); i++) {
         const auto& pool = request.pools[i];
-        if (const auto* memory = std::get_if<Memory>(&pool)) {
+        if (const auto* memory = std::get_if<SharedMemory>(&pool)) {
             auto buffer = RunTimePoolInfo::createFromMemory(*memory);
             if (!buffer.has_value()) {
                 LOG(ERROR) << "createRuntimeMemoriesFromMemoryPools -- could not map pools";

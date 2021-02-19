@@ -128,7 +128,7 @@ Model createModel(const TestModel& testModel) {
                    });
 
     // Shared memory.
-    std::vector<Memory> pools;
+    std::vector<SharedMemory> pools;
     if (!memoryBuilder.empty()) {
         pools.push_back(memoryBuilder.finish().value());
     }

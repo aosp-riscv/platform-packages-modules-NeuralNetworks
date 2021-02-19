@@ -36,7 +36,7 @@ class Burst final : public IBurst {
    public:
     explicit Burst(std::shared_ptr<const PreparedModel> preparedModel);
 
-    OptionalCacheHold cacheMemory(const Memory& memory) const override;
+    OptionalCacheHold cacheMemory(const SharedMemory& memory) const override;
 
     ExecutionResult<std::pair<std::vector<OutputShape>, Timing>> execute(
             const Request& request, MeasureTiming measure) const override;

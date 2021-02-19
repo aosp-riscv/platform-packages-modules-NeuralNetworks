@@ -33,8 +33,9 @@ class Buffer final : public IBuffer {
 
     Request::MemoryDomainToken getToken() const override;
 
-    GeneralResult<void> copyTo(const Memory& dst) const override;
-    GeneralResult<void> copyFrom(const Memory& src, const Dimensions& dimensions) const override;
+    GeneralResult<void> copyTo(const SharedMemory& dst) const override;
+    GeneralResult<void> copyFrom(const SharedMemory& src,
+                                 const Dimensions& dimensions) const override;
 
    private:
     const std::shared_ptr<ManagedBuffer> kBuffer;

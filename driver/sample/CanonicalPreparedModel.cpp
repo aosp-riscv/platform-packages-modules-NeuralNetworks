@@ -43,7 +43,7 @@ createRunTimePoolInfos(const Request& request, const BufferTracker& bufferTracke
     bufferWrappers.reserve(request.pools.size());
     for (uint32_t i = 0; i < request.pools.size(); ++i) {
         auto& pool = request.pools[i];
-        if (const auto* maybeMemory = std::get_if<Memory>(&pool)) {
+        if (const auto* maybeMemory = std::get_if<SharedMemory>(&pool)) {
             auto buffer = RunTimePoolInfo::createFromMemory(*maybeMemory);
             if (!buffer.has_value()) {
                 return NN_ERROR(ErrorStatus::GENERAL_FAILURE)

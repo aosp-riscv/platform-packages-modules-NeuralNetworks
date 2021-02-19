@@ -74,8 +74,14 @@ bool invalid(const Model& model, Version version, bool strictSlicing) {
     // We shouldn't have to check whether the model is valid. However, it could
     // be invalid if there is an error in the slicing algorithm.
     auto maybeVersion = validate(model);
-    if (!maybeVersion.has_value() || maybeVersion.value() > version) {
-        LOG(WARNING) << "Sliced model fails validate()";
+    if (!maybeVersion.has_value()) {
+        LOG(WARNING) << "Sliced model fails validate(): " << maybeVersion.error();
+        CHECK(!strictSlicing);
+        return true;
+    }
+    if (maybeVersion.value() > version) {
+        LOG(WARNING) << "Sliced model fails validate(): insufficient version ("
+                     << maybeVersion.value() << " vs " << version << ")";
         CHECK(!strictSlicing);
         return true;
     }

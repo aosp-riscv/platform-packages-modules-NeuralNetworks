@@ -310,9 +310,9 @@ TEST_P(MemoryDomainTest, SinglePartition) {
             const auto& memory = m->getMemory();
             EXPECT_TRUE(validate(memory).ok());
             if (kUseV1_2Driver) {
-                EXPECT_EQ(memory.name, "ashmem");
+                EXPECT_EQ(memory->name, "ashmem");
             } else {
-                EXPECT_EQ(memory.name, "hardware_buffer_blob");
+                EXPECT_EQ(memory->name, "hardware_buffer_blob");
             }
         }
     }
@@ -348,9 +348,9 @@ TEST_P(MemoryDomainTest, MultiplePartitions) {
                 const auto& memory = m->getMemory();
                 EXPECT_TRUE(validate(memory).ok());
                 if (kUseV1_2Driver) {
-                    EXPECT_EQ(memory.name, "ashmem");
+                    EXPECT_EQ(memory->name, "ashmem");
                 } else {
-                    EXPECT_EQ(memory.name, "hardware_buffer_blob");
+                    EXPECT_EQ(memory->name, "hardware_buffer_blob");
                 }
             }
         }
@@ -372,9 +372,9 @@ TEST_P(MemoryDomainTest, MultiplePartitions) {
             const auto& memory = m->getMemory();
             EXPECT_TRUE(validate(memory).ok());
             if (kUseV1_2Driver) {
-                EXPECT_EQ(memory.name, "ashmem");
+                EXPECT_EQ(memory->name, "ashmem");
             } else {
-                EXPECT_EQ(memory.name, "hardware_buffer_blob");
+                EXPECT_EQ(memory->name, "hardware_buffer_blob");
             }
         }
     }
@@ -395,9 +395,9 @@ TEST_P(MemoryDomainTest, MultiplePartitions) {
             const auto& memory = m->getMemory();
             EXPECT_TRUE(validate(memory).ok());
             if (kUseV1_2Driver) {
-                EXPECT_EQ(memory.name, "ashmem");
+                EXPECT_EQ(memory->name, "ashmem");
             } else {
-                EXPECT_EQ(memory.name, "hardware_buffer_blob");
+                EXPECT_EQ(memory->name, "hardware_buffer_blob");
             }
         }
     }

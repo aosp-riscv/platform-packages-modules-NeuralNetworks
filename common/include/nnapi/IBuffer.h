@@ -45,7 +45,7 @@ class IBuffer {
      * @param dst The destination shared memory region.
      * @return Nothing on success, otherwise GeneralError.
      */
-    virtual GeneralResult<void> copyTo(const Memory& dst) const = 0;
+    virtual GeneralResult<void> copyTo(const SharedMemory& dst) const = 0;
 
     /**
      * Sets the content of this buffer from a shared memory region.
@@ -58,7 +58,8 @@ class IBuffer {
      *     dimension that was specified in the IBuffer object must have the same value here.
      * @return Nothing on success, otherwise GeneralError.
      */
-    virtual GeneralResult<void> copyFrom(const Memory& src, const Dimensions& dimensions) const = 0;
+    virtual GeneralResult<void> copyFrom(const SharedMemory& src,
+                                         const Dimensions& dimensions) const = 0;
 
     // Public virtual destructor to allow objects to be stored (and destroyed) as smart pointers.
     // E.g., std::unique_ptr<IBuffer>.

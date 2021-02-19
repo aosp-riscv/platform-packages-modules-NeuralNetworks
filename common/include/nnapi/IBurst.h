@@ -62,7 +62,7 @@ class IBurst {
      * @return An optional cache handle that will release the corresponding cahced object once the
      *     cache handle is released, or nullptr.
      */
-    virtual OptionalCacheHold cacheMemory(const Memory& memory) const = 0;
+    virtual OptionalCacheHold cacheMemory(const SharedMemory& memory) const = 0;
 
     /**
      * Performs a synchronous execution on a prepared model.

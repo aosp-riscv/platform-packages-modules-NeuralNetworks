@@ -552,11 +552,9 @@ std::tuple<int, std::vector<OutputShape>, Timing> DriverPreparedModel::execute(
     Request request;
     request.inputs = createRequestArguments(inputs, inputPtrArgsLocations);
     request.outputs = createRequestArguments(outputs, outputPtrArgsLocations);
-    uint32_t count = localMemories.size();
-    request.pools.resize(count);
-    for (uint32_t i = 0; i < count; i++) {
-        request.pools[i] = localMemories[i]->getMemoryPool();
-    }
+    request.pools.reserve(localMemories.size());
+    std::transform(localMemories.begin(), localMemories.end(), std::back_inserter(request.pools),
+                   [](const RuntimeMemory* localMemory) { return localMemory->getMemoryPool(); });
 
     NNTRACE_FULL_SWITCH(NNTRACE_LAYER_IPC, NNTRACE_PHASE_EXECUTION,
                         "DriverPreparedModel::execute::execute");
@@ -675,11 +673,9 @@ std::tuple<int, int, ExecuteFencedInfoCallback, Timing> DriverPreparedModel::exe
     Request request;
     request.inputs = createRequestArguments(inputs, inputPtrArgsLocations);
     request.outputs = createRequestArguments(outputs, outputPtrArgsLocations);
-    uint32_t count = localMemories.size();
-    request.pools.resize(count);
-    for (uint32_t i = 0; i < count; i++) {
-        request.pools[i] = localMemories[i]->getMemoryPool();
-    }
+    request.pools.reserve(localMemories.size());
+    std::transform(localMemories.begin(), localMemories.end(), std::back_inserter(request.pools),
+                   [](const RuntimeMemory* localMemory) { return localMemory->getMemoryPool(); });
 
     NNTRACE_FULL_SWITCH(NNTRACE_LAYER_IPC, NNTRACE_PHASE_EXECUTION,
                         "DriverPreparedModel::executeFenced");

@@ -1518,8 +1518,9 @@ Operation uncheckedConvert(const V1_3::Operation& operation) {
 
 template <typename CanonicalType, typename HalType>
 static std::vector<CanonicalType> convertVec(const hardware::hidl_vec<HalType>& items) {
-    std::vector<CanonicalType> result(items.size());
-    std::transform(items.begin(), items.end(), result.begin(),
+    std::vector<CanonicalType> result;
+    result.reserve(items.size());
+    std::transform(items.begin(), items.end(), std::back_inserter(result),
                    [](const HalType& item) { return uncheckedConvert(item); });
     return result;
 }
@@ -1732,20 +1733,21 @@ hardware::hidl_vec<uint8_t> convertToV1_0(const Model::OperandValues& operandVal
     return handleError(V1_0::utils::unvalidatedConvert(operandValues));
 }
 
-hardware::hidl_memory convertToV1_0(const Memory& memory) {
+hardware::hidl_memory convertToV1_0(const SharedMemory& memory) {
     return handleError(V1_0::utils::unvalidatedConvert(memory));
 }
 
-Memory uncheckedConvert(const hardware::hidl_memory& memory) {
+SharedMemory uncheckedConvert(const hardware::hidl_memory& memory) {
     return handleError(convert(memory));
 }
 
-hardware::hidl_vec<hardware::hidl_memory> convertToV1_0(const std::vector<Memory>& memories) {
+hardware::hidl_vec<hardware::hidl_memory> convertToV1_0(const std::vector<SharedMemory>& memories) {
     return convertVecToV1_0<hardware::hidl_memory>(memories);
 }
 
-std::vector<Memory> uncheckedConvert(const hardware::hidl_vec<hardware::hidl_memory>& memories) {
-    return convertVec<Memory>(memories);
+std::vector<SharedMemory> uncheckedConvert(
+        const hardware::hidl_vec<hardware::hidl_memory>& memories) {
+    return convertVec<SharedMemory>(memories);
 }
 
 std::vector<Model::Subgraph> uncheckedConvert(const hardware::hidl_vec<V1_3::Subgraph>& subgraphs) {

@@ -269,21 +269,21 @@ bool OperationExecutionContext::checkNoZeroSizedInput() const {
 // when the RunTimePoolInfo is destroyed or is assigned to.
 class RunTimePoolInfo::RunTimePoolInfoImpl {
    public:
-    RunTimePoolInfoImpl(Memory memory, Mapping mapping);
+    RunTimePoolInfoImpl(SharedMemory memory, Mapping mapping);
 
     uint8_t* getBuffer() const;
     uint32_t getSize() const;
 
     bool flush() const;
 
-    const Memory& getMemory() const { return mMemory; }
+    const SharedMemory& getMemory() const { return mMemory; }
 
    private:
-    const Memory mMemory;
+    const SharedMemory mMemory;
     const Mapping mMapping;
 };
 
-RunTimePoolInfo::RunTimePoolInfoImpl::RunTimePoolInfoImpl(Memory memory, Mapping mapping)
+RunTimePoolInfo::RunTimePoolInfoImpl::RunTimePoolInfoImpl(SharedMemory memory, Mapping mapping)
     : mMemory(std::move(memory)), mMapping(std::move(mapping)) {}
 
 uint8_t* RunTimePoolInfo::RunTimePoolInfoImpl::getBuffer() const {
@@ -308,7 +308,7 @@ bool RunTimePoolInfo::RunTimePoolInfoImpl::flush() const {
 
 // TODO: short term, make share memory mapping and updating a utility function.
 // TODO: long term, implement mmap_fd as a hidl IMemory service.
-std::optional<RunTimePoolInfo> RunTimePoolInfo::createFromMemory(const Memory& memory) {
+std::optional<RunTimePoolInfo> RunTimePoolInfo::createFromMemory(const SharedMemory& memory) {
     auto mapping = map(memory);
     if (!mapping.has_value()) {
         LOG(ERROR) << "Can't map shared memory: " << mapping.error().message;
@@ -321,7 +321,8 @@ std::optional<RunTimePoolInfo> RunTimePoolInfo::createFromMemory(const Memory& m
 
 RunTimePoolInfo RunTimePoolInfo::createFromExistingBuffer(uint8_t* buffer, uint32_t size) {
     auto mapping = Mapping{.pointer = buffer, .size = size};
-    const auto impl = std::make_shared<const RunTimePoolInfoImpl>(Memory{}, std::move(mapping));
+    const auto impl = std::make_shared<const RunTimePoolInfoImpl>(std::make_shared<const Memory>(),
+                                                                  std::move(mapping));
     return RunTimePoolInfo(impl);
 }
 
@@ -340,12 +341,12 @@ bool RunTimePoolInfo::flush() const {
     return mImpl->flush();
 }
 
-const Memory& RunTimePoolInfo::getMemory() const {
+const SharedMemory& RunTimePoolInfo::getMemory() const {
     return mImpl->getMemory();
 }
 
 bool setRunTimePoolInfosFromCanonicalMemories(std::vector<RunTimePoolInfo>* poolInfos,
-                                              const std::vector<Memory>& pools) {
+                                              const std::vector<SharedMemory>& pools) {
     CHECK(poolInfos != nullptr);
     poolInfos->clear();
     poolInfos->reserve(pools.size());
@@ -367,13 +368,13 @@ bool setRunTimePoolInfosFromMemoryPools(std::vector<RunTimePoolInfo>* poolInfos,
     poolInfos->clear();
     poolInfos->reserve(pools.size());
     for (const auto& pool : pools) {
-        if (!std::holds_alternative<Memory>(pool)) {
+        if (!std::holds_alternative<SharedMemory>(pool)) {
             LOG(ERROR) << "Unknown memory token";
             poolInfos->clear();
             return false;
         }
         if (std::optional<RunTimePoolInfo> poolInfo =
-                    RunTimePoolInfo::createFromMemory(std::get<Memory>(pool))) {
+                    RunTimePoolInfo::createFromMemory(std::get<SharedMemory>(pool))) {
             poolInfos->push_back(*poolInfo);
         } else {
             LOG(ERROR) << "Could not map pools";

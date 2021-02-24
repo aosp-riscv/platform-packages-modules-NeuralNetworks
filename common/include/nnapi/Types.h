@@ -42,6 +42,7 @@ class IBuffer;
 class IBurst;
 class IDevice;
 class IPreparedModel;
+struct Memory;
 
 // Default values
 
@@ -58,6 +59,7 @@ using AlignedData = std::max_align_t;
 using SharedBuffer = std::shared_ptr<const IBuffer>;
 using SharedBurst = std::shared_ptr<const IBurst>;
 using SharedDevice = std::shared_ptr<const IDevice>;
+using SharedMemory = std::shared_ptr<const Memory>;
 using SharedPreparedModel = std::shared_ptr<const IPreparedModel>;
 
 // Canonical types
@@ -240,12 +242,6 @@ struct Handle {
 
 using SharedHandle = std::shared_ptr<const Handle>;
 
-struct Memory {
-    SharedHandle handle;
-    size_t size = 0;
-    std::string name;
-};
-
 struct Model {
     struct Subgraph {
         std::vector<Operand> operands;
@@ -274,7 +270,7 @@ struct Model {
     Subgraph main;
     std::vector<Subgraph> referenced;
     OperandValues operandValues;
-    std::vector<Memory> pools;
+    std::vector<SharedMemory> pools;
     bool relaxComputationFloat32toFloat16 = false;
     std::vector<ExtensionNameAndPrefix> extensionNameToPrefix;
 };
@@ -302,7 +298,7 @@ struct Request {
         Dimensions dimensions;
     };
     enum class MemoryDomainToken : uint32_t {};
-    using MemoryPool = std::variant<Memory, MemoryDomainToken, SharedBuffer>;
+    using MemoryPool = std::variant<SharedMemory, MemoryDomainToken, SharedBuffer>;
 
     std::vector<Argument> inputs;
     std::vector<Argument> outputs;
@@ -353,7 +349,7 @@ struct Timing {
     OptionalDuration timeInDriver;
 };
 
-enum class Version { ANDROID_OC_MR1, ANDROID_P, ANDROID_Q, ANDROID_R, CURRENT_RUNTIME };
+enum class Version { ANDROID_OC_MR1, ANDROID_P, ANDROID_Q, ANDROID_R, ANDROID_S, CURRENT_RUNTIME };
 
 }  // namespace android::nn
 

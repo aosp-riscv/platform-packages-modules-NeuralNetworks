@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include <SampleDriverPartial.h>
+#include <Utils.h>
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -25,9 +27,7 @@
 #include "GeneratedTestUtils.h"
 #include "HalUtils.h"
 #include "Manager.h"
-#include "SampleDriverPartial.h"
 #include "TestNeuralNetworksWrapper.h"
-#include "Utils.h"
 
 namespace generated_tests::avg_pool_v1_2 {
 const test_helper::TestModel& get_test_model_nhwc();
@@ -142,7 +142,8 @@ class TestRemoveDefaultArguments : public ::testing::Test {
             GTEST_SKIP();
         }
         mTestDriver = new TestDriver();
-        DeviceManager::get()->forTest_registerDevice(kTestDriverName, mTestDriver);
+        DeviceManager::get()->forTest_registerDevice(
+                makeSharedDevice(kTestDriverName, mTestDriver));
         mTestDevice = getDeviceByName(kTestDriverName);
         ASSERT_NE(mTestDevice, nullptr);
     }

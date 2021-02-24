@@ -28,8 +28,7 @@
 #include <vector>
 
 #include "GraphDump.h"
-#include "Utils.h"
-#include "ValidateHal.h"
+#include "LegacyUtils.h"
 #include "nnapi/TypeUtils.h"
 #include "nnapi/Types.h"
 #include "nnapi/Validation.h"
@@ -75,8 +74,14 @@ bool invalid(const Model& model, Version version, bool strictSlicing) {
     // We shouldn't have to check whether the model is valid. However, it could
     // be invalid if there is an error in the slicing algorithm.
     auto maybeVersion = validate(model);
-    if (!maybeVersion.has_value() || maybeVersion.value() > version) {
-        LOG(WARNING) << "Sliced model fails validate()";
+    if (!maybeVersion.has_value()) {
+        LOG(WARNING) << "Sliced model fails validate(): " << maybeVersion.error();
+        CHECK(!strictSlicing);
+        return true;
+    }
+    if (maybeVersion.value() > version) {
+        LOG(WARNING) << "Sliced model fails validate(): insufficient version ("
+                     << maybeVersion.value() << " vs " << version << ")";
         CHECK(!strictSlicing);
         return true;
     }
@@ -244,7 +249,7 @@ void MetaModel::processOperations(
     auto& slicedOperations = slice->mModel.main.operations;
 
     std::vector<uint32_t> origOperandNumberOfConsumers =
-            countNumberOfConsumers(origOperands.size(), origOperations);
+            countNumberOfConsumers(origOperands.size(), origOperations).value();
 
     for (uint32_t origOperationIndex = 0; origOperationIndex < origOperations.size();
          ++origOperationIndex) {

@@ -18,8 +18,13 @@
 
 #include "BurstBuilder.h"
 
+#include <ExecutionBurstController.h>
+
+#include <memory>
+#include <utility>
+#include <vector>
+
 #include "CompilationBuilder.h"
-#include "ExecutionBurstController.h"
 
 namespace android {
 namespace nn {

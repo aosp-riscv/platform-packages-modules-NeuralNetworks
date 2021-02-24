@@ -30,6 +30,7 @@
 #include "OperandTypes.h"
 #include "OperationTypes.h"
 #include "Result.h"
+#include "SharedMemory.h"
 #include "Types.h"
 
 namespace android::nn {
@@ -167,16 +168,19 @@ std::pair<int32_t, int32_t> getIntsFromOffset(size_t offset) {
     return std::make_pair(lowOffsetBits, highOffsetBits);
 }
 
-std::vector<uint32_t> countNumberOfConsumers(size_t numberOfOperands,
-                                             const std::vector<nn::Operation>& operations) {
+Result<std::vector<uint32_t>> countNumberOfConsumers(size_t numberOfOperands,
+                                                     const std::vector<nn::Operation>& operations) {
     std::vector<uint32_t> numberOfConsumers(numberOfOperands, 0);
-    auto eachOperandIndex = [&numberOfConsumers](uint32_t operandIndex) {
-        numberOfConsumers.at(operandIndex)++;
-    };
-    auto eachOperation = [&eachOperandIndex](const nn::Operation& operation) {
-        std::for_each(operation.inputs.begin(), operation.inputs.end(), eachOperandIndex);
-    };
-    std::for_each(operations.begin(), operations.end(), eachOperation);
+    for (const auto& operation : operations) {
+        for (uint32_t operandIndex : operation.inputs) {
+            if (operandIndex >= numberOfConsumers.size()) {
+                return NN_ERROR()
+                       << "countNumberOfConsumers: tried to access out-of-bounds operand ("
+                       << operandIndex << " vs " << numberOfConsumers.size() << ")";
+            }
+            numberOfConsumers[operandIndex]++;
+        }
+    }
     return numberOfConsumers;
 }
 
@@ -207,7 +211,7 @@ std::pair<size_t, std::vector<size_t>> getMemorySizes(const Model& model) {
     std::vector<size_t> poolSizes;
     poolSizes.reserve(model.pools.size());
     std::transform(model.pools.begin(), model.pools.end(), std::back_inserter(poolSizes),
-                   [](const Memory& memory) { return memory.size; });
+                   [](const SharedMemory& memory) { return memory->size; });
 
     return std::make_pair(operandValuesSize, std::move(poolSizes));
 }
@@ -703,13 +707,39 @@ std::ostream& operator<<(std::ostream& os, const Operation& operation) {
               << ", .outputs=" << operation.outputs << "}";
 }
 
+static std::ostream& operator<<(std::ostream& os, const Handle& handle) {
+    return os << "<handle with " << handle.fds.size() << " fds and " << handle.ints.size()
+              << " ints>";
+}
+
 std::ostream& operator<<(std::ostream& os, const SharedHandle& handle) {
-    return os << (handle != nullptr ? "<non-empty handle>" : "<empty handle>");
+    if (handle == nullptr) {
+        return os << "<empty handle>";
+    }
+    return os << *handle;
+}
+
+static std::ostream& operator<<(std::ostream& os, const HardwareBufferHandle& handle) {
+    return os << (handle.get() != nullptr ? "<non-empty HardwareBufferHandle>"
+                                          : "<empty HardwareBufferHandle>");
+}
+
+static std::ostream& operator<<(std::ostream& os,
+                                const std::variant<Handle, HardwareBufferHandle>& handle) {
+    std::visit([&os](const auto& x) { os << x; }, handle);
+    return os;
 }
 
 std::ostream& operator<<(std::ostream& os, const Memory& memory) {
     return os << "Memory{.handle=" << memory.handle << ", .size=" << memory.size
               << ", .name=" << memory.name << "}";
+}
+
+std::ostream& operator<<(std::ostream& os, const SharedMemory& memory) {
+    if (memory == nullptr) {
+        return os << "<empty memory>";
+    }
+    return os << *memory;
 }
 
 std::ostream& operator<<(std::ostream& os, const Model::Subgraph& subgraph) {
@@ -759,8 +789,8 @@ std::ostream& operator<<(std::ostream& os, const Request::Argument& requestArgum
 
 std::ostream& operator<<(std::ostream& os, const Request::MemoryPool& memoryPool) {
     os << "Request::MemoryPool{";
-    if (std::holds_alternative<Memory>(memoryPool)) {
-        os << std::get<Memory>(memoryPool);
+    if (std::holds_alternative<SharedMemory>(memoryPool)) {
+        os << std::get<SharedMemory>(memoryPool);
     } else if (std::holds_alternative<Request::MemoryDomainToken>(memoryPool)) {
         const auto& token = std::get<Request::MemoryDomainToken>(memoryPool);
         if (token == Request::MemoryDomainToken{}) {
@@ -768,8 +798,8 @@ std::ostream& operator<<(std::ostream& os, const Request::MemoryPool& memoryPool
         } else {
             os << "MemoryDomainToken=" << underlyingType(token);
         }
-    } else if (std::holds_alternative<std::shared_ptr<const IBuffer>>(memoryPool)) {
-        const auto& buffer = std::get<std::shared_ptr<const IBuffer>>(memoryPool);
+    } else if (std::holds_alternative<SharedBuffer>(memoryPool)) {
+        const auto& buffer = std::get<SharedBuffer>(memoryPool);
         os << (buffer != nullptr ? "<non-null IBuffer>" : "<null IBuffer>");
     }
     return os << "}";
@@ -826,6 +856,8 @@ std::ostream& operator<<(std::ostream& os, const Version& version) {
             return os << "ANDROID_Q";
         case Version::ANDROID_R:
             return os << "ANDROID_R";
+        case Version::ANDROID_S:
+            return os << "ANDROID_S";
         case Version::CURRENT_RUNTIME:
             return os << "CURRENT_RUNTIME";
     }
@@ -844,6 +876,8 @@ std::ostream& operator<<(std::ostream& os, const HalVersion& halVersion) {
             return os << "HAL version 1.2";
         case HalVersion::V1_3:
             return os << "HAL version 1.3";
+        case HalVersion::AIDL_UNSTABLE:
+            return os << "HAL uses unstable AIDL";
     }
     return os << "HalVersion{" << underlyingType(halVersion) << "}";
 }

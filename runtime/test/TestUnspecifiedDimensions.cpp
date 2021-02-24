@@ -14,18 +14,18 @@
  * limitations under the License.
  */
 
-#include "TestNeuralNetworksWrapper.h"
-
+#include <android-base/macros.h>
+#include <android/sharedmem.h>
+#include <gtest/gtest.h>
 #include <sys/mman.h>
+
 #include <memory>
 #include <string>
 #include <tuple>
 #include <utility>
 #include <vector>
 
-#include <android-base/macros.h>
-#include <android/sharedmem.h>
-#include <gtest/gtest.h>
+#include "TestNeuralNetworksWrapper.h"
 
 using namespace android::nn::test_wrapper;
 

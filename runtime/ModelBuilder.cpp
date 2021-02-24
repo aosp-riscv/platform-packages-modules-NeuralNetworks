@@ -18,6 +18,9 @@
 
 #include "ModelBuilder.h"
 
+#include <GraphDump.h>
+#include <LegacyUtils.h>
+
 #include <algorithm>
 #include <map>
 #include <memory>
@@ -26,10 +29,8 @@
 #include <vector>
 
 #include "CompilationBuilder.h"
-#include "GraphDump.h"
 #include "Manager.h"
 #include "TypeManager.h"
-#include "Utils.h"
 
 namespace android {
 namespace nn {
@@ -893,8 +894,8 @@ Model ModelBuilder::ModelMaker::makeModel(const ModelBuilder* mainModel) {
     updateOperandLocations(mainModel, &model.main);
     model.referenced = std::move(mRefSubgraphs);
     model.operandValues = std::move(mOperandValues);
-    model.pools.resize(mMemories.size());
-    std::transform(mMemories.begin(), mMemories.end(), model.pools.begin(),
+    model.pools.reserve(mMemories.size());
+    std::transform(mMemories.begin(), mMemories.end(), std::back_inserter(model.pools),
                    [](const RuntimeMemory* m) { return m->getMemory(); });
     model.relaxComputationFloat32toFloat16 = mainModel->mRelaxComputationFloat32toFloat16;
     model.extensionNameToPrefix = std::move(mExtensionNameToPrefix);

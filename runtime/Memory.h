@@ -17,13 +17,14 @@
 #ifndef ANDROID_FRAMEWORKS_ML_NN_RUNTIME_MEMORY_H
 #define ANDROID_FRAMEWORKS_ML_NN_RUNTIME_MEMORY_H
 
+#include <CpuExecutor.h>
+#include <LegacyUtils.h>
 #include <android-base/macros.h>
 #include <android-base/scopeguard.h>
 #include <nnapi/IBuffer.h>
 #include <nnapi/SharedMemory.h>
 #include <nnapi/Validation.h>
 #include <sys/mman.h>
-#include <vndk/hardware_buffer.h>
 
 #include <algorithm>
 #include <map>
@@ -35,9 +36,7 @@
 #include <utility>
 #include <vector>
 
-#include "CpuExecutor.h"
 #include "NeuralNetworks.h"
-#include "Utils.h"
 
 namespace android {
 namespace nn {
@@ -161,9 +160,9 @@ class MemoryValidatorBase {
     virtual bool isInitialized() const { return true; }
 };
 
-int copyIBufferToMemory(const SharedBuffer& src, const Memory& dst);
+int copyIBufferToMemory(const SharedBuffer& src, const SharedMemory& dst);
 
-int copyMemoryToIBuffer(const Memory& src, const SharedBuffer& dst,
+int copyMemoryToIBuffer(const SharedMemory& src, const SharedBuffer& dst,
                         const std::vector<uint32_t>& dimensions);
 
 // Represents a memory region.
@@ -177,9 +176,9 @@ class RuntimeMemory {
     virtual ~RuntimeMemory();
 
     Request::MemoryPool getMemoryPool() const;
-    const Memory& getMemory() const { return kMemory; }
+    const SharedMemory& getMemory() const { return kMemory; }
     const SharedBuffer& getIBuffer() const { return kBuffer; }
-    virtual uint32_t getSize() const { return getMemory().size; }
+    virtual uint32_t getSize() const { return getMemory()->size; }
     virtual std::optional<RunTimePoolInfo> getRunTimePoolInfo() const;
 
     MemoryValidatorBase& getValidator() const {
@@ -202,13 +201,13 @@ class RuntimeMemory {
     static int copy(const RuntimeMemory& src, const RuntimeMemory& dst);
 
    protected:
-    RuntimeMemory(Memory memory);
-    RuntimeMemory(Memory memory, std::unique_ptr<MemoryValidatorBase> validator);
-    RuntimeMemory(SharedBuffer buffer);
+    explicit RuntimeMemory(SharedMemory memory);
+    RuntimeMemory(SharedMemory memory, std::unique_ptr<MemoryValidatorBase> validator);
+    explicit RuntimeMemory(SharedBuffer buffer);
 
     // The canonical representation for this memory.  We will use one of the
     // following values when communicating with the drivers.
-    const Memory kMemory;
+    const SharedMemory kMemory = std::make_shared<const Memory>();
     const SharedBuffer kBuffer;
 
     std::unique_ptr<MemoryValidatorBase> mValidator;
@@ -290,11 +289,11 @@ class MemoryAshmem : public RuntimeMemory {
     uint8_t* getPointer() const;
 
     std::optional<RunTimePoolInfo> getRunTimePoolInfo() const override {
-        return RunTimePoolInfo::createFromExistingBuffer(getPointer(), kMemory.size);
+        return RunTimePoolInfo::createFromExistingBuffer(getPointer(), kMemory->size);
     }
 
     // prefer using MemoryAshmem::create
-    MemoryAshmem(Memory memory, Mapping mapped);
+    MemoryAshmem(SharedMemory memory, Mapping mapped);
 
    private:
     const Mapping kMapping;
@@ -311,7 +310,7 @@ class MemoryFd : public RuntimeMemory {
                                                             size_t offset);
 
     // prefer using MemoryFd::create
-    MemoryFd(Memory memory);
+    explicit MemoryFd(SharedMemory memory);
 };
 
 class MemoryAHWB : public RuntimeMemory {
@@ -324,7 +323,7 @@ class MemoryAHWB : public RuntimeMemory {
     static std::pair<int, std::unique_ptr<MemoryAHWB>> create(const AHardwareBuffer& ahwb);
 
     // prefer using MemoryAHWB::create
-    MemoryAHWB(Memory memory, std::unique_ptr<MemoryValidatorBase> validator)
+    MemoryAHWB(SharedMemory memory, std::unique_ptr<MemoryValidatorBase> validator)
         : RuntimeMemory(std::move(memory), std::move(validator)) {}
 };
 
@@ -344,15 +343,13 @@ class MemoryRuntimeAHWB : public RuntimeMemory {
     uint8_t* getPointer() const;
 
     std::optional<RunTimePoolInfo> getRunTimePoolInfo() const override {
-        return RunTimePoolInfo::createFromExistingBuffer(getPointer(), kMemory.size);
+        return RunTimePoolInfo::createFromExistingBuffer(getPointer(), kMemory->size);
     }
 
     // prefer using MemoryRuntimeAHWB::create
-    MemoryRuntimeAHWB(Memory memory, base::ScopeGuard<std::function<void()>> ahwbScopeGuard,
-                      Mapping mapping);
+    MemoryRuntimeAHWB(SharedMemory memory, Mapping mapping);
 
    private:
-    const base::ScopeGuard<std::function<void()>> kAhwbScopeGuard;
     const Mapping kMapping;
 };
 
@@ -366,7 +363,7 @@ class MemoryFromDevice : public RuntimeMemory {
     static std::pair<int, std::unique_ptr<MemoryFromDevice>> create(SharedBuffer buffer);
 
     // prefer using MemoryFromDevice::create
-    MemoryFromDevice(SharedBuffer buffer);
+    explicit MemoryFromDevice(SharedBuffer buffer);
 };
 
 using MemoryTracker = ObjectTracker<RuntimeMemory>;

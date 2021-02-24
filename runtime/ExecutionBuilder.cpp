@@ -18,6 +18,12 @@
 
 #include "ExecutionBuilder.h"
 
+#include <ControlFlow.h>
+#include <CpuExecutor.h>
+#include <ExecutionBurstController.h>
+#include <LegacyUtils.h>
+#include <Tracing.h>
+#include <android-base/logging.h>
 #include <nnapi/IPreparedModel.h>
 
 #include <algorithm>
@@ -33,16 +39,10 @@
 #include <vector>
 
 #include "CompilationBuilder.h"
-#include "ControlFlow.h"
-#include "CpuExecutor.h"
-#include "ExecutionBurstController.h"
-#include "HalInterfaces.h"
 #include "Manager.h"
 #include "ModelArgumentInfo.h"
 #include "ModelBuilder.h"
-#include "Tracing.h"
 #include "TypeManager.h"
-#include "Utils.h"
 
 namespace android {
 namespace nn {
@@ -248,7 +248,7 @@ int ExecutionBuilder::setInputFromMemory(uint32_t index, const ANeuralNetworksOp
     // length. For other memories that do not allow this semantic, it is checked in
     // MemoryValidatorBase::validate before reaching here.
     if (validate(memory->getMemory()).ok() && offset == 0 && length == 0) {
-        length = memory->getMemory().size;
+        length = memory->getMemory()->size;
     }
     // TODO validate the rest
     uint32_t poolIndex = mMemories.add(memory);
@@ -326,7 +326,7 @@ int ExecutionBuilder::setOutputFromMemory(uint32_t index, const ANeuralNetworksO
     // length. For other memories that do not allow this semantic, it is checked in
     // MemoryValidatorBase::validate before reaching here.
     if (validate(memory->getMemory()).ok() && offset == 0 && length == 0) {
-        length = memory->getMemory().size;
+        length = memory->getMemory()->size;
     }
     // TODO validate the rest
     uint32_t poolIndex = mMemories.add(memory);
@@ -549,11 +549,11 @@ cpuFallbackPartial(const ExecutionPlan& plan,
     return {n2, std::move(outputShapes), timing, executor};
 }
 
-static void asyncStartComputePartitioned(ExecutionBuilder* executionBuilder,
-                                         const ExecutionPlan& plan,
-                                         std::shared_ptr<ExecutionPlan::Controller> controller,
-                                         bool allowCpuFallback, const OptionalTimePoint& deadline,
-                                         const sp<ExecutionCallback>& executionCallback) {
+static void asyncStartComputePartitioned(
+        ExecutionBuilder* executionBuilder, const ExecutionPlan& plan,
+        std::shared_ptr<ExecutionPlan::Controller> controller, bool allowCpuFallback,
+        const OptionalTimePoint& deadline,
+        const std::shared_ptr<ExecutionCallback>& executionCallback) {
     CHECK(executionBuilder != nullptr);
     VLOG(EXECUTION) << "ExecutionBuilder::compute (from plan, iteratively)";
 
@@ -907,7 +907,7 @@ int ExecutionBuilder::computeFenced(const std::vector<int>& waitFor,
     return result;
 }
 
-int ExecutionBuilder::compute(sp<ExecutionCallback>* synchronizationCallback,
+int ExecutionBuilder::compute(std::shared_ptr<ExecutionCallback>* synchronizationCallback,
                               BurstBuilder* burstBuilder) {
     CHECK(synchronizationCallback == nullptr || burstBuilder == nullptr)
             << "synchronizationCallback and burstBuilder cannot simultaneously be used";
@@ -965,7 +965,7 @@ int ExecutionBuilder::compute(sp<ExecutionCallback>* synchronizationCallback,
         } else {
             VLOG(EXECUTION) << "ExecutionBuilder::compute (synchronous API)";
         }
-        sp<ExecutionCallback> localSynchronizationCallback = new ExecutionCallback();
+        auto localSynchronizationCallback = std::make_shared<ExecutionCallback>();
         localSynchronizationCallback->setOnFinish(wrappedFinish);
         asyncStartComputePartitioned(this, *mPlan, controller, allowCpuFallback, deadline,
                                      localSynchronizationCallback);
@@ -980,11 +980,11 @@ int ExecutionBuilder::compute(sp<ExecutionCallback>* synchronizationCallback,
         //              of spinning up a new thread.
 
         // Prepare the callback for asynchronous execution.
-        // sp<ExecutionCallback> object is returned when the
+        // std::shared_ptr<ExecutionCallback> object is returned when the
         // execution has been successfully launched, otherwise a
         // nullptr is returned.  The executionCallback is
         // abstracted in the NN API as an "event".
-        sp<ExecutionCallback> executionCallback = new ExecutionCallback();
+        auto executionCallback = std::make_shared<ExecutionCallback>();
         executionCallback->setOnFinish(wrappedFinish);
         if (DeviceManager::get()->syncExecRuntime()) {
             VLOG(EXECUTION) << "ExecutionBuilder::compute (asynchronous API, non-threaded)";

@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include "SharedMemory.h"
+
 #include <android-base/logging.h>
 
 #include <limits>
@@ -23,7 +25,6 @@
 #include <vector>
 
 #include "Result.h"
-#include "SharedMemory.h"
 #include "Types.h"
 
 namespace android::nn {
@@ -67,7 +68,7 @@ bool MutableMemoryBuilder::empty() const {
     return mSize == 0;
 }
 
-GeneralResult<Memory> MutableMemoryBuilder::finish() {
+GeneralResult<SharedMemory> MutableMemoryBuilder::finish() {
     return createSharedMemory(mSize);
 }
 
@@ -84,7 +85,7 @@ bool ConstantMemoryBuilder::empty() const {
     return mBuilder.empty();
 }
 
-GeneralResult<Memory> ConstantMemoryBuilder::finish() {
+GeneralResult<SharedMemory> ConstantMemoryBuilder::finish() {
     // Allocate the memory.
     auto memory = NN_TRY(mBuilder.finish());
 

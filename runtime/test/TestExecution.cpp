@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+#include <HalInterfaces.h>
+#include <SampleDriver.h>
+#include <ValidateHal.h>
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -25,16 +28,15 @@
 #include <tuple>
 #include <vector>
 
-#include "Callbacks.h"
 #include "CompilationBuilder.h"
-#include "HalInterfaces.h"
+#include "ExecutionBurstServer.h"
+#include "ExecutionCallback.h"
+#include "HalUtils.h"
 #include "Manager.h"
 #include "ModelBuilder.h"
 #include "NeuralNetworks.h"
-#include "SampleDriver.h"
+#include "PreparedModelCallback.h"
 #include "TestNeuralNetworksWrapper.h"
-#include "Utils.h"
-#include "ValidateHal.h"
 
 namespace android {
 
@@ -44,6 +46,7 @@ namespace V1_2 = ::android::hardware::neuralnetworks::V1_2;
 namespace V1_3 = ::android::hardware::neuralnetworks::V1_3;
 using CompilationBuilder = nn::CompilationBuilder;
 using Device = nn::Device;
+using SharedDevice = nn::SharedDevice;
 using DeviceManager = nn::DeviceManager;
 using HidlModel = V1_3::Model;
 using PreparedModelCallback = nn::PreparedModelCallback;
@@ -173,6 +176,9 @@ class TestPreparedModelLatest : public V1_3::IPreparedModel {
         }
     }
 
+    // ExecutionBurstServer::create has an overload that will use
+    // IPreparedModel::executeSynchronously(), so we can rely on that, rather
+    // than having to implement ExecutionBurstServer::IExecutorWithCache.
     hardware::Return<void> configureExecutionBurst(
             const sp<V1_2::IBurstCallback>& callback,
             const MQDescriptorSync<V1_2::FmqRequestDatum>& requestChannel,
@@ -180,8 +186,12 @@ class TestPreparedModelLatest : public V1_3::IPreparedModel {
             configureExecutionBurst_cb cb) override {
         CHECK(mPreparedModelV1_2 != nullptr) << "V1_2 prepared model is nullptr.";
         if (mErrorStatus == V1_3::ErrorStatus::NONE) {
-            return mPreparedModelV1_2->configureExecutionBurst(callback, requestChannel,
-                                                               resultChannel, cb);
+            const sp<V1_2::IBurstContext> burst = nn::ExecutionBurstServer::create(
+                    callback, requestChannel, resultChannel, this);
+
+            cb(burst == nullptr ? V1_0::ErrorStatus::GENERAL_FAILURE : V1_0::ErrorStatus::NONE,
+               burst);
+            return hardware::Void();
         } else {
             cb(convertToV1_0(mErrorStatus), nullptr);
             return hardware::Void();
@@ -222,13 +232,20 @@ class TestPreparedModelLatest : public V1_3::IPreparedModel {
     static void pauseExecutions(bool v) { mPauseExecutions.store(v); }
 
     // This function is only guaranteed to work in the following pattern:
-    // - pauseExecutions(true);
-    // - // launch execution
-    // - // thread A: waitForExecutionToBegin()
-    // - // thread B: pauseExecutions(false);
+    // Consider thread A as primary thread
+    // - thread A: pauseExecutions(true);
+    // - thread A: launch execution (as thread B)
+    // - thread A: waitForExecutionToBegin(), block until call to dummyExecution by
+    //                                        thread B makes mExecutionsInFlight nonzero
+    // - thread B: dummyExecution(), which makes mExecutionsInFlight nonzero and blocks
+    //                               until thread A calls pauseExecutions(false)
+    // - thread A: waitForExecutionToBegin() returns
+    // - thread A: pauseExecutions(false), allowing dummyExecution() on thread B to continue
+    // - thread B: dummyExecution() zeroes mExecutionsInFlight and returns
+    // - thread B: thread exits
     static void waitForExecutionToBegin() {
         CHECK(mPauseExecutions.load());
-        while (mExecutionsInFlight.load()) {
+        while (mExecutionsInFlight.load() == 0) {
         }
     }
 
@@ -583,7 +600,7 @@ class TestCompilation : public WrapperCompilation {
                     V1_3::ErrorStatus errorStatus) {
         std::vector<std::shared_ptr<Device>> devices;
         auto device = DeviceManager::forTest_makeDriverDevice(
-                deviceName, new DriverClass(deviceName, errorStatus));
+                nn::makeSharedDevice(deviceName, new DriverClass(deviceName, errorStatus)));
         devices.push_back(device);
 
         nn::ModelBuilder* m = reinterpret_cast<nn::ModelBuilder*>(model->getHandle());
@@ -642,8 +659,8 @@ class ExecutionTestTemplate
           kUseIntrospectionAPI(std::get<2>(GetParam())),
           mModel(makeModel()) {
         if (kUseIntrospectionAPI) {
-            DeviceManager::get()->forTest_registerDevice(kName.c_str(),
-                                                         new DriverClass(kName, kForceErrorStatus));
+            DeviceManager::get()->forTest_registerDevice(
+                    nn::makeSharedDevice(kName, new DriverClass(kName.c_str(), kForceErrorStatus)));
             mCompilation = TestIntrospectionCompilation(&mModel, kName);
         } else {
             mCompilation = TestCompilation<DriverClass>(&mModel, kName, kForceErrorStatus);

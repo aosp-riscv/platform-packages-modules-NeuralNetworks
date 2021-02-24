@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+#include <HalInterfaces.h>
+#include <SampleDriver.h>
+#include <SampleDriverFull.h>
 #include <android/hardware/neuralnetworks/1.2/ADevice.h>
 #include <gtest/gtest.h>
 
@@ -25,11 +28,9 @@
 #include <utility>
 #include <vector>
 
-#include "HalInterfaces.h"
+#include "HalUtils.h"
 #include "Manager.h"
 #include "Memory.h"
-#include "SampleDriver.h"
-#include "SampleDriverFull.h"
 #include "TestNeuralNetworksWrapper.h"
 #include "TestUtils.h"
 
@@ -253,16 +254,17 @@ class MemoryDomainTest : public MemoryDomainTestBase,
     void createAndRegisterDriver(const char* name,
                                  std::set<V1_3::OperationType> supportedOperations,
                                  AllocateReturn allocateReturn) {
-        sp<V1_0::IDevice> driver;
         if (kUseV1_2Driver) {
             CHECK(allocateReturn == AllocateReturn::NOT_SUPPORTED);
             const sp<TestDriverLatest> testDriver =
                     new TestDriverLatest(name, supportedOperations, AllocateReturn::NOT_SUPPORTED);
-            driver = new V1_2::ADevice(testDriver);
+            DeviceManager::get()->forTest_registerDevice(
+                    makeSharedDevice(name, new V1_2::ADevice(testDriver)));
         } else {
-            driver = new TestDriverLatest(name, std::move(supportedOperations), allocateReturn);
+            DeviceManager::get()->forTest_registerDevice(makeSharedDevice(
+                    name,
+                    new TestDriverLatest(name, std::move(supportedOperations), allocateReturn)));
         }
-        DeviceManager::get()->forTest_registerDevice(name, driver);
     }
 
     // If not kCompileWithExplicitDeviceList, the input argument "deviceNames" is ignored.
@@ -308,9 +310,9 @@ TEST_P(MemoryDomainTest, SinglePartition) {
             const auto& memory = m->getMemory();
             EXPECT_TRUE(validate(memory).ok());
             if (kUseV1_2Driver) {
-                EXPECT_EQ(memory.name, "ashmem");
+                EXPECT_EQ(memory->name, "ashmem");
             } else {
-                EXPECT_EQ(memory.name, "hardware_buffer_blob");
+                EXPECT_EQ(memory->name, "hardware_buffer_blob");
             }
         }
     }
@@ -346,9 +348,9 @@ TEST_P(MemoryDomainTest, MultiplePartitions) {
                 const auto& memory = m->getMemory();
                 EXPECT_TRUE(validate(memory).ok());
                 if (kUseV1_2Driver) {
-                    EXPECT_EQ(memory.name, "ashmem");
+                    EXPECT_EQ(memory->name, "ashmem");
                 } else {
-                    EXPECT_EQ(memory.name, "hardware_buffer_blob");
+                    EXPECT_EQ(memory->name, "hardware_buffer_blob");
                 }
             }
         }
@@ -370,9 +372,9 @@ TEST_P(MemoryDomainTest, MultiplePartitions) {
             const auto& memory = m->getMemory();
             EXPECT_TRUE(validate(memory).ok());
             if (kUseV1_2Driver) {
-                EXPECT_EQ(memory.name, "ashmem");
+                EXPECT_EQ(memory->name, "ashmem");
             } else {
-                EXPECT_EQ(memory.name, "hardware_buffer_blob");
+                EXPECT_EQ(memory->name, "hardware_buffer_blob");
             }
         }
     }
@@ -393,9 +395,9 @@ TEST_P(MemoryDomainTest, MultiplePartitions) {
             const auto& memory = m->getMemory();
             EXPECT_TRUE(validate(memory).ok());
             if (kUseV1_2Driver) {
-                EXPECT_EQ(memory.name, "ashmem");
+                EXPECT_EQ(memory->name, "ashmem");
             } else {
-                EXPECT_EQ(memory.name, "hardware_buffer_blob");
+                EXPECT_EQ(memory->name, "hardware_buffer_blob");
             }
         }
     }
@@ -443,9 +445,9 @@ INSTANTIATE_TEST_SUITE_P(DeviceVersionLatest, MemoryDomainTest,
 class MemoryDomainCopyTest : public MemoryDomainTestBase {};
 
 TEST_F(MemoryDomainCopyTest, MemoryCopyTest) {
-    sp<sample_driver::SampleDriverFull> driver(new sample_driver::SampleDriverFull(
-            "test_driver", {.execTime = 0.1f, .powerUsage = 0.1f}));
-    DeviceManager::get()->forTest_registerDevice("test_driver", driver);
+    DeviceManager::get()->forTest_registerDevice(makeSharedDevice(
+            "test_driver", new sample_driver::SampleDriverFull(
+                                   "test_driver", {.execTime = 0.1f, .powerUsage = 0.1f})));
     auto compilation = createCompilation({"test_driver"});
     ASSERT_NE(compilation.getHandle(), nullptr);
 

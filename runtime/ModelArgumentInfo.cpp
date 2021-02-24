@@ -18,14 +18,14 @@
 
 #include "ModelArgumentInfo.h"
 
+#include <LegacyUtils.h>
+
 #include <algorithm>
 #include <utility>
 #include <vector>
 
-#include "HalInterfaces.h"
 #include "NeuralNetworks.h"
 #include "TypeManager.h"
-#include "Utils.h"
 
 namespace android {
 namespace nn {

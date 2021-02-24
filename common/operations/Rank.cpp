@@ -16,9 +16,9 @@
 
 #define LOG_TAG "Operations"
 
+#include "LegacyUtils.h"
 #include "OperationResolver.h"
 #include "OperationsUtils.h"
-#include "Utils.h"
 
 namespace android {
 namespace nn {

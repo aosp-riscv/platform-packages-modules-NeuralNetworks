@@ -22,9 +22,11 @@
 #include <string>
 #include <vector>
 
-#include "AppInfoFetcher.h"
-#include "HalInterfaces.h"
 #include "Manager.h"
+
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
+#include "AppInfoFetcher.h"
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 namespace android {
 namespace nn {
@@ -108,6 +110,7 @@ class TypeManager {
     // available devices.
     void forTest_reset() { *this = TypeManager(); }
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
     // Check if NNAPI Vendor extensions are usable in the process with the given app
     // and supplemental infomation.
     //
@@ -117,6 +120,7 @@ class TypeManager {
     static bool isExtensionsUseAllowed(const AppInfoFetcher::AppInfo& appPackageInfo,
                                        bool useOnProductImageEnabled,
                                        const std::vector<std::string>& allowlist);
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
    private:
     TypeManager();

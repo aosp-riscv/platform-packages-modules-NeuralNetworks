@@ -36,7 +36,7 @@ void copyRunTimePoolInfos(const RunTimePoolInfo& srcPool, const RunTimePoolInfo&
     dstPool.flush();
 }
 
-GeneralResult<void> copyFromInternal(const Memory& src, const Dimensions& dimensions,
+GeneralResult<void> copyFromInternal(const SharedMemory& src, const Dimensions& dimensions,
                                      const std::shared_ptr<ManagedBuffer>& bufferWrapper) {
     CHECK(bufferWrapper != nullptr);
     const auto srcPool = RunTimePoolInfo::createFromMemory(src);
@@ -67,7 +67,7 @@ Request::MemoryDomainToken Buffer::getToken() const {
     return Request::MemoryDomainToken{kToken->get()};
 }
 
-GeneralResult<void> Buffer::copyTo(const Memory& dst) const {
+GeneralResult<void> Buffer::copyTo(const SharedMemory& dst) const {
     const auto dstPool = RunTimePoolInfo::createFromMemory(dst);
     if (!dstPool.has_value()) {
         return NN_ERROR(ErrorStatus::GENERAL_FAILURE)
@@ -85,7 +85,7 @@ GeneralResult<void> Buffer::copyTo(const Memory& dst) const {
     return {};
 }
 
-GeneralResult<void> Buffer::copyFrom(const Memory& src, const Dimensions& dimensions) const {
+GeneralResult<void> Buffer::copyFrom(const SharedMemory& src, const Dimensions& dimensions) const {
     if (const auto result = copyFromInternal(src, dimensions, kBuffer); !result.ok()) {
         kBuffer->setInitialized(false);
         NN_TRY(result);

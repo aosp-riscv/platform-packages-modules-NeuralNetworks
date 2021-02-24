@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <SampleDriverPartial.h>
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -24,7 +25,6 @@
 #include "ExecutionPlan.h"
 #include "HalUtils.h"
 #include "Manager.h"
-#include "SampleDriverPartial.h"
 #include "TestNeuralNetworksWrapper.h"
 
 namespace android::nn {
@@ -76,8 +76,8 @@ class FailingDriverTest : public ::testing::Test {
             !DeviceManager::partitioningAllowsFallback(deviceManager->getPartitioning())) {
             GTEST_SKIP();
         }
-        mTestDevice =
-                DeviceManager::forTest_makeDriverDevice(kTestDriverName, new FailingTestDriver());
+        mTestDevice = DeviceManager::forTest_makeDriverDevice(
+                makeSharedDevice(kTestDriverName, new FailingTestDriver()));
         deviceManager->forTest_setDevices({
                 mTestDevice,
                 DeviceManager::getCpuDevice(),

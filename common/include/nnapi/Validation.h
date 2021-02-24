@@ -43,7 +43,7 @@ Result<Version> validate(const Timing& timing);
 Result<Version> validate(const Capabilities& capabilities);
 Result<Version> validate(const Extension& extension);
 Result<Version> validate(const SharedHandle& handle);
-Result<Version> validate(const Memory& memory);
+Result<Version> validate(const SharedMemory& memory);
 Result<Version> validate(const Model& model);
 Result<Version> validate(const BufferDesc& bufferDesc);
 Result<Version> validate(const BufferRole& bufferRole);
@@ -57,7 +57,8 @@ Result<Version> validate(const std::vector<SharedHandle>& handles);
 Result<Version> validate(const std::vector<BufferRole>& bufferRoles);
 
 // Validate request applied to model.
-Result<Version> validateRequestForModel(const Request& request, const Model& model);
+Result<Version> validateRequestForModel(const Request& request, const Model& model,
+                                        bool allowUnspecifiedOutput = true);
 
 // Validate memory descriptor.
 enum class IOType { INPUT, OUTPUT };

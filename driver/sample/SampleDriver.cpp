@@ -18,6 +18,12 @@
 
 #include "SampleDriver.h"
 
+#include <CpuExecutor.h>
+#include <ExecutionBurstServer.h>
+#include <HalBufferTracker.h>
+#include <HalInterfaces.h>
+#include <Tracing.h>
+#include <ValidateHal.h>
 #include <android-base/logging.h>
 #include <android-base/properties.h>
 #include <hidl/LegacySupport.h>
@@ -34,13 +40,7 @@
 #include <utility>
 #include <vector>
 
-#include "CpuExecutor.h"
-#include "ExecutionBurstServer.h"
-#include "HalBufferTracker.h"
-#include "HalInterfaces.h"
 #include "SampleDriverUtils.h"
-#include "Tracing.h"
-#include "ValidateHal.h"
 
 namespace android {
 namespace nn {

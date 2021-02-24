@@ -17,6 +17,8 @@
 #ifndef ANDROID_FRAMEWORKS_ML_NN_RUNTIME_EXECUTION_BUILDER_H
 #define ANDROID_FRAMEWORKS_ML_NN_RUNTIME_EXECUTION_BUILDER_H
 
+#include <ControlFlow.h>
+#include <CpuExecutor.h>
 #include <nnapi/IPreparedModel.h>
 #include <nnapi/Validation.h>
 
@@ -27,10 +29,7 @@
 #include <utility>
 #include <vector>
 
-#include "Callbacks.h"
-#include "ControlFlow.h"
-#include "CpuExecutor.h"
-#include "HalInterfaces.h"
+#include "ExecutionCallback.h"
 #include "Memory.h"
 #include "ModelArgumentInfo.h"
 #include "ModelBuilder.h"
@@ -81,7 +80,7 @@ class ExecutionBuilder {
     int computeFenced(const std::vector<int>& wait_for, uint64_t timeoutDurationAfterFence,
                       int* sync_fence);
 
-    int computeAsynchronously(sp<ExecutionCallback>* synchronizationCallback) {
+    int computeAsynchronously(std::shared_ptr<ExecutionCallback>* synchronizationCallback) {
         CHECK(synchronizationCallback != nullptr);
         return compute(synchronizationCallback);
     }
@@ -131,7 +130,7 @@ class ExecutionBuilder {
     // provided (i.e., is nullptr), then a synchronous execution will occur.
     //
     // Providing both synchronizationCallback and burstBuilder is an error.
-    int compute(sp<ExecutionCallback>* synchronizationCallback,
+    int compute(std::shared_ptr<ExecutionCallback>* synchronizationCallback,
                 BurstBuilder* burstBuilder = nullptr);
 
     const CompilationBuilder* mCompilation;

@@ -66,6 +66,7 @@ Result<Version> validate(const IOperationValidationContext* context) {
     return minSupportedVersion;
 }
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 bool prepare(IOperationExecutionContext* context) {
     // Only the squeeze dims tensor can be omitted.
     NN_RET_CHECK(!context->isOmittedInput(kInputTensor));
@@ -137,6 +138,8 @@ bool execute(IOperationExecutionContext* context) {
             NN_RET_CHECK_FAIL() << "Unsupported tensor type for SQUEEZE op.";
     }
 }
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
+
 }  // namespace squeeze
 
 NN_REGISTER_OPERATION(SQUEEZE, "SQUEEZE", squeeze::validate, squeeze::prepare, squeeze::execute,

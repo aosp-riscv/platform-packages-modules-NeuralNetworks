@@ -17,6 +17,9 @@
 #ifndef ANDROID_FRAMEWORKS_ML_NN_DRIVER_SAMPLE_SAMPLE_DRIVER_H
 #define ANDROID_FRAMEWORKS_ML_NN_DRIVER_SAMPLE_SAMPLE_DRIVER_H
 
+#include <CpuExecutor.h>
+#include <HalBufferTracker.h>
+#include <HalInterfaces.h>
 #include <hwbinder/IPCThreadState.h>
 
 #include <memory>
@@ -24,9 +27,6 @@
 #include <utility>
 #include <vector>
 
-#include "CpuExecutor.h"
-#include "HalBufferTracker.h"
-#include "HalInterfaces.h"
 #include "NeuralNetworks.h"
 
 namespace android {

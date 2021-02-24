@@ -38,6 +38,7 @@
 #include "OperationResolver.h"
 #include "OperationTypes.h"
 #include "Result.h"
+#include "SharedMemory.h"
 #include "TypeUtils.h"
 #include "Types.h"
 
@@ -712,36 +713,54 @@ Result<Version> validateOperations(const std::vector<Operation>& operations,
     return version;
 }
 
-Result<Version> validateSharedHandle(const SharedHandle& handle) {
-    NN_VALIDATE(handle != nullptr);
-    NN_VALIDATE(std::all_of(handle->fds.begin(), handle->fds.end(),
+Result<Version> validateHandle(const Handle& handle) {
+    NN_VALIDATE(std::all_of(handle.fds.begin(), handle.fds.end(),
                             [](const base::unique_fd& fd) { return fd.ok(); }));
     return Version::ANDROID_OC_MR1;
 }
 
-Result<Version> validateMemory(const Memory& memory) {
-    NN_TRY(validateSharedHandle(memory.handle));
+Result<Version> validateSharedHandle(const SharedHandle& handle) {
+    NN_VALIDATE(handle != nullptr);
+    return validateHandle(*handle);
+}
 
-    if (memory.name == "ashmem") {
-        NN_VALIDATE_NE(memory.size, 0u);
+Result<Version> validateSharedMemory(const SharedMemory& memory) {
+    NN_VALIDATE(memory != nullptr);
+
+    if (memory->name == "ashmem") {
+        NN_VALIDATE_NE(memory->size, 0u);
+        NN_VALIDATE(std::holds_alternative<Handle>(memory->handle));
+        NN_TRY(validateHandle(std::get<Handle>(memory->handle)));
         return Version::ANDROID_OC_MR1;
     }
-    if (memory.name == "mmap_fd") {
-        NN_VALIDATE_NE(memory.size, 0u);
+    if (memory->name == "mmap_fd") {
+        NN_VALIDATE_NE(memory->size, 0u);
+        NN_VALIDATE(std::holds_alternative<Handle>(memory->handle));
+        NN_TRY(validateHandle(std::get<Handle>(memory->handle)));
         return Version::ANDROID_OC_MR1;
     }
-    if (memory.name == "hardware_buffer_blob") {
-        NN_VALIDATE_NE(memory.size, 0u);
+    if (memory->name == "hardware_buffer_blob") {
+        NN_VALIDATE_NE(memory->size, 0u);
+        NN_VALIDATE(std::holds_alternative<HardwareBufferHandle>(memory->handle));
+        NN_VALIDATE(std::get<HardwareBufferHandle>(memory->handle).get() != nullptr);
         return Version::ANDROID_Q;
     }
-    if (memory.name == "hardware_buffer") {
+    if (memory->name == "hardware_buffer") {
         // For hardware_buffer memory, all size information is bound to the AHardwareBuffer, so
         // memory.size must be 0.
-        NN_VALIDATE_EQ(memory.size, 0u);
-        return Version::ANDROID_Q;
+        NN_VALIDATE_EQ(memory->size, 0u);
+        // hardware_buffer can be represented by either Handle or HardwareBufferHandle.
+        if (const auto* handle = std::get_if<Handle>(&memory->handle)) {
+            NN_TRY(validateHandle(*handle));
+            return Version::ANDROID_Q;
+        }
+        if (const auto* handle = std::get_if<HardwareBufferHandle>(&memory->handle)) {
+            NN_VALIDATE(handle->get() != nullptr);
+            return Version::ANDROID_Q;
+        }
     }
 
-    NN_VALIDATE_FAIL() << "Unknown memory type " << memory.name;
+    NN_VALIDATE_FAIL() << "Unknown memory type " << memory->name;
 }
 
 Result<void> validateModelSubgraphInputOutputs(const std::vector<uint32_t>& indexes,
@@ -966,7 +985,7 @@ Result<void> checkNoReferenceCycles(const std::vector<Model::Subgraph>& referenc
 }
 
 Result<Version> validateModel(const Model& model) {
-    auto version = NN_TRY(validateVector(model.pools, validateMemory));
+    auto version = NN_TRY(validateVector(model.pools, validateSharedMemory));
     version = combineVersions(
             version, NN_TRY(validateModelExtensionNamesAndPrefixes(model.extensionNameToPrefix)));
 
@@ -1061,7 +1080,7 @@ Result<Version> validateRequestMemoryPool(const Request::MemoryPool& memoryPool)
         NN_VALIDATE(std::get<SharedBuffer>(memoryPool) != nullptr);
         return Version::ANDROID_R;
     }
-    return validateMemory(std::get<Memory>(memoryPool));
+    return validateSharedMemory(std::get<SharedMemory>(memoryPool));
 }
 
 Result<Version> validateRequest(const Request& request) {
@@ -1072,8 +1091,8 @@ Result<Version> validateRequest(const Request& request) {
     memorySizes.reserve(request.pools.size());
     std::transform(request.pools.begin(), request.pools.end(), std::back_inserter(memorySizes),
                    [](const Request::MemoryPool& memoryPool) {
-                       const auto* memory = std::get_if<Memory>(&memoryPool);
-                       return memory != nullptr ? memory->size : 0;
+                       const auto* memory = std::get_if<SharedMemory>(&memoryPool);
+                       return memory != nullptr ? (*memory)->size : 0;
                    });
 
     for (size_t i = 0; i < request.inputs.size(); ++i) {
@@ -1108,7 +1127,7 @@ Result<Version> validateOptionalTimeoutDuration(
 Result<Version> validateRequestArgumentsForModel(
         const std::vector<Request::Argument>& requestArguments,
         const std::vector<uint32_t>& operandIndexes, const std::vector<Operand>& operands,
-        bool isOutput) {
+        bool isOutput, bool allowUnspecifiedOutput) {
     auto version = Version::ANDROID_OC_MR1;
     // The request should specify as many arguments as were described in the model.
     const std::string_view type = isOutput ? "output" : "input";
@@ -1136,6 +1155,8 @@ Result<Version> validateRequestArgumentsForModel(
                         NN_VALIDATE(isOutput)
                                 << "Model has unknown input rank but the request does not "
                                    "specify the rank.";
+                        NN_VALIDATE(allowUnspecifiedOutput)
+                                << "Model has unknown output rank and request does not specify it.";
                         // Unspecified output dimensions introduced in Android Q.
                         version = combineVersions(version, Version::ANDROID_Q);
                     }
@@ -1143,7 +1164,7 @@ Result<Version> validateRequestArgumentsForModel(
                 // Validate that all the dimensions are specified in the model.
                 for (size_t i = 0; i < modelRank; i++) {
                     if (operand.dimensions[i] == 0) {
-                        NN_VALIDATE(isOutput)
+                        NN_VALIDATE(isOutput && allowUnspecifiedOutput)
                                 << "Model has dimension " << i
                                 << " set to 0 but the request does not specify the dimension.";
                         // Unspecified output dimensions introduced in Android Q.
@@ -1162,8 +1183,9 @@ Result<Version> validateRequestArgumentsForModel(
                             << " has dimension " << i << " of " << requestArgument.dimensions[i]
                             << " different than the model's " << operand.dimensions[i];
                     if (requestArgument.dimensions[i] == 0) {
-                        NN_VALIDATE(isOutput) << "Request " << type << " " << requestArgumentIndex
-                                              << " has dimension " << i << " of zero";
+                        NN_VALIDATE(isOutput && allowUnspecifiedOutput)
+                                << "Request " << type << " " << requestArgumentIndex
+                                << " has dimension " << i << " of zero";
                         // Unspecified output dimensions introduced in Android Q.
                         version = combineVersions(version, Version::ANDROID_Q);
                     }
@@ -1174,15 +1196,18 @@ Result<Version> validateRequestArgumentsForModel(
     return version;
 }
 
-Result<Version> validateRequestForModelImpl(const Request& request, const Model& model) {
+Result<Version> validateRequestForModelImpl(const Request& request, const Model& model,
+                                            bool allowUnspecifiedOutput) {
     auto version = NN_TRY(validateRequest(request));
     version = combineVersions(version, NN_TRY(validateModel(model)));
-    version = combineVersions(version, NN_TRY(validateRequestArgumentsForModel(
-                                               request.inputs, model.main.inputIndexes,
-                                               model.main.operands, /*isOutput=*/false)));
-    version = combineVersions(version, NN_TRY(validateRequestArgumentsForModel(
-                                               request.outputs, model.main.outputIndexes,
-                                               model.main.operands, /*isOutput=*/true)));
+    version = combineVersions(version,
+                              NN_TRY(validateRequestArgumentsForModel(
+                                      request.inputs, model.main.inputIndexes, model.main.operands,
+                                      /*isOutput=*/false, /*allowUnspecifiedOutput=*/true)));
+    version = combineVersions(
+            version, NN_TRY(validateRequestArgumentsForModel(
+                             request.outputs, model.main.outputIndexes, model.main.operands,
+                             /*isOutput=*/true, allowUnspecifiedOutput)));
     return version;
 }
 
@@ -2676,8 +2701,8 @@ Result<Version> validate(const SharedHandle& handle) {
     return validateSharedHandle(handle);
 }
 
-Result<Version> validate(const Memory& memory) {
-    return validateMemory(memory);
+Result<Version> validate(const SharedMemory& memory) {
+    return validateSharedMemory(memory);
 }
 
 Result<Version> validate(const Model& model) {
@@ -2720,8 +2745,9 @@ Result<Version> validate(const std::vector<BufferRole>& bufferRoles) {
     return validateVector(bufferRoles, validateBufferRole);
 }
 
-Result<Version> validateRequestForModel(const Request& request, const Model& model) {
-    return validateRequestForModelImpl(request, model);
+Result<Version> validateRequestForModel(const Request& request, const Model& model,
+                                        bool allowUnspecifiedOutput) {
+    return validateRequestForModelImpl(request, model, allowUnspecifiedOutput);
 }
 
 Result<Version> validateMemoryDesc(

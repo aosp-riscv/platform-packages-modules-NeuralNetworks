@@ -49,9 +49,9 @@ cc_defaults {
     srcs: [
         "AppInfoFetcher.cpp",
         "BurstBuilder.cpp",
-        "Callbacks.cpp",
         "CompilationBuilder.cpp",
         "ExecutionBuilder.cpp",
+        "ExecutionCallback.cpp",
         "ExecutionPlan.cpp",
         "Manager.cpp",
         "Memory.cpp",
@@ -59,7 +59,6 @@ cc_defaults {
         "ModelBuilder.cpp",
         "NeuralNetworks.cpp",
         "TypeManager.cpp",
-        "VersionedInterfaces.cpp",
     ],
 
     target: {
@@ -80,6 +79,7 @@ cc_defaults {
     // TODO(pszczepaniak, b/144488395): Use system libnativewindow,
     // this would remove half of dependencies here.
     static_libs: [
+        "android.hardware.neuralnetworks-V1-ndk_platform",
         "android.hardware.neuralnetworks@1.0",
         "android.hardware.neuralnetworks@1.1",
         "android.hardware.neuralnetworks@1.2",
@@ -98,6 +98,7 @@ cc_defaults {
         "libprocessgroup",
         "libtextclassifier_hash_static",
         "libutils",
+        "neuralnetworks_types",
     ],
 
     stl: "libc++_static",
@@ -148,6 +149,45 @@ cc_library_static {
         "neuralnetworks_defaults",
     ],
     apex_available: ["//apex_available:platform"],
+}
+
+cc_library_static {
+    name: "libneuralnetworks_cl",
+    defaults: [
+        "neuralnetworks_cl_defaults",
+        "neuralnetworks_defaults",
+    ],
+    apex_available: ["//apex_available:platform"],
+    // b/109953668, disable OpenMP
+    // openmp: true,
+    srcs: [
+        "BurstBuilder.cpp",
+        "CompilationBuilder.cpp",
+        "ExecutionBuilder.cpp",
+        "ExecutionCallback.cpp",
+        "ExecutionPlan.cpp",
+        "Manager.cpp",
+        "Memory.cpp",
+        "ModelArgumentInfo.cpp",
+        "ModelBuilder.cpp",
+        "NeuralNetworks.cpp",
+        "TypeManager.cpp",
+    ],
+    static_libs: [
+        "libbase_ndk",
+        "libcrypto_static",
+        "libneuralnetworks_common_cl",
+        "neuralnetworks_types_cl",
+    ],
+    shared_libs: [
+        "libnativewindow",
+    ],
+    header_libs: [
+        "libneuralnetworks_headers_ndk",
+    ],
+    export_header_lib_headers: [
+        "libneuralnetworks_headers_ndk",
+    ],
 }
 
 ndk_headers {

@@ -34,7 +34,7 @@ Burst::Burst(std::shared_ptr<const PreparedModel> preparedModel)
     CHECK(kPreparedModel != nullptr);
 }
 
-Burst::OptionalCacheHold Burst::cacheMemory(const Memory& /*memory*/) const {
+Burst::OptionalCacheHold Burst::cacheMemory(const SharedMemory& /*memory*/) const {
     return nullptr;
 }
 

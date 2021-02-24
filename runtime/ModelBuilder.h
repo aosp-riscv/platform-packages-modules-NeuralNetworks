@@ -20,12 +20,13 @@
 #ifndef ANDROID_FRAMEWORKS_ML_NN_RUNTIME_MODEL_BUILDER_H
 #define ANDROID_FRAMEWORKS_ML_NN_RUNTIME_MODEL_BUILDER_H
 
+#include <LegacyUtils.h>
+
 #include <memory>
 #include <vector>
 
 #include "Memory.h"
 #include "NeuralNetworks.h"
-#include "Utils.h"
 
 namespace android {
 namespace nn {

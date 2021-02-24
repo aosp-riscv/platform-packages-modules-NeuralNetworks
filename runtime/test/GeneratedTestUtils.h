@@ -24,14 +24,19 @@
 #include <utility>
 #include <vector>
 
+#include "TestHarness.h"
+
 #ifdef NNTEST_SLTS
-#include "SupportLibraryTestWrapper.h"
+#include "SupportLibraryWrapper.h"
 #else
 #include "TestNeuralNetworksWrapper.h"
 #endif
-#include "TestHarness.h"
 
 namespace android::nn::generated_tests {
+
+#ifdef NNTEST_SLTS
+namespace test_wrapper = android::nn::sl_wrapper;
+#endif
 
 class GeneratedTestBase
     : public ::testing::TestWithParam<test_helper::TestModelManager::TestParam> {
@@ -50,7 +55,7 @@ class GeneratedTestBase
 class GeneratedModel : public test_wrapper::Model {
    public:
 #ifdef NNTEST_SLTS
-    GeneratedModel(const NnApiSupportLibrary* nnapi) : test_wrapper::Model(nnapi) {}
+    GeneratedModel(const NnApiSupportLibrary* nnapi) : sl_wrapper::Model(nnapi) {}
 #endif
 
     // A helper method to simplify referenced model lifetime management.

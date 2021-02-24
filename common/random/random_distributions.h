@@ -18,14 +18,15 @@ limitations under the License.
 
 #define _USE_MATH_DEFINES
 #include <math.h>
+
 #include <cmath>
 #undef _USE_MATH_DEFINES
 
 #include <string.h>
+#include <tensorflow/core/lib/bfloat16/bfloat16.h>
+
 #include <algorithm>
 #include <type_traits>
-
-#include <tensorflow/core/lib/bfloat16/bfloat16.h>
 #include <unsupported/Eigen/CXX11/Tensor>
 
 #include "philox_random.h"

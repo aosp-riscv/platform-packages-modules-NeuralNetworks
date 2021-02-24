@@ -20,15 +20,21 @@
 
 #include <algorithm>
 #include <limits>
-#include <unsupported/Eigen/CXX11/Tensor>
 #include <vector>
 
 #include "CpuExecutor.h"
-#include "CpuOperationUtils.h"
 #include "Tracing.h"
+
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
+#include <tensorflow/lite/kernels/internal/tensor_utils.h>
+
+#include <unsupported/Eigen/CXX11/Tensor>
+
+#include "CpuOperationUtils.h"
 #include "guarded_philox_random.h"
 #include "philox_random.h"
 #include "simple_philox.h"
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 namespace android {
 namespace nn {

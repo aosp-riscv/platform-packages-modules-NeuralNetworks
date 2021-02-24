@@ -17,7 +17,10 @@
 #ifndef ANDROID_FRAMEWORKS_ML_NN_COMMON_NNAPI_SHARED_MEMORY_H
 #define ANDROID_FRAMEWORKS_ML_NN_COMMON_NNAPI_SHARED_MEMORY_H
 
+#include <android-base/unique_fd.h>
+
 #include <any>
+#include <memory>
 #include <optional>
 #include <string>
 #include <variant>
@@ -29,12 +32,26 @@
 // Forward declare AHardwareBuffer
 extern "C" typedef struct AHardwareBuffer AHardwareBuffer;
 
-// Forward declare hidl_memory
-namespace android::hardware {
-struct hidl_memory;
-}  // namespace android::hardware
-
 namespace android::nn {
+
+// RAII wrapper for AHardwareBuffer
+class HardwareBufferHandle {
+   public:
+    // Precondition: handle != nullptr
+    HardwareBufferHandle(AHardwareBuffer* handle, bool takeOwnership);
+
+    AHardwareBuffer* get() const;
+
+   private:
+    using Deleter = std::add_pointer_t<void(AHardwareBuffer*)>;
+    std::unique_ptr<AHardwareBuffer, Deleter> mHandle;
+};
+
+struct Memory {
+    std::variant<Handle, HardwareBufferHandle> handle;
+    size_t size = 0;
+    std::string name;
+};
 
 class MutableMemoryBuilder {
    public:
@@ -43,7 +60,7 @@ class MutableMemoryBuilder {
     DataLocation append(size_t length);
     bool empty() const;
 
-    GeneralResult<Memory> finish();
+    GeneralResult<SharedMemory> finish();
 
    private:
     uint32_t mPoolIndex;
@@ -57,7 +74,7 @@ class ConstantMemoryBuilder {
     DataLocation append(const void* data, size_t length);
     bool empty() const;
 
-    GeneralResult<Memory> finish();
+    GeneralResult<SharedMemory> finish();
 
    private:
     struct LazyCopy {
@@ -70,13 +87,29 @@ class ConstantMemoryBuilder {
     std::vector<LazyCopy> mSlices;
 };
 
-GeneralResult<Memory> createSharedMemory(size_t size);
+GeneralResult<base::unique_fd> dupFd(int fd);
 
-GeneralResult<Memory> createSharedMemoryFromFd(size_t size, int prot, int fd, size_t offset);
+// Precondition: `*ForwardFdIt` must be convertible to `int`
+template <typename ForwardFdIt>
+GeneralResult<std::vector<base::unique_fd>> dupFds(ForwardFdIt first, ForwardFdIt last) {
+    std::vector<base::unique_fd> fds;
+    fds.reserve(std::distance(first, last));
+    for (; first != last; ++first) {
+        const int fd = *first;
+        fds.push_back(NN_TRY(dupFd(fd)));
+    }
+    return fds;
+}
 
-GeneralResult<Memory> createSharedMemoryFromHidlMemory(const hardware::hidl_memory& memory);
+// Precondition: size > 0
+GeneralResult<SharedMemory> createSharedMemory(size_t size);
 
-GeneralResult<Memory> createSharedMemoryFromAHWB(const AHardwareBuffer& ahwb);
+// Duplicates `fd` and takes ownership of the duplicate.
+// Precondition: size > 0
+GeneralResult<SharedMemory> createSharedMemoryFromFd(size_t size, int prot, int fd, size_t offset);
+
+// Precondition: ahwb != nullptr
+GeneralResult<SharedMemory> createSharedMemoryFromAHWB(AHardwareBuffer* ahwb, bool takeOwnership);
 
 struct Mapping {
     std::variant<void*, const void*> pointer;
@@ -84,7 +117,7 @@ struct Mapping {
     std::any context;
 };
 
-GeneralResult<Mapping> map(const Memory& memory);
+GeneralResult<Mapping> map(const SharedMemory& memory);
 
 bool flush(const Mapping& mapping);
 

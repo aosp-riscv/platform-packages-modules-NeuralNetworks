@@ -17,6 +17,8 @@
 #ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_DRIVER_SAMPLE_CANONICAL_DEVICE_H
 #define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_DRIVER_SAMPLE_CANONICAL_DEVICE_H
 
+#include <BufferTracker.h>
+#include <CpuExecutor.h>
 #include <nnapi/IBuffer.h>
 #include <nnapi/IDevice.h>
 #include <nnapi/OperandTypes.h>
@@ -29,9 +31,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-
-#include "BufferTracker.h"
-#include "CpuExecutor.h"
 
 namespace android::nn::sample {
 

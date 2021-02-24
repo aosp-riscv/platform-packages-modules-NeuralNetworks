@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
+#include <gtest/gtest.h>
+
 #include <iostream>
 #include <string>
-
-#include <gtest/gtest.h>
 
 std::string SUPPORT_LIBRARY_NAME;
 

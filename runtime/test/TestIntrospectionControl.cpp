@@ -14,6 +14,10 @@
  * limitations under the License.
  */
 
+#include <ExecutionBurstServer.h>
+#include <HalInterfaces.h>
+#include <SampleDriver.h>
+#include <ValidateHal.h>
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -29,16 +33,11 @@
 #include <vector>
 
 #include "CompilationBuilder.h"
-#include "ExecutionBurstServer.h"
-#include "HalInterfaces.h"
 #include "HalUtils.h"
 #include "Manager.h"
 #include "NeuralNetworks.h"
 #include "NeuralNetworksOEM.h"
-#include "SampleDriver.h"
 #include "TestNeuralNetworksWrapper.h"
-#include "Utils.h"
-#include "ValidateHal.h"
 
 namespace {
 
@@ -54,7 +53,6 @@ using DeviceManager = nn::DeviceManager;
 using ExecutePreference = nn::test_wrapper::ExecutePreference;
 using ExecutionBurstServer = nn::ExecutionBurstServer;
 using HidlModel = V1_3::Model;
-using PreparedModelCallback = nn::PreparedModelCallback;
 using Result = nn::test_wrapper::Result;
 using SampleDriver = nn::sample_driver::SampleDriver;
 using SamplePreparedModel = nn::sample_driver::SamplePreparedModel;
@@ -143,10 +141,10 @@ class IntrospectionControlTest : public ::testing::Test {
     // From a vector of DeviceSpecification, register new Devices.
     void registerDevices(std::vector<DeviceSpecification> specifications) {
         for (const auto& specification : specifications) {
-            DeviceManager::get()->forTest_registerDevice(
+            DeviceManager::get()->forTest_registerDevice(nn::makeSharedDevice(
                     specification.mName.c_str(),
                     new TestDriver(specification.mName.c_str(), specification.mCapabilities,
-                                   specification.mSupportedOps));
+                                   specification.mSupportedOps)));
         }
     }
 
@@ -591,10 +589,17 @@ class TestPreparedModelLatest : public SamplePreparedModel {
     static void pauseExecutions(bool v) { mPauseExecutions.store(v); }
 
     // This function is only guaranteed to work in the following pattern:
-    // - pauseExecutions(true);
-    // - // launch execution
-    // - // thread A: waitForExecutionToBegin()
-    // - // thread B: pauseExecutions(false);
+    // Consider thread A as primary thread
+    // - thread A: pauseExecutions(true);
+    // - thread A: launch execution (as thread B)
+    // - thread A: waitForExecutionToBegin(), block until call to dummyExecution by
+    //                                        thread B makes mExecutionsInFlight nonzero
+    // - thread B: dummyExecution(), which makes mExecutionsInFlight nonzero and blocks
+    //                               until thread A calls pauseExecutions(false)
+    // - thread A: waitForExecutionToBegin() returns
+    // - thread A: pauseExecutions(false), allowing dummyExecution() on thread B to continue
+    // - thread B: dummyExecution() zeroes mExecutionsInFlight and returns
+    // - thread B: thread exits
     static void waitForExecutionToBegin() {
         CHECK(mPauseExecutions.load());
         while (mExecutionsInFlight.load() == 0) {
@@ -851,13 +856,15 @@ TEST_P(TimingTest, Test) {
         }
         case DriverKind::OLD: {
             static const char name[] = "old";
-            DeviceManager::get()->forTest_registerDevice(name, new TestDriver11(name, kSuccess));
+            DeviceManager::get()->forTest_registerDevice(
+                    nn::makeSharedDevice(name, new TestDriver11(name, kSuccess)));
             ASSERT_TRUE(selectDeviceByName(name));
             break;
         }
         case DriverKind::NEW: {
             static const char name[] = "new";
-            DeviceManager::get()->forTest_registerDevice(name, new TestDriver13(name, kSuccess));
+            DeviceManager::get()->forTest_registerDevice(
+                    nn::makeSharedDevice(name, new TestDriver13(name, kSuccess)));
             ASSERT_TRUE(selectDeviceByName(name));
             break;
         }
@@ -1168,7 +1175,8 @@ TEST_F(IntrospectionControlTest, SlicingAddMax) {
     using namespace test_drivers;
 
     static const char name[] = "driver11";
-    DeviceManager::get()->forTest_registerDevice(name, new TestDriver11(name, Success::PASS_BOTH));
+    DeviceManager::get()->forTest_registerDevice(
+            nn::makeSharedDevice(name, new TestDriver11(name, Success::PASS_BOTH)));
     ASSERT_TRUE(selectDeviceByName(name));
 
     createAddMaxModel(&mModel, false);
@@ -1184,7 +1192,8 @@ TEST_F(IntrospectionControlTest, SlicingMaxAdd) {
     using namespace test_drivers;
 
     static const char name[] = "driver11";
-    DeviceManager::get()->forTest_registerDevice(name, new TestDriver11(name, Success::PASS_BOTH));
+    DeviceManager::get()->forTest_registerDevice(
+            nn::makeSharedDevice(name, new TestDriver11(name, Success::PASS_BOTH)));
     ASSERT_TRUE(selectDeviceByName(name));
 
     createAddMaxModel(&mModel, true);
@@ -1231,7 +1240,8 @@ TEST_F(IntrospectionControlTest, SlicingFullySupported) {
     using namespace test_drivers;
 
     static const char name[] = "driver11";
-    DeviceManager::get()->forTest_registerDevice(name, new TestDriver11(name, Success::PASS_BOTH));
+    DeviceManager::get()->forTest_registerDevice(
+            nn::makeSharedDevice(name, new TestDriver11(name, Success::PASS_BOTH)));
     ASSERT_TRUE(selectDeviceByName(name));
 
     createAddMulModel(&mModel, false);
@@ -1326,7 +1336,8 @@ TEST_F(IntrospectionControlTest, ControlFlowNotSupported) {
     using namespace test_drivers;
 
     static const char name[] = "driver11";
-    DeviceManager::get()->forTest_registerDevice(name, new TestDriver11(name, Success::PASS_BOTH));
+    DeviceManager::get()->forTest_registerDevice(
+            nn::makeSharedDevice(name, new TestDriver11(name, Success::PASS_BOTH)));
     ASSERT_TRUE(selectDeviceByName(name));
 
     std::vector<WrapperModel> extraModels;
@@ -1346,7 +1357,8 @@ TEST_F(IntrospectionControlTest, ControlFlowSupported) {
     using namespace test_drivers;
 
     static const char name[] = "driver13";
-    DeviceManager::get()->forTest_registerDevice(name, new TestDriver13(name, Success::PASS_BOTH));
+    DeviceManager::get()->forTest_registerDevice(
+            nn::makeSharedDevice(name, new TestDriver13(name, Success::PASS_BOTH)));
     ASSERT_TRUE(selectDeviceByName(name));
 
     std::vector<WrapperModel> extraModels;
@@ -1382,7 +1394,8 @@ TEST_F(IntrospectionControlTest, ControlFlowFailedToSlice) {
     using namespace test_drivers;
 
     static const char name[] = "driver13";
-    DeviceManager::get()->forTest_registerDevice(name, new TestDriver13(name, Success::PASS_BOTH));
+    DeviceManager::get()->forTest_registerDevice(
+            nn::makeSharedDevice(name, new TestDriver13(name, Success::PASS_BOTH)));
     ASSERT_TRUE(selectDeviceByName(name));
 
     std::vector<WrapperModel> extraModels;

@@ -17,10 +17,12 @@
 #ifndef ANDROID_FRAMEWORKS_ML_NN_RUNTIME_NEURAL_NETWORKS_WRAPPER_EXTENSIONS_H
 #define ANDROID_FRAMEWORKS_ML_NN_RUNTIME_NEURAL_NETWORKS_WRAPPER_EXTENSIONS_H
 
+#include <utility>
+#include <variant>
+#include <vector>
+
 #include "NeuralNetworksExtensions.h"
 #include "NeuralNetworksWrapper.h"
-
-#include <variant>
 
 namespace android {
 namespace nn {

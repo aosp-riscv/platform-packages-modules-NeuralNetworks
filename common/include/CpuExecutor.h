@@ -105,12 +105,12 @@ struct RunTimeOperandInfo {
 // RunTimePoolInfo objects.
 class RunTimePoolInfo {
    public:
-    static std::optional<RunTimePoolInfo> createFromMemory(const Memory& memory);
+    static std::optional<RunTimePoolInfo> createFromMemory(const SharedMemory& memory);
     static RunTimePoolInfo createFromExistingBuffer(uint8_t* buffer, uint32_t size = 0);
 
     uint8_t* getBuffer() const;
     bool flush() const;
-    const Memory& getMemory() const;
+    const SharedMemory& getMemory() const;
     uint32_t getSize() const;
 
    private:
@@ -121,7 +121,7 @@ class RunTimePoolInfo {
 };
 
 bool setRunTimePoolInfosFromCanonicalMemories(std::vector<RunTimePoolInfo>* poolInfos,
-                                              const std::vector<Memory>& pools);
+                                              const std::vector<SharedMemory>& pools);
 
 bool setRunTimePoolInfosFromMemoryPools(std::vector<RunTimePoolInfo>* poolInfos,
                                         const std::vector<Request::MemoryPool>& pools);

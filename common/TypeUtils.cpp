@@ -168,16 +168,19 @@ std::pair<int32_t, int32_t> getIntsFromOffset(size_t offset) {
     return std::make_pair(lowOffsetBits, highOffsetBits);
 }
 
-std::vector<uint32_t> countNumberOfConsumers(size_t numberOfOperands,
-                                             const std::vector<nn::Operation>& operations) {
+Result<std::vector<uint32_t>> countNumberOfConsumers(size_t numberOfOperands,
+                                                     const std::vector<nn::Operation>& operations) {
     std::vector<uint32_t> numberOfConsumers(numberOfOperands, 0);
-    auto eachOperandIndex = [&numberOfConsumers](uint32_t operandIndex) {
-        numberOfConsumers.at(operandIndex)++;
-    };
-    auto eachOperation = [&eachOperandIndex](const nn::Operation& operation) {
-        std::for_each(operation.inputs.begin(), operation.inputs.end(), eachOperandIndex);
-    };
-    std::for_each(operations.begin(), operations.end(), eachOperation);
+    for (const auto& operation : operations) {
+        for (uint32_t operandIndex : operation.inputs) {
+            if (operandIndex >= numberOfConsumers.size()) {
+                return NN_ERROR()
+                       << "countNumberOfConsumers: tried to access out-of-bounds operand ("
+                       << operandIndex << " vs " << numberOfConsumers.size() << ")";
+            }
+            numberOfConsumers[operandIndex]++;
+        }
+    }
     return numberOfConsumers;
 }
 

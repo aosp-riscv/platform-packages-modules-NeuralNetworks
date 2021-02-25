@@ -54,8 +54,8 @@ std::optional<size_t> getNonExtensionSize(const Operand& operand);
 size_t getOffsetFromInts(int lower, int higher);
 std::pair<int32_t, int32_t> getIntsFromOffset(size_t offset);
 
-std::vector<uint32_t> countNumberOfConsumers(size_t numberOfOperands,
-                                             const std::vector<nn::Operation>& operations);
+Result<std::vector<uint32_t>> countNumberOfConsumers(size_t numberOfOperands,
+                                                     const std::vector<nn::Operation>& operations);
 
 // Combine two tensor dimensions, both may have unspecified dimensions or rank.
 Result<Dimensions> combineDimensions(const Dimensions& lhs, const Dimensions& rhs);

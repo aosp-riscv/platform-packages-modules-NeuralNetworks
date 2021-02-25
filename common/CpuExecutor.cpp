@@ -594,7 +594,8 @@ std::vector<RunTimeOperandInfo> CpuExecutor::initializeRunTimeInfo(
     VLOG(CPUEXE) << "CpuExecutor::initializeRunTimeInfo";
     const size_t count = subgraph.operands.size();
     std::vector<RunTimeOperandInfo> operands(count);
-    std::vector<uint32_t> numberOfConsumers = countNumberOfConsumers(count, subgraph.operations);
+    std::vector<uint32_t> numberOfConsumers =
+            countNumberOfConsumers(count, subgraph.operations).value();
     for (size_t i = 0; i < count; i++) {
         const Operand& from = subgraph.operands[i];
         RunTimeOperandInfo& to = operands[i];

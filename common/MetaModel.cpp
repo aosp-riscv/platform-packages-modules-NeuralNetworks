@@ -249,7 +249,7 @@ void MetaModel::processOperations(
     auto& slicedOperations = slice->mModel.main.operations;
 
     std::vector<uint32_t> origOperandNumberOfConsumers =
-            countNumberOfConsumers(origOperands.size(), origOperations);
+            countNumberOfConsumers(origOperands.size(), origOperations).value();
 
     for (uint32_t origOperationIndex = 0; origOperationIndex < origOperations.size();
          ++origOperationIndex) {

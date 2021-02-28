@@ -16,6 +16,10 @@
 
 // Adapted in part from frameworks/native/opengl/libs/Android.bp
 
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
 cc_test {
     name: "BlobCache_test",
     host_supported: true,

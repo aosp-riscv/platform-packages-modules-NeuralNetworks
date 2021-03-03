@@ -262,6 +262,7 @@ cc_defaults {
     vendor_available: false,
     stl: "libc++_static",
     sdk_version: "current",
+    min_sdk_version: "29",
     cflags: [
         "-DNN_COMPATIBILITY_LIBRARY_BUILD",
         "-DNN_NO_BURST",

@@ -32,7 +32,7 @@ void* LoadFunction(void* handle, const char* name, bool optional) {
     }
     void* fn = dlsym(handle, name);
     if (fn == nullptr && !optional) {
-        NNAPI_LOG("nnapi error: unable to open function %s", name);
+        NNAPI_LOG("nnapi error: unable to open function %s: %s", name, dlerror());
     }
     return fn;
 }
@@ -50,18 +50,19 @@ NnApiSupportLibrary::~NnApiSupportLibrary() {
 }
 
 std::unique_ptr<const NnApiSupportLibrary> LoadNnApiSupportLibrary(const std::string& lib_name) {
-    auto nnapi = std::make_unique<NnApiSupportLibrary>();
-
     void* lib_handle = nullptr;
     lib_handle = dlopen(lib_name.c_str(), RTLD_LAZY | RTLD_LOCAL);
     if (lib_handle == nullptr) {
-        NNAPI_LOG("nnapi error: unable to open library %s", lib_name.c_str());
+        NNAPI_LOG("nnapi error: unable to open library %s: %s", lib_name.c_str(), dlerror());
     }
 
-    nnapi->nnapi_exists = lib_handle != nullptr;
-    nnapi->lib_name = lib_name;
+    return LoadNnApiSupportLibrary(lib_handle);
+}
 
-    //    LOAD_FUNCTION(lib_handle, ANeuralNetworks_getRuntimeVersion);
+std::unique_ptr<const NnApiSupportLibrary> LoadNnApiSupportLibrary(void* lib_handle) {
+    auto nnapi = std::make_unique<NnApiSupportLibrary>();
+
+    LOAD_FUNCTION(lib_handle, ANeuralNetworks_getRuntimeFeatureLevel);
     LOAD_FUNCTION(lib_handle, ANeuralNetworks_getDefaultLoopTimeout);
     LOAD_FUNCTION(lib_handle, ANeuralNetworks_getMaximumLoopTimeout);
     LOAD_FUNCTION(lib_handle, ANeuralNetworks_getDeviceCount);
@@ -109,6 +110,7 @@ std::unique_ptr<const NnApiSupportLibrary> LoadNnApiSupportLibrary(const std::st
     LOAD_FUNCTION(lib_handle, ANeuralNetworksExecution_setOutput);
     LOAD_FUNCTION(lib_handle, ANeuralNetworksExecution_setOutputFromMemory);
     LOAD_FUNCTION(lib_handle, ANeuralNetworksExecution_compute);
+    LOAD_FUNCTION(lib_handle, ANeuralNetworksExecution_startComputeWithDependencies);
     LOAD_FUNCTION(lib_handle, ANeuralNetworksExecution_getOutputOperandDimensions);
     LOAD_FUNCTION(lib_handle, ANeuralNetworksExecution_getOutputOperandRank);
     LOAD_FUNCTION(lib_handle, ANeuralNetworksExecution_setTimeout);
@@ -116,6 +118,7 @@ std::unique_ptr<const NnApiSupportLibrary> LoadNnApiSupportLibrary(const std::st
     LOAD_FUNCTION(lib_handle, ANeuralNetworksEvent_createFromSyncFenceFd);
     LOAD_FUNCTION(lib_handle, ANeuralNetworksEvent_getSyncFenceFd);
     LOAD_FUNCTION(lib_handle, ANeuralNetworksEvent_free);
+    LOAD_FUNCTION(lib_handle, ANeuralNetworksEvent_wait);
     LOAD_FUNCTION(lib_handle, ANeuralNetworksBurst_create);
     LOAD_FUNCTION(lib_handle, ANeuralNetworksBurst_free);
     LOAD_FUNCTION(lib_handle, ANeuralNetworksExecution_burstCompute);
@@ -125,6 +128,5 @@ std::unique_ptr<const NnApiSupportLibrary> LoadNnApiSupportLibrary(const std::st
     LOAD_FUNCTION(lib_handle, ANeuralNetworksModel_setOperandExtensionData);
 
     nnapi->lib_handle = lib_handle;
-
     return nnapi;
 }

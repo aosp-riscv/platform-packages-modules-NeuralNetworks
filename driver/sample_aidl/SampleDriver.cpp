@@ -475,8 +475,7 @@ ndk::ScopedAStatus SamplePreparedModel::executeSynchronously(
 ndk::ScopedAStatus SamplePreparedModel::executeFenced(
         const aidl_hal::Request& halRequest, const std::vector<ndk::ScopedFileDescriptor>& waitFor,
         bool measureTiming, int64_t halDeadline, int64_t loopTimeoutDuration, int64_t duration,
-        ndk::ScopedFileDescriptor* syncFence,
-        std::shared_ptr<aidl_hal::IFencedExecutionCallback>* callback) {
+        aidl_hal::FencedExecutionResult* executionResult) {
     NNTRACE_FULL(NNTRACE_LAYER_DRIVER, NNTRACE_PHASE_EXECUTION,
                  "SamplePreparedModel::executeFenced");
     VLOG(DRIVER) << "executeFenced(" << SHOW_IF_DEBUG(halRequest.toString()) << ")";
@@ -586,9 +585,9 @@ ndk::ScopedAStatus SamplePreparedModel::executeFenced(
         VLOG(DRIVER) << "executeFenced timingAfterFence = " << timingAfterFence.toString();
     }
 
-    *callback = ndk::SharedRefBase::make<SampleFencedExecutionCallback>(
+    executionResult->callback = ndk::SharedRefBase::make<SampleFencedExecutionCallback>(
             timingSinceLaunch, timingAfterFence, executionStatus);
-    *syncFence = ndk::ScopedFileDescriptor();
+    executionResult->syncFence = ndk::ScopedFileDescriptor();
     return ndk::ScopedAStatus::ok();
 }
 

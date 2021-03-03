@@ -171,6 +171,17 @@ enum {
 };
 
 /**
+ * Different duration measurements.
+ *
+ */
+typedef enum {
+    ANEURALNETWORKS_DURATION_ON_HARDWARE = 0,
+    ANEURALNETWORKS_DURATION_IN_DRIVER = 1,
+    ANEURALNETWORKS_FENCED_DURATION_ON_HARDWARE = 2,
+    ANEURALNETWORKS_FENCED_DURATION_IN_DRIVER = 3,
+} DurationCode;
+
+/**
  * Result codes.
  */
 // LINT.IfChange
@@ -492,7 +503,7 @@ typedef struct ANeuralNetworksDevice ANeuralNetworksDevice;
 
 // Function types
 
-typedef int32_t (*ANeuralNetworks_version_fn)();
+typedef int64_t (*ANeuralNetworks_getRuntimeFeatureLevel_fn)();
 
 typedef uint64_t (*ANeuralNetworks_getDefaultLoopTimeout_fn)();
 
@@ -572,6 +583,7 @@ typedef int (*ANeuralNetworksExecution_setOutputFromMemory_fn)(
         const ANeuralNetworksMemory* memory, size_t offset, size_t length);
 
 typedef void (*ANeuralNetworksEvent_free_fn)(ANeuralNetworksEvent* event);
+typedef int (*ANeuralNetworksEvent_wait_fn)(ANeuralNetworksEvent* event);
 
 typedef int (*ASharedMemory_create_fn)(const char* name, size_t size);
 
@@ -608,6 +620,12 @@ typedef int (*ANeuralNetworksCompilation_setTimeout_fn)(ANeuralNetworksCompilati
 
 typedef int (*ANeuralNetworksCompilation_setPriority_fn)(ANeuralNetworksCompilation* compilation,
                                                          int priority);
+
+typedef int (*ANeuralNetworksExecution_compute_fn)(ANeuralNetworksExecution* execution);
+
+typedef int (*ANeuralNetworksExecution_startComputeWithDependencies_fn)(
+        ANeuralNetworksExecution* execution, const ANeuralNetworksEvent* const* dependencies,
+        uint32_t num_dependencies, uint64_t duration, ANeuralNetworksEvent** event);
 
 typedef int (*ANeuralNetworksExecution_compute_fn)(ANeuralNetworksExecution* execution);
 

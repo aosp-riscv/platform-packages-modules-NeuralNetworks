@@ -119,11 +119,11 @@ class SamplePreparedModel : public aidl_hal::BnPreparedModel {
     ndk::ScopedAStatus executeSynchronously(const aidl_hal::Request& request, bool measureTiming,
                                             int64_t deadline, int64_t loopTimeoutDuration,
                                             aidl_hal::ExecutionResult* executionResult) override;
-    ndk::ScopedAStatus executeFenced(
-            const aidl_hal::Request& request, const std::vector<ndk::ScopedFileDescriptor>& waitFor,
-            bool measureTiming, int64_t deadline, int64_t loopTimeoutDuration, int64_t duration,
-            ndk::ScopedFileDescriptor* syncFence,
-            std::shared_ptr<aidl_hal::IFencedExecutionCallback>* callback) override;
+    ndk::ScopedAStatus executeFenced(const aidl_hal::Request& request,
+                                     const std::vector<ndk::ScopedFileDescriptor>& waitFor,
+                                     bool measureTiming, int64_t deadline,
+                                     int64_t loopTimeoutDuration, int64_t duration,
+                                     aidl_hal::FencedExecutionResult* executionResult) override;
     const aidl_hal::Model* getModel() const { return &mModel; }
 
    protected:

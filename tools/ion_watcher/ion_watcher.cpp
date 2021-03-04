@@ -16,14 +16,14 @@
 
 #define LOG_TAG "IonWatcher"
 
+#include <android/log.h>
 #include <stdio.h>
 #include <unistd.h>
+
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
-
-#include <android/log.h>
 #define ATRACE_TAG ATRACE_TAG_NNAPI
 #include <utils/Trace.h>
 

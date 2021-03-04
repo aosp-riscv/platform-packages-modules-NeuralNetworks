@@ -16,6 +16,7 @@
 
 #include "CanonicalDevice.h"
 
+#include <Tracing.h>
 #include <android-base/logging.h>
 #include <nnapi/IBuffer.h>
 #include <nnapi/IDevice.h>
@@ -38,7 +39,6 @@
 
 #include "CanonicalBuffer.h"
 #include "CanonicalPreparedModel.h"
-#include "Tracing.h"
 
 namespace android::nn::sample {
 namespace {

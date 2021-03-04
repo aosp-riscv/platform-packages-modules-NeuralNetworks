@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 The Android Open Source Project
+ * Copyright (C) 2021 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,14 +14,20 @@
  * limitations under the License.
  */
 
-#include "SupportLibraryTestWrapper.h"
+#define LOG_TAG "SampleDriverAll"
 
-namespace android {
-namespace nn {
-namespace test_wrapper {
+#include <android/binder_interface_utils.h>
 
-Execution::ComputeMode Execution::mComputeMode = Execution::ComputeMode::SYNC;
+#include <memory>
 
-}  // namespace test_wrapper
-}  // namespace nn
-}  // namespace android
+#include "SampleDriverFull.h"
+
+using aidl::android::hardware::neuralnetworks::PerformanceInfo;
+using android::nn::sample_driver::SampleDriverFull;
+
+int main() {
+    const PerformanceInfo performance{.execTime = 1.1f, .powerUsage = 1.1f};
+    std::shared_ptr<SampleDriverFull> driver =
+            ndk::SharedRefBase::make<SampleDriverFull>("nnapi-sample_all", performance);
+    return driver->run();
+}

@@ -21,10 +21,13 @@
 #include <cmath>
 #include <vector>
 
-#include "CpuOperationUtils.h"
 #include "OperationResolver.h"
 #include "OperationsUtils.h"
 #include "Tracing.h"
+
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
+#include "CpuOperationUtils.h"
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 namespace android {
 namespace nn {
@@ -45,6 +48,7 @@ constexpr uint32_t kLayoutScalar = 7;
 constexpr uint32_t kNumOutputs = 1;
 constexpr uint32_t kOutputTensor = 0;
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 namespace {
 
 template <typename T_Input, typename T_Roi>
@@ -183,6 +187,7 @@ inline bool roiPooling<int8_t, uint16_t>(const int8_t* inputData, const Shape& i
 }
 
 }  // namespace
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 Result<Version> validate(const IOperationValidationContext* context) {
     NN_RET_CHECK_EQ(context->getNumInputs(), kNumInputs);
@@ -221,6 +226,7 @@ Result<Version> validate(const IOperationValidationContext* context) {
     }
 }
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 bool prepare(IOperationExecutionContext* context) {
     bool useNchw = context->getInputValue<bool>(kLayoutScalar);
     Shape input = context->getInputShape(kInputTensor);
@@ -322,6 +328,7 @@ bool execute(IOperationExecutionContext* context) {
             NN_RET_CHECK_FAIL() << "Unsupported tensor type for operation " << kOperationName;
     }
 }
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 }  // namespace roi_pooling
 

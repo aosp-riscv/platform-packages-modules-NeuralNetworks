@@ -19,11 +19,11 @@
 // Limitation: It doesn't set various combinations of properties on objects before
 // freeing those objects.
 
-#include "NeuralNetworks.h"
-
 #include <gtest/gtest.h>
 
 #include <vector>
+
+#include "NeuralNetworks.h"
 
 namespace {
 

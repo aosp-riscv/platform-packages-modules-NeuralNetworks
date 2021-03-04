@@ -19,23 +19,13 @@
 #include "CpuExecutor.h"
 
 #include <android-base/scopeguard.h>
-#include <android/hardware_buffer.h>
-#include <sys/mman.h>
-#include <vndk/hardware_buffer.h>
+#include <nnapi/SharedMemory.h>
+#include <nnapi/TypeUtils.h>
 
-#include <Eigen/Core>
 #include <limits>
 #include <memory>
 #include <utility>
 #include <vector>
-
-// b/109953668, disable OpenMP
-#ifdef NNAPI_OPENMP
-#include <omp.h>
-#endif  // NNAPI_OPENMP
-
-#include <nnapi/SharedMemory.h>
-#include <nnapi/TypeUtils.h>
 
 #include "ControlFlow.h"
 #include "NeuralNetworks.h"
@@ -43,6 +33,13 @@
 #include "Operations.h"
 #include "OperationsUtils.h"
 #include "Tracing.h"
+
+// b/109953668, disable OpenMP
+#ifdef NNAPI_OPENMP
+#include <omp.h>
+
+#include <Eigen/Core>
+#endif  // NNAPI_OPENMP
 
 namespace android {
 namespace nn {
@@ -272,21 +269,21 @@ bool OperationExecutionContext::checkNoZeroSizedInput() const {
 // when the RunTimePoolInfo is destroyed or is assigned to.
 class RunTimePoolInfo::RunTimePoolInfoImpl {
    public:
-    RunTimePoolInfoImpl(Memory memory, Mapping mapping);
+    RunTimePoolInfoImpl(SharedMemory memory, Mapping mapping);
 
     uint8_t* getBuffer() const;
     uint32_t getSize() const;
 
     bool flush() const;
 
-    const Memory& getMemory() const { return mMemory; }
+    const SharedMemory& getMemory() const { return mMemory; }
 
    private:
-    const Memory mMemory;
+    const SharedMemory mMemory;
     const Mapping mMapping;
 };
 
-RunTimePoolInfo::RunTimePoolInfoImpl::RunTimePoolInfoImpl(Memory memory, Mapping mapping)
+RunTimePoolInfo::RunTimePoolInfoImpl::RunTimePoolInfoImpl(SharedMemory memory, Mapping mapping)
     : mMemory(std::move(memory)), mMapping(std::move(mapping)) {}
 
 uint8_t* RunTimePoolInfo::RunTimePoolInfoImpl::getBuffer() const {
@@ -311,7 +308,7 @@ bool RunTimePoolInfo::RunTimePoolInfoImpl::flush() const {
 
 // TODO: short term, make share memory mapping and updating a utility function.
 // TODO: long term, implement mmap_fd as a hidl IMemory service.
-std::optional<RunTimePoolInfo> RunTimePoolInfo::createFromMemory(const Memory& memory) {
+std::optional<RunTimePoolInfo> RunTimePoolInfo::createFromMemory(const SharedMemory& memory) {
     auto mapping = map(memory);
     if (!mapping.has_value()) {
         LOG(ERROR) << "Can't map shared memory: " << mapping.error().message;
@@ -324,7 +321,8 @@ std::optional<RunTimePoolInfo> RunTimePoolInfo::createFromMemory(const Memory& m
 
 RunTimePoolInfo RunTimePoolInfo::createFromExistingBuffer(uint8_t* buffer, uint32_t size) {
     auto mapping = Mapping{.pointer = buffer, .size = size};
-    const auto impl = std::make_shared<const RunTimePoolInfoImpl>(Memory{}, std::move(mapping));
+    const auto impl = std::make_shared<const RunTimePoolInfoImpl>(std::make_shared<const Memory>(),
+                                                                  std::move(mapping));
     return RunTimePoolInfo(impl);
 }
 
@@ -343,12 +341,12 @@ bool RunTimePoolInfo::flush() const {
     return mImpl->flush();
 }
 
-const Memory& RunTimePoolInfo::getMemory() const {
+const SharedMemory& RunTimePoolInfo::getMemory() const {
     return mImpl->getMemory();
 }
 
 bool setRunTimePoolInfosFromCanonicalMemories(std::vector<RunTimePoolInfo>* poolInfos,
-                                              const std::vector<Memory>& pools) {
+                                              const std::vector<SharedMemory>& pools) {
     CHECK(poolInfos != nullptr);
     poolInfos->clear();
     poolInfos->reserve(pools.size());
@@ -370,13 +368,13 @@ bool setRunTimePoolInfosFromMemoryPools(std::vector<RunTimePoolInfo>* poolInfos,
     poolInfos->clear();
     poolInfos->reserve(pools.size());
     for (const auto& pool : pools) {
-        if (!std::holds_alternative<Memory>(pool)) {
+        if (!std::holds_alternative<SharedMemory>(pool)) {
             LOG(ERROR) << "Unknown memory token";
             poolInfos->clear();
             return false;
         }
         if (std::optional<RunTimePoolInfo> poolInfo =
-                    RunTimePoolInfo::createFromMemory(std::get<Memory>(pool))) {
+                    RunTimePoolInfo::createFromMemory(std::get<SharedMemory>(pool))) {
             poolInfos->push_back(*poolInfo);
         } else {
             LOG(ERROR) << "Could not map pools";
@@ -387,6 +385,7 @@ bool setRunTimePoolInfosFromMemoryPools(std::vector<RunTimePoolInfo>* poolInfos,
     return true;
 }
 
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 template <typename T>
 inline bool convertToNhwcImpl(T* to, const T* from, const std::vector<uint32_t>& fromDim) {
     uint32_t spatialSize = fromDim[2] * fromDim[3];
@@ -504,6 +503,7 @@ static bool convertFromNhwc(RunTimeOperandInfo& to, const RunTimeOperandInfo& fr
     }
     return true;
 }
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 // Decrements the usage count for the operands listed.  Frees the memory
 // allocated for any temporary variable with a count of zero.
@@ -594,7 +594,8 @@ std::vector<RunTimeOperandInfo> CpuExecutor::initializeRunTimeInfo(
     VLOG(CPUEXE) << "CpuExecutor::initializeRunTimeInfo";
     const size_t count = subgraph.operands.size();
     std::vector<RunTimeOperandInfo> operands(count);
-    std::vector<uint32_t> numberOfConsumers = countNumberOfConsumers(count, subgraph.operations);
+    std::vector<uint32_t> numberOfConsumers =
+            countNumberOfConsumers(count, subgraph.operations).value();
     for (size_t i = 0; i < count; i++) {
         const Operand& from = subgraph.operands[i];
         RunTimeOperandInfo& to = operands[i];
@@ -698,6 +699,7 @@ void CpuExecutor::updateForArguments(const std::vector<uint32_t>& indexes,
 }
 
 int CpuExecutor::executeOperation(const Operation& operation, RunTimeOperandInfo* operands) {
+#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
     if (hasDeadlinePassed(mDeadline)) {
         return ANEURALNETWORKS_MISSED_DEADLINE_TRANSIENT;
     }
@@ -1654,6 +1656,10 @@ int CpuExecutor::executeOperation(const Operation& operation, RunTimeOperandInfo
 
     consumeOperationInputs(ins, operands);
     return result;
+#else
+    LOG(ERROR) << "Compabibility layer build does not support CPU execution";
+    return ANEURALNETWORKS_OP_FAILED;
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 }
 
 // Copies RunTimeOperandInfo, preserving the original lifetime and numberOfUsesLeft

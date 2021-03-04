@@ -22,31 +22,30 @@
 
 #include "NeuralNetworks.h"
 
+#include <ControlFlow.h>
+#include <LegacyUtils.h>
+#include <MetaModel.h>
+#include <Tracing.h>
 #include <nnapi/Types.h>
-#include <vndk/hardware_buffer.h>
 
 #include <algorithm>
 #include <cstddef>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "BurstBuilder.h"
-#include "Callbacks.h"
 #include "CompilationBuilder.h"
-#include "ControlFlow.h"
 #include "Event.h"
 #include "ExecutionBuilder.h"
+#include "ExecutionCallback.h"
 #include "Manager.h"
 #include "Memory.h"
-#include "MetaModel.h"
 #include "ModelBuilder.h"
 #include "NeuralNetworksExtensions.h"
 #include "NeuralNetworksOEM.h"
-#include "Tracing.h"
-#include "Utils.h"
 
 using namespace android::nn;
-using android::sp;
 
 // Make sure the constants defined in the header files have not changed values.
 // IMPORTANT: When adding new values, update kNumberOfDataTypes or kNumberOfDataTypesOEM
@@ -1343,20 +1342,14 @@ int ANeuralNetworksExecution_startCompute(ANeuralNetworksExecution* execution,
 
     ExecutionBuilder* r = reinterpret_cast<ExecutionBuilder*>(execution);
 
-    // Dynamically allocate an sp to wrap an ExecutionCallback, seen in the NN
-    // API as an abstract event object. The sp<ExecutionCallback> object is
-    // returned when the execution has been successfully launched, otherwise a
-    // nullptr is returned. The sp is used for ref-counting purposes. Without
-    // it, the HIDL service could attempt to communicate with a dead callback
-    // object.
-    std::unique_ptr<sp<ExecutionCallback>> callback = std::make_unique<sp<ExecutionCallback>>();
+    std::shared_ptr<ExecutionCallback> callback;
     *event = nullptr;
 
-    int n = r->computeAsynchronously(callback.get());
+    int n = r->computeAsynchronously(&callback);
     if (n != ANEURALNETWORKS_NO_ERROR) {
         return n;
     }
-    std::unique_ptr<CallbackEvent> e = std::make_unique<CallbackEvent>(*callback);
+    auto e = std::make_unique<CallbackEvent>(std::move(callback));
     *event = reinterpret_cast<ANeuralNetworksEvent*>(e.release());
     return ANEURALNETWORKS_NO_ERROR;
 }

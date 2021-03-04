@@ -14,6 +14,18 @@
  * limitations under the License.
  */
 
+package {
+    // See: http://go/android-license-faq
+    // A large-scale-change added 'default_applicable_licenses' to import
+    // all of the 'license_kinds' from "packages_modules_NeuralNetworks_runtime_license"
+    // to get the below license kinds:
+    //   SPDX-license-identifier-Apache-2.0
+    //   SPDX-license-identifier-Artistic
+    default_applicable_licenses: [
+        "packages_modules_NeuralNetworks_runtime_license",
+    ],
+}
+
 cc_defaults {
     name: "NeuralNetworksTest_default_libs",
     defaults: ["neuralnetworks_defaults"],
@@ -35,6 +47,7 @@ cc_defaults {
         "libutils",
     ],
     static_libs: [
+        "android.hardware.neuralnetworks-V1-ndk_platform",
         "android.hardware.neuralnetworks@1.0",
         "android.hardware.neuralnetworks@1.1",
         "android.hardware.neuralnetworks@1.2",
@@ -118,6 +131,7 @@ cc_defaults {
         //
         // b/109953668, disable OpenMP
         // "TestOpenmpSettings.cpp",
+        "PreparedModelCallback.cpp",
         "TestCompilationCaching.cpp",
         "TestCompliance.cpp",
         "TestExecution.cpp",
@@ -129,7 +143,6 @@ cc_defaults {
         "TestPartitioning.cpp",
         "TestPartitioningRandom.cpp",
         "TestRemoveDefaultArguments.cpp",
-        "TestVersionedInterfaces.cpp",
         "fibonacci_extension/FibonacciDriver.cpp",
         "fibonacci_extension/FibonacciExtensionTest.cpp",
 
@@ -184,6 +197,11 @@ cc_test {
         "libgmock",
         "libneuralnetworks_common",
         "libneuralnetworks_static",
+        "neuralnetworks_types",
+        "neuralnetworks_utils_hal_1_0",
+        "neuralnetworks_utils_hal_1_1",
+        "neuralnetworks_utils_hal_1_2",
+        "neuralnetworks_utils_hal_1_3",
     ],
     shared_libs: ["libmemunreachable"],
     header_libs: [
@@ -483,17 +501,16 @@ cc_library_static {
 }
 
 cc_test {
-    name: "SupportLibraryTest",
+    name: "NeuralNetworksSupportLibraryTest",
     srcs: [
         "GeneratedTestUtils.cpp",
         "SupportLibraryTestGenerated.cpp",
-        "SupportLibraryTestWrapper.cpp",
         "SupportLibraryTestMain.cpp",
     ],
     cflags: [
-        "-DNNTEST_SLTS",
         "-DNNTEST_COMPUTE_MODE",
         "-DNNTEST_ONLY_PUBLIC_API",
+        "-DNNTEST_SLTS",
         "-Wall",
         "-Werror",
     ],

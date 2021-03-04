@@ -17,8 +17,6 @@
 #ifndef ANDROID_FRAMEWORKS_ML_NN_COMMON_OPERATION_RESOLVER_H
 #define ANDROID_FRAMEWORKS_ML_NN_COMMON_OPERATION_RESOLVER_H
 
-#include <android-base/macros.h>
-
 #include <utility>
 
 #include "OperationsUtils.h"

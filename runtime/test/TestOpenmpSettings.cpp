@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-#include "CpuExecutor.h"
-
+#include <CpuExecutor.h>
 #include <gtest/gtest.h>
 #include <omp.h>
 #include <unistd.h>
+
 #include <algorithm>
 #include <memory>
 #include <random>

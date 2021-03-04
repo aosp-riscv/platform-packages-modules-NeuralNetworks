@@ -17,11 +17,11 @@
 #ifndef ANDROID_FRAMEWORKS_ML_NN_COMMON_TOKEN_HASHER_H
 #define ANDROID_FRAMEWORKS_ML_NN_COMMON_TOKEN_HASHER_H
 
-#include <cstring>
-#include <vector>
-
 #include <android-base/macros.h>
 #include <openssl/sha.h>
+
+#include <cstring>
+#include <vector>
 
 namespace android {
 namespace nn {

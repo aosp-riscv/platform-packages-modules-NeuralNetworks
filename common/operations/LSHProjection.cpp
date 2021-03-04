@@ -23,8 +23,8 @@
 #include <memory>
 
 #include "CpuExecutor.h"
+#include "LegacyUtils.h"
 #include "Tracing.h"
-#include "Utils.h"
 #include "nnapi/Types.h"
 
 namespace android {

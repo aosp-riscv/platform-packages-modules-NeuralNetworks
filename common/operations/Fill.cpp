@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-#include "OperationsUtils.h"
 #define LOG_TAG "Operations"
 
 #include "OperationResolver.h"
+#include "OperationsUtils.h"
 
 namespace android {
 namespace nn {

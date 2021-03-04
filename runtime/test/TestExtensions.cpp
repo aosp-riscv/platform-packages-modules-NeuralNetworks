@@ -14,18 +14,18 @@
  * limitations under the License.
  */
 
+#include <HalInterfaces.h>
+#include <SampleDriver.h>
 #include <gtest/gtest.h>
 
 #include <string>
 #include <vector>
 
 #include "AppInfoFetcher.h"
-#include "HalInterfaces.h"
 #include "HalUtils.h"
 #include "Manager.h"
 #include "NeuralNetworks.h"
 #include "NeuralNetworksExtensions.h"
-#include "SampleDriver.h"
 #include "TypeManager.h"
 
 namespace {
@@ -77,7 +77,8 @@ class ExtensionsTest : public ::testing::Test {
             GTEST_SKIP();
         }
 
-        DeviceManager::get()->forTest_registerDevice(kTestDriverName, new TestDriver());
+        DeviceManager::get()->forTest_registerDevice(
+                android::nn::makeSharedDevice(kTestDriverName, new TestDriver()));
         // Discover extensions provided by registered devices.
         TypeManager::get()->forTest_reset();
         mDevice = getDeviceByName(kTestDriverName);

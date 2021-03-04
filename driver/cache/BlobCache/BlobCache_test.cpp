@@ -14,7 +14,10 @@
  ** limitations under the License.
  */
 
+#include "BlobCache.h"
+
 #include <fcntl.h>
+#include <gtest/gtest.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -22,10 +25,6 @@
 #include <memory>
 #include <numeric>
 #include <random>
-
-#include <gtest/gtest.h>
-
-#include "BlobCache.h"
 
 namespace android {
 

@@ -16,6 +16,10 @@
 
 // cc_defaults adapted in part from frameworks/native/opengl/libs/Android.bp
 
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
 cc_defaults {
     name: "ml_nn_cache_libs_defaults",
     defaults: ["neuralnetworks_defaults"],

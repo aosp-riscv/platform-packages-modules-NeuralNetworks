@@ -18,10 +18,10 @@
 
 #include "TokenHasher.h"
 
-#include "NeuralNetworks.h"
-
 #include <android-base/logging.h>
 #include <openssl/sha.h>
+
+#include "NeuralNetworks.h"
 
 namespace android {
 namespace nn {

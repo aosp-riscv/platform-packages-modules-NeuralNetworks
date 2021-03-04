@@ -16,9 +16,9 @@
 
 #define LOG_TAG "SampleDriverAll"
 
-#include "SampleDriverFull.h"
-
 #include <hidl/LegacySupport.h>
+
+#include "SampleDriverFull.h"
 
 using android::sp;
 using android::nn::sample_driver::SampleDriverFull;

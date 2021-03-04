@@ -18,16 +18,17 @@
 
 #include "FibonacciDriver.h"
 
+#include <HalInterfaces.h>
+#include <OperationResolver.h>
+#include <OperationsUtils.h>
+#include <Utils.h>
+#include <ValidateHal.h>
+#include <nnapi/Types.h>
+
 #include <vector>
 
-#include <nnapi/Types.h>
 #include "FibonacciExtension.h"
-#include "HalInterfaces.h"
 #include "NeuralNetworksExtensions.h"
-#include "OperationResolver.h"
-#include "OperationsUtils.h"
-#include "Utils.h"
-#include "ValidateHal.h"
 
 namespace android {
 namespace nn {

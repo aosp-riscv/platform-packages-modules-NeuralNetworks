@@ -37,6 +37,7 @@ enum class HalVersion : int32_t {
     V1_1,
     V1_2,
     V1_3,
+    AIDL_UNSTABLE,
     LATEST = V1_3,
 };
 
@@ -53,8 +54,8 @@ std::optional<size_t> getNonExtensionSize(const Operand& operand);
 size_t getOffsetFromInts(int lower, int higher);
 std::pair<int32_t, int32_t> getIntsFromOffset(size_t offset);
 
-std::vector<uint32_t> countNumberOfConsumers(size_t numberOfOperands,
-                                             const std::vector<nn::Operation>& operations);
+Result<std::vector<uint32_t>> countNumberOfConsumers(size_t numberOfOperands,
+                                                     const std::vector<nn::Operation>& operations);
 
 // Combine two tensor dimensions, both may have unspecified dimensions or rank.
 Result<Dimensions> combineDimensions(const Dimensions& lhs, const Dimensions& rhs);
@@ -93,6 +94,7 @@ std::ostream& operator<<(std::ostream& os, const Operand& operand);
 std::ostream& operator<<(std::ostream& os, const Operation& operation);
 std::ostream& operator<<(std::ostream& os, const SharedHandle& handle);
 std::ostream& operator<<(std::ostream& os, const Memory& memory);
+std::ostream& operator<<(std::ostream& os, const SharedMemory& memory);
 std::ostream& operator<<(std::ostream& os, const Model::Subgraph& subgraph);
 std::ostream& operator<<(std::ostream& os, const Model::OperandValues& operandValues);
 std::ostream& operator<<(std::ostream& os,

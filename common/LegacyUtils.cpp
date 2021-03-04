@@ -164,6 +164,8 @@ static Version convert(HalVersion halVersion) {
             return Version::ANDROID_Q;
         case HalVersion::V1_3:
             return Version::ANDROID_R;
+        case HalVersion::AIDL_UNSTABLE:
+            return Version::ANDROID_S;
     }
     LOG(FATAL) << "Cannot convert " << halVersion;
     return {};
@@ -204,7 +206,6 @@ class OperationValidationContext : public IOperationValidationContext {
     uint32_t outputCount;
     const uint32_t* outputIndexes;
     const Operand* operands;
-    Version version;
 };
 
 const char* OperationValidationContext::getOperationName() const {

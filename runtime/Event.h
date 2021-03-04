@@ -17,12 +17,13 @@
 #ifndef ANDROID_FRAMEWORKS_ML_NN_RUNTIME_EVENT_H
 #define ANDROID_FRAMEWORKS_ML_NN_RUNTIME_EVENT_H
 
+#include <android-base/logging.h>
 #include <nnapi/IPreparedModel.h>
 
+#include <memory>
 #include <utility>
 
-#include "Callbacks.h"
-#include "HalInterfaces.h"
+#include "ExecutionCallback.h"
 
 namespace android::nn {
 
@@ -37,7 +38,8 @@ class IEvent {
 // The CallbackEvent wraps ExecutionCallback
 class CallbackEvent : public IEvent {
    public:
-    CallbackEvent(sp<ExecutionCallback> callback) : kExecutionCallback(std::move(callback)) {
+    CallbackEvent(std::shared_ptr<ExecutionCallback> callback)
+        : kExecutionCallback(std::move(callback)) {
         CHECK(kExecutionCallback != nullptr);
     }
 
@@ -47,7 +49,7 @@ class CallbackEvent : public IEvent {
     int getSyncFenceFd(bool /*should_dup*/) const override { return -1; }
 
    private:
-    const sp<ExecutionCallback> kExecutionCallback;
+    const std::shared_ptr<ExecutionCallback> kExecutionCallback;
 };
 
 // The SyncFenceEvent wraps sync fence and ExecuteFencedInfoCallback

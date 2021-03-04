@@ -26,7 +26,7 @@
 #include <vector>
 
 #include "CpuExecutor.h"
-#include "Utils.h"
+#include "LegacyUtils.h"
 #include "nnapi/TypeUtils.h"
 #include "nnapi/Validation.h"
 

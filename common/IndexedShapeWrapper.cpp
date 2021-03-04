@@ -20,7 +20,7 @@
 
 #include <vector>
 
-#include "Utils.h"
+#include "LegacyUtils.h"
 
 namespace android {
 namespace nn {

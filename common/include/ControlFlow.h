@@ -17,6 +17,8 @@
 #ifndef ANDROID_FRAMEWORKS_ML_NN_COMMON_CONTROLFLOW_H
 #define ANDROID_FRAMEWORKS_ML_NN_COMMON_CONTROLFLOW_H
 
+#include <cstdint>
+
 namespace android {
 namespace nn {
 namespace operation_if {

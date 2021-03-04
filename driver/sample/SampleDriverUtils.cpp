@@ -15,9 +15,10 @@
  */
 
 #include "SampleDriverUtils.h"
-#include "SampleDriver.h"
 
 #include <android-base/logging.h>
+
+#include "SampleDriver.h"
 
 namespace android {
 namespace nn {

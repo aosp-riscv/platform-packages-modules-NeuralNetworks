@@ -17,14 +17,13 @@
 #ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_DRIVER_SAMPLE_CANONICAL_BUFFER_H
 #define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_DRIVER_SAMPLE_CANONICAL_BUFFER_H
 
+#include <BufferTracker.h>
+#include <CpuExecutor.h>
 #include <nnapi/IBuffer.h>
 #include <nnapi/Result.h>
 #include <nnapi/Types.h>
 
 #include <memory>
-
-#include "BufferTracker.h"
-#include "CpuExecutor.h"
 
 namespace android::nn::sample {
 
@@ -34,8 +33,9 @@ class Buffer final : public IBuffer {
 
     Request::MemoryDomainToken getToken() const override;
 
-    GeneralResult<void> copyTo(const Memory& dst) const override;
-    GeneralResult<void> copyFrom(const Memory& src, const Dimensions& dimensions) const override;
+    GeneralResult<void> copyTo(const SharedMemory& dst) const override;
+    GeneralResult<void> copyFrom(const SharedMemory& src,
+                                 const Dimensions& dimensions) const override;
 
    private:
     const std::shared_ptr<ManagedBuffer> kBuffer;

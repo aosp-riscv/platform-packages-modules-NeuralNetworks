@@ -17,8 +17,8 @@
 // Provides C++ classes to more easily use the Neural Networks API.
 // TODO(b/117845862): this should be auto generated from NeuralNetworksWrapper.h.
 
-#ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_RUNTIME_TEST_SUPPORT_LIBRARY_TEST_WRAPPER_H
-#define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_RUNTIME_TEST_SUPPORT_LIBRARY_TEST_WRAPPER_H
+#ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_SL_SUPPORT_LIBRARY_WRAPPER_H
+#define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_SL_SUPPORT_LIBRARY_WRAPPER_H
 
 #include <math.h>
 
@@ -36,7 +36,7 @@ using namespace ::android::nn::wrapper;
 
 namespace android {
 namespace nn {
-namespace test_wrapper {
+namespace sl_wrapper {
 
 class Memory {
    public:
@@ -55,7 +55,11 @@ class Memory {
                  ANEURALNETWORKS_NO_ERROR;
     }
 
-    virtual ~Memory() { mNnApi->ANeuralNetworksMemory_free(mMemory); }
+    virtual ~Memory() {
+        if (mMemory) {
+            mNnApi->ANeuralNetworksMemory_free(mMemory);
+        }
+    }
 
     // Disallow copy semantics to ensure the runtime object can only be freed
     // once. Copy semantics could be enabled if some sort of reference counting
@@ -69,9 +73,12 @@ class Memory {
     Memory(Memory&& other) { *this = std::move(other); }
     Memory& operator=(Memory&& other) {
         if (this != &other) {
-            mNnApi->ANeuralNetworksMemory_free(mMemory);
+            if (mMemory) {
+                mNnApi->ANeuralNetworksMemory_free(mMemory);
+            }
             mMemory = other.mMemory;
             mValid = other.mValid;
+            mNnApi = other.mNnApi;
             other.mMemory = nullptr;
             other.mValid = false;
         }
@@ -92,7 +99,11 @@ class Model {
     Model(const NnApiSupportLibrary* nnapi) : mNnApi(nnapi) {
         mValid = mNnApi->ANeuralNetworksModel_create(&mModel) == ANEURALNETWORKS_NO_ERROR;
     }
-    ~Model() { mNnApi->ANeuralNetworksModel_free(mModel); }
+    ~Model() {
+        if (mModel) {
+            mNnApi->ANeuralNetworksModel_free(mModel);
+        }
+    }
 
     // Disallow copy semantics to ensure the runtime object can only be freed
     // once. Copy semantics could be enabled if some sort of reference counting
@@ -141,6 +152,8 @@ class Model {
         if (mNnApi->ANeuralNetworksModel_addOperand(mModel, &type->operandType) !=
             ANEURALNETWORKS_NO_ERROR) {
             mValid = false;
+        } else {
+            mOperands.push_back(*type);
         }
 
         if (type->channelQuant) {
@@ -235,6 +248,8 @@ class Model {
     ANeuralNetworksModel* mModel = nullptr;
     // We keep track of the operand ID as a convenience to the caller.
     uint32_t mNextOperandId = 0;
+    // We keep track of the operand datatypes/dimensions as a convenience to the caller.
+    std::vector<OperandType> mOperands;
     bool mValid = true;
     bool mRelaxed = false;
     bool mFinished = false;
@@ -339,10 +354,13 @@ class Execution {
     Execution(Execution&& other) { *this = std::move(other); }
     Execution& operator=(Execution&& other) {
         if (this != &other) {
-            mNnApi->ANeuralNetworksExecution_free(mExecution);
+            if (mExecution != nullptr) {
+                mNnApi->ANeuralNetworksExecution_free(mExecution);
+            }
+            mNnApi = other.mNnApi;
             mCompilation = other.mCompilation;
-            other.mCompilation = nullptr;
             mExecution = other.mExecution;
+            other.mCompilation = nullptr;
             other.mExecution = nullptr;
         }
         return *this;
@@ -448,8 +466,8 @@ class Execution {
     static ComputeMode mComputeMode;
 };
 
-}  // namespace test_wrapper
+}  // namespace sl_wrapper
 }  // namespace nn
 }  // namespace android
 
-#endif  // ANDROID_PACKAGES_MODULES_NEURALNETWORKS_RUNTIME_TEST_SUPPORT_LIBRARY_TEST_WRAPPER_H
+#endif  // ANDROID_PACKAGES_MODULES_NEURALNETWORKS_SL_SUPPORT_LIBRARY_WRAPPER_H

@@ -374,6 +374,13 @@ int ModelBuilder::addOperation(ANeuralNetworksOperationType type, uint32_t input
             LOG(ERROR) << "ANeuralNetworksModel_addOperation invalid operation type " << type;
             return ANEURALNETWORKS_BAD_DATA;
         }
+    } else {
+        const Extension* extension;
+        uint16_t extensionPrefix = getExtensionPrefix(static_cast<uint32_t>(operationType));
+        if (!TypeManager::get()->getExtensionInfo(extensionPrefix, &extension)) {
+            LOG(ERROR) << "Extension operation type " << operationType << " is not recognized";
+            return ANEURALNETWORKS_BAD_DATA;
+        }
     }
 
     NN_VALIDATE_NULL_OR_SIZED("addOperation", inputs, inputCount);

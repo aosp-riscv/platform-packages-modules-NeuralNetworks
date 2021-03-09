@@ -41,10 +41,6 @@ constexpr std::underlying_type_t<Type> underlyingType(Type object) {
     return static_cast<std::underlying_type_t<Type>>(object);
 }
 
-uint16_t getExtensionPrefix(uint32_t type) {
-    return static_cast<uint16_t>(type >> kExtensionTypeBits);
-}
-
 template <typename Type>
 std::ostream& operator<<(std::ostream& os, const std::vector<Type>& vec) {
     constexpr size_t kMaxVectorPrint = 20;

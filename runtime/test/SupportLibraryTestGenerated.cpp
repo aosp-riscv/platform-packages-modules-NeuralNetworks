@@ -68,6 +68,7 @@ class GeneratedTests : public GeneratedTestBase {
     void computeWithDeviceMemories(const Compilation& compilation, const TestModel& testModel,
                                    Execution* execution, Execution::ComputeMode computeMode,
                                    Result* result, std::vector<TestBuffer>* outputs);
+    bool checkSupported(const Model& model, ANeuralNetworksDevice* device);
     std::optional<Compilation> compileModel(const Model& model, ANeuralNetworksDevice* device);
     void executeWithCompilation(const Compilation& compilation, const TestModel& testModel);
     void executeOnce(const Model& model, const TestModel& testModel);
@@ -118,6 +119,20 @@ class DeviceMemoryTest : public GeneratedTests {
    protected:
     DeviceMemoryTest() { mTestDeviceMemory = true; }
 };
+
+bool GeneratedTests::checkSupported(const Model& model, ANeuralNetworksDevice* device) {
+    constexpr static int MAX_NUM_OPS = 256;
+    std::array<bool, MAX_NUM_OPS> supportedOps;
+    for (int i = 0; i < MAX_NUM_OPS; ++i) {
+        supportedOps[i] = true;
+    }
+    EXPECT_EQ(mNnApi->ANeuralNetworksModel_getSupportedOperationsForDevices(
+                      model.getHandle(), &device, /*numDevices=*/1, supportedOps.data()),
+              ANEURALNETWORKS_NO_ERROR);
+    const bool fullySupportedModel =
+            std::all_of(supportedOps.begin(), supportedOps.end(), [](bool v) { return v; });
+    return fullySupportedModel;
+}
 
 std::optional<Compilation> GeneratedTests::compileModel(const Model& model,
                                                         ANeuralNetworksDevice* device) {
@@ -300,19 +315,33 @@ void GeneratedTests::executeWithCompilation(const Compilation& compilation,
 
 void GeneratedTests::executeOnce(const Model& model, const TestModel& testModel) {
     NNTRACE_APP(NNTRACE_PHASE_OVERALL, "executeOnce");
-    uint32_t num_devices = 0;
-    mNnApi->ANeuralNetworks_getDeviceCount(&num_devices);
-    for (uint32_t i = 0; i < num_devices; ++i) {
+    uint32_t numDevices = 0;
+    mNnApi->ANeuralNetworks_getDeviceCount(&numDevices);
+    bool modelSupported = false;
+    for (uint32_t i = 0; i < numDevices; ++i) {
         ANeuralNetworksDevice* device = nullptr;
         mNnApi->ANeuralNetworks_getDevice(i, &device);
-        const char* device_name = nullptr;
-        mNnApi->ANeuralNetworksDevice_getName(device, &device_name);
-        SCOPED_TRACE("Device = " + std::string(device_name));
+        const char* deviceName = nullptr;
+        mNnApi->ANeuralNetworksDevice_getName(device, &deviceName);
+        SCOPED_TRACE("Device = " + std::string(deviceName));
+        std::cout << "\nDevice = " << deviceName << std::endl;
+        if (!checkSupported(model, device)) {
+            std::cout << "\nModel not supported by device " << deviceName << ". Skipping"
+                      << std::endl;
+            continue;
+        }
+        modelSupported = true;
+        std::cout << "\nModel supported" << std::endl;
         std::optional<Compilation> compilation = compileModel(model, device);
         // Early return if compilation fails. The compilation result code is
         // checked in compileModel.
         if (!compilation) return;
         executeWithCompilation(compilation.value(), testModel);
+        std::cout << "\nExecution completed" << std::endl;
+    }
+    if (!modelSupported) {
+        std::cout << "\nModel not supported by any device\n"
+                  << "SKIPPED" << std::endl;
     }
 }
 
@@ -320,6 +349,7 @@ void GeneratedTests::executeMultithreadedOwnCompilation(const Model& model,
                                                         const TestModel& testModel) {
     NNTRACE_APP(NNTRACE_PHASE_OVERALL, "executeMultithreadedOwnCompilation");
     SCOPED_TRACE("MultithreadedOwnCompilation");
+    std::cout << "\nMultithreadedOwnCompilation" << std::endl;
     std::vector<std::thread> threads;
     for (int i = 0; i < 10; i++) {
         threads.push_back(std::thread([&]() { executeOnce(model, testModel); }));
@@ -331,14 +361,24 @@ void GeneratedTests::executeMultithreadedSharedCompilation(const Model& model,
                                                            const TestModel& testModel) {
     NNTRACE_APP(NNTRACE_PHASE_OVERALL, "executeMultithreadedSharedCompilation");
     SCOPED_TRACE("MultithreadedSharedCompilation");
-    uint32_t num_devices = 0;
-    mNnApi->ANeuralNetworks_getDeviceCount(&num_devices);
-    for (uint32_t i = 0; i < num_devices; ++i) {
+    std::cout << "\nMultithreadedSharedCompilation" << std::endl;
+    uint32_t numDevices = 0;
+    mNnApi->ANeuralNetworks_getDeviceCount(&numDevices);
+    bool modelSupported = false;
+    for (uint32_t i = 0; i < numDevices; ++i) {
         ANeuralNetworksDevice* device = nullptr;
         mNnApi->ANeuralNetworks_getDevice(i, &device);
-        const char* device_name = nullptr;
-        mNnApi->ANeuralNetworksDevice_getName(device, &device_name);
-        SCOPED_TRACE("Device = " + std::string(device_name));
+        const char* deviceName = nullptr;
+        mNnApi->ANeuralNetworksDevice_getName(device, &deviceName);
+        SCOPED_TRACE("Device = " + std::string(deviceName));
+        std::cout << "\nDevice = " << deviceName << std::endl;
+        if (!checkSupported(model, device)) {
+            std::cout << "\nModel not supported by device " << deviceName << ". Skipping"
+                      << std::endl;
+            continue;
+        }
+        modelSupported = true;
+        std::cout << "\nModel supported" << std::endl;
         std::optional<Compilation> compilation = compileModel(model, device);
         // Early return if compilation fails. The ompilation result code is
         // checked in compileModel.
@@ -349,6 +389,11 @@ void GeneratedTests::executeMultithreadedSharedCompilation(const Model& model,
                     std::thread([&]() { executeWithCompilation(compilation.value(), testModel); }));
         }
         std::for_each(threads.begin(), threads.end(), [](std::thread& t) { t.join(); });
+        std::cout << "\nExecution completed" << std::endl;
+    }
+    if (!modelSupported) {
+        std::cout << "\nModel not supported by any device\n"
+                  << "SKIPPED" << std::endl;
     }
 }
 
@@ -364,6 +409,8 @@ void GeneratedTests::execute(const TestModel& testModel) {
     ASSERT_TRUE(model.isValid());
     auto executeInternal = [&testModel, &model, this]() {
         SCOPED_TRACE("TestCompilationCaching = " + std::to_string(mTestCompilationCaching));
+        std::cout << "\nCompilationCaching = " << std::boolalpha << mTestCompilationCaching
+                  << std::endl;
 #ifndef NNTEST_MULTITHREADED
         executeOnce(model, testModel);
 #else   // defined(NNTEST_MULTITHREADED)
@@ -431,11 +478,13 @@ void GeneratedTests::TearDown() {
 
 #ifdef NNTEST_COMPUTE_MODE
 TEST_P(GeneratedTests, Sync) {
+    std::cout << "\nComputeMode = SYNC" << std::endl;
     mComputeMode = Execution::ComputeMode::SYNC;
     execute(testModel);
 }
 
 TEST_P(GeneratedTests, Burst) {
+    std::cout << "\nComputeMode = BURST" << std::endl;
     mComputeMode = Execution::ComputeMode::BURST;
     execute(testModel);
 }

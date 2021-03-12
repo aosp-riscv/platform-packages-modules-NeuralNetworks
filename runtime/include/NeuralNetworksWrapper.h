@@ -62,6 +62,13 @@ enum class ExecutePreference {
     PREFER_SUSTAINED_SPEED = ANEURALNETWORKS_PREFER_SUSTAINED_SPEED
 };
 
+enum class Duration {
+    ON_HARDWARE = ANEURALNETWORKS_DURATION_ON_HARDWARE,
+    IN_DRIVER = ANEURALNETWORKS_DURATION_IN_DRIVER,
+    FENCED_ON_HARDWARE = ANEURALNETWORKS_FENCED_DURATION_ON_HARDWARE,
+    FENCED_IN_DRIVER = ANEURALNETWORKS_FENCED_DURATION_IN_DRIVER,
+};
+
 enum class ExecutePriority {
     LOW = ANEURALNETWORKS_PRIORITY_LOW,
     MEDIUM = ANEURALNETWORKS_PRIORITY_MEDIUM,
@@ -157,6 +164,11 @@ struct OperandType {
                 .zeroPoint = 0,
         };
     }
+
+    void updateDimensions(std::vector<uint32_t> ndim) {
+        dimensions = ndim;
+        operandType.dimensions = dimensions.size() > 0 ? dimensions.data() : nullptr;
+    }
 };
 
 #ifdef NNTEST_SLTS
@@ -190,7 +202,11 @@ class Memory {
                  ANEURALNETWORKS_NO_ERROR;
     }
 
-    ~Memory() { NNAPI_CALL(ANeuralNetworksMemory_free(mMemory)); }
+    ~Memory() {
+        if (mMemory) {
+            NNAPI_CALL(ANeuralNetworksMemory_free(mMemory));
+        }
+    }
 
     // Disallow copy semantics to ensure the runtime object can only be freed
     // once. Copy semantics could be enabled if some sort of reference counting
@@ -204,7 +220,9 @@ class Memory {
     Memory(Memory&& other) { *this = std::move(other); }
     Memory& operator=(Memory&& other) {
         if (this != &other) {
-            NNAPI_CALL(ANeuralNetworksMemory_free(mMemory));
+            if (mMemory) {
+                NNAPI_CALL(ANeuralNetworksMemory_free(mMemory));
+            }
             mMemory = other.mMemory;
             mValid = other.mValid;
             other.mMemory = nullptr;
@@ -234,7 +252,11 @@ class Model {
         // TODO handle the value returned by this call
         NNAPI_CALL(ANeuralNetworksModel_create(&mModel));
     }
-    ~Model() { NNAPI_CALL(ANeuralNetworksModel_free(mModel)); }
+    ~Model() {
+        if (mModel) {
+            NNAPI_CALL(ANeuralNetworksModel_free(mModel));
+        }
+    }
 
     // Disallow copy semantics to ensure the runtime object can only be freed
     // once. Copy semantics could be enabled if some sort of reference counting
@@ -248,7 +270,9 @@ class Model {
     Model(Model&& other) { *this = std::move(other); }
     Model& operator=(Model&& other) {
         if (this != &other) {
-            NNAPI_CALL(ANeuralNetworksModel_free(mModel));
+            if (mModel) {
+                NNAPI_CALL(ANeuralNetworksModel_free(mModel));
+            }
             mModel = other.mModel;
             mNextOperandId = other.mNextOperandId;
             mValid = other.mValid;
@@ -344,11 +368,19 @@ class Model {
     bool mRelaxed = false;
 };
 
-#ifndef NNTEST_SLTS
 class Event {
    public:
+#ifdef NNTEST_SLTS
+    Event(const NnApiSupportLibrary* nnapi) : mNnApi(nnapi) {}
+#else
     Event() {}
-    ~Event() { ANeuralNetworksEvent_free(mEvent); }
+#endif
+
+    ~Event() {
+        if (mEvent) {
+            NNAPI_CALL(ANeuralNetworksEvent_free(mEvent));
+        }
+    }
 
     // Disallow copy semantics to ensure the runtime object can only be freed
     // once. Copy semantics could be enabled if some sort of reference counting
@@ -362,28 +394,44 @@ class Event {
     Event(Event&& other) { *this = std::move(other); }
     Event& operator=(Event&& other) {
         if (this != &other) {
-            ANeuralNetworksEvent_free(mEvent);
+            if (mEvent) {
+                NNAPI_CALL(ANeuralNetworksEvent_free(mEvent));
+            }
+#ifdef NNTEST_SLTS
+            mNnApi = other.mNnApi;
+#endif
             mEvent = other.mEvent;
             other.mEvent = nullptr;
         }
         return *this;
     }
 
-    Result wait() { return static_cast<Result>(ANeuralNetworksEvent_wait(mEvent)); }
+    Result wait() { return static_cast<Result>(NNAPI_CALL(ANeuralNetworksEvent_wait(mEvent))); }
 
     // Only for use by Execution
     void set(ANeuralNetworksEvent* newEvent) {
-        ANeuralNetworksEvent_free(mEvent);
+        if (mEvent) {
+            NNAPI_CALL(ANeuralNetworksEvent_free(mEvent));
+        }
         mEvent = newEvent;
     }
 
     // Only for use by Execution
     ANeuralNetworksEvent* getHandle() const { return mEvent; }
 
+    Result getSyncFenceFd(int* sync_fence_fd) {
+        return static_cast<Result>(
+                NNAPI_CALL(ANeuralNetworksEvent_getSyncFenceFd(mEvent, sync_fence_fd)));
+    }
+
+#ifdef NNTEST_SLTS
+   private:
+    const NnApiSupportLibrary* mNnApi = nullptr;
+#endif
+
    private:
     ANeuralNetworksEvent* mEvent = nullptr;
 };
-#endif
 
 class Compilation {
    public:
@@ -488,7 +536,11 @@ class Execution {
         }
     }
 
-    ~Execution() { NNAPI_CALL(ANeuralNetworksExecution_free(mExecution)); }
+    ~Execution() {
+        if (mExecution) {
+            NNAPI_CALL(ANeuralNetworksExecution_free(mExecution));
+        }
+    }
 
     // Disallow copy semantics to ensure the runtime object can only be freed
     // once. Copy semantics could be enabled if some sort of reference counting
@@ -502,7 +554,9 @@ class Execution {
     Execution(Execution&& other) { *this = std::move(other); }
     Execution& operator=(Execution&& other) {
         if (this != &other) {
-            NNAPI_CALL(ANeuralNetworksExecution_free(mExecution));
+            if (mExecution) {
+                NNAPI_CALL(ANeuralNetworksExecution_free(mExecution));
+            }
             mExecution = other.mExecution;
             other.mExecution = nullptr;
         }

@@ -1001,7 +1001,8 @@ std::tuple<int, std::vector<OutputShape>, Timing> CpuPreparedModel::execute(
                         ptrArgsLocations.push_back(
                                 {.poolIndex = static_cast<uint32_t>(requestPoolInfos.size()),
                                  .offset = 0,
-                                 .length = argumentInfo.length()});
+                                 .length = argumentInfo.length(),
+                                 .padding = argumentInfo.padding()});
                         requestPoolInfos.emplace_back(RunTimePoolInfo::createFromExistingBuffer(
                                 static_cast<uint8_t*>(argumentInfo.buffer())));
                     }

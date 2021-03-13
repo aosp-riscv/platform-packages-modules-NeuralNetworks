@@ -587,6 +587,11 @@ class Execution {
                 mExecution, index, type, memory->get(), offset, length)));
     }
 
+    Result enableInputAndOutputPadding(bool enable) {
+        return static_cast<Result>(NNAPI_CALL(
+                ANeuralNetworksExecution_enableInputAndOutputPadding(mExecution, enable)));
+    }
+
 #ifndef NNTEST_SLTS
     Result startCompute(Event* event) {
         ANeuralNetworksEvent* ev = nullptr;

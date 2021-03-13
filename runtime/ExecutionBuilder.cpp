@@ -214,7 +214,9 @@ int ExecutionBuilder::setInput(uint32_t index, const ANeuralNetworksOperandType*
     }
     int n;
     std::tie(n, mInputs[index]) = ModelArgumentInfo::createFromPointer(
-            mModel->getInputOperand(index), type, const_cast<void*>(buffer), l);
+            mModel->getInputOperand(index), type, const_cast<void*>(buffer), l,
+            mInputAndOutputPaddingEnabled);
+    mHasCalledSetInputOutput = true;
     return n;
 }
 
@@ -259,8 +261,10 @@ int ExecutionBuilder::setInputFromMemory(uint32_t index, const ANeuralNetworksOp
         return ANEURALNETWORKS_BAD_STATE;
     }
     int n;
-    std::tie(n, mInputs[index]) = ModelArgumentInfo::createFromMemory(
-            mModel->getInputOperand(index), type, poolIndex, offset, length);
+    std::tie(n, mInputs[index]) =
+            ModelArgumentInfo::createFromMemory(mModel->getInputOperand(index), type, poolIndex,
+                                                offset, length, mInputAndOutputPaddingEnabled);
+    mHasCalledSetInputOutput = true;
     return n;
 }
 
@@ -291,8 +295,9 @@ int ExecutionBuilder::setOutput(uint32_t index, const ANeuralNetworksOperandType
         return ANEURALNETWORKS_BAD_STATE;
     }
     int n;
-    std::tie(n, mOutputs[index]) =
-            ModelArgumentInfo::createFromPointer(mModel->getOutputOperand(index), type, buffer, l);
+    std::tie(n, mOutputs[index]) = ModelArgumentInfo::createFromPointer(
+            mModel->getOutputOperand(index), type, buffer, l, mInputAndOutputPaddingEnabled);
+    mHasCalledSetInputOutput = true;
     return n;
 }
 
@@ -336,8 +341,10 @@ int ExecutionBuilder::setOutputFromMemory(uint32_t index, const ANeuralNetworksO
         return ANEURALNETWORKS_BAD_STATE;
     }
     int n;
-    std::tie(n, mOutputs[index]) = ModelArgumentInfo::createFromMemory(
-            mModel->getOutputOperand(index), type, poolIndex, offset, length);
+    std::tie(n, mOutputs[index]) =
+            ModelArgumentInfo::createFromMemory(mModel->getOutputOperand(index), type, poolIndex,
+                                                offset, length, mInputAndOutputPaddingEnabled);
+    mHasCalledSetInputOutput = true;
     return n;
 }
 
@@ -451,6 +458,21 @@ int ExecutionBuilder::setLoopTimeout(uint64_t duration) {
         duration = operation_while::kTimeoutNsMaximum;
     }
     mLoopTimeoutDuration = duration;
+    return ANEURALNETWORKS_NO_ERROR;
+}
+
+int ExecutionBuilder::enableInputAndOutputPadding(bool enable) {
+    if (mStarted) {
+        LOG(ERROR) << "ANeuralNetworksExecution_enableInputAndOutputPadding called after the "
+                      "execution has started.";
+        return ANEURALNETWORKS_BAD_STATE;
+    }
+    if (mHasCalledSetInputOutput) {
+        LOG(ERROR) << "ANeuralNetworksExecution_enableInputAndOutputPadding called after an input "
+                      "or output is set.";
+        return ANEURALNETWORKS_BAD_STATE;
+    }
+    mInputAndOutputPaddingEnabled = enable;
     return ANEURALNETWORKS_NO_ERROR;
 }
 

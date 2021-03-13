@@ -66,6 +66,7 @@ LIBNEURALNETWORKS {
     ANeuralNetworksExecution_burstCompute; # introduced=Q
     ANeuralNetworksExecution_compute; # introduced=Q
     ANeuralNetworksExecution_create;
+    ANeuralNetworksExecution_enableInputAndOutputPadding; # introduced=31
     ANeuralNetworksExecution_free;
     ANeuralNetworksExecution_getDuration; # introduced=Q
     ANeuralNetworksExecution_setInput;

@@ -18,7 +18,7 @@
 
 #include "LSTM.h"
 
-#include <tensorflow/lite/kernels/internal/tensor_utils.h>
+#include <tensorflow/lite/kernels/internal/reference/portable_tensor_utils.h>
 
 #include <vector>
 
@@ -832,56 +832,53 @@ bool LSTMCell::LSTMStep(
 
     // For each batch and cell: compute input_weight * input.
     if (!params.use_cifg) {
-        tflite::tensor_utils::MatrixBatchVectorMultiplyAccumulate(
-                input_to_input_weights_buffer, n_cell, n_input, input_buffer, n_batch,
-                input_gate_scratch, /*result_stride*/ 1);
+        tflite::tensor_utils::MatrixBatchVectorMultiplyAccumulate(input_to_input_weights_buffer,
+                                                                  n_cell, n_input, input_buffer,
+                                                                  n_batch, input_gate_scratch);
     }
+    tflite::tensor_utils::MatrixBatchVectorMultiplyAccumulate(input_to_forget_weights_buffer,
+                                                              n_cell, n_input, input_buffer,
+                                                              n_batch, forget_gate_scratch);
     tflite::tensor_utils::MatrixBatchVectorMultiplyAccumulate(
-            input_to_forget_weights_buffer, n_cell, n_input, input_buffer, n_batch,
-            forget_gate_scratch, /*result_stride*/ 1);
-    tflite::tensor_utils::MatrixBatchVectorMultiplyAccumulate(input_to_cell_weights_buffer, n_cell,
-                                                              n_input, input_buffer, n_batch,
-                                                              cell_scratch, /*result_stride*/ 1);
-    tflite::tensor_utils::MatrixBatchVectorMultiplyAccumulate(
-            input_to_output_weights_buffer, n_cell, n_input, input_buffer, n_batch,
-            output_gate_scratch, /*result_stride*/ 1);
+            input_to_cell_weights_buffer, n_cell, n_input, input_buffer, n_batch, cell_scratch);
+    tflite::tensor_utils::MatrixBatchVectorMultiplyAccumulate(input_to_output_weights_buffer,
+                                                              n_cell, n_input, input_buffer,
+                                                              n_batch, output_gate_scratch);
 
     // If auxiliary input is available then compute aux_input_weight * aux_input
     if (aux_input_buffer != nullptr) {
         if (!params.use_cifg) {
             tflite::tensor_utils::MatrixBatchVectorMultiplyAccumulate(
                     aux_input_to_input_weights_buffer, n_cell, n_aux_input, aux_input_buffer,
-                    n_batch, input_gate_scratch,
-                    /*result_stride=*/1);
+                    n_batch, input_gate_scratch);
         }
 
         tflite::tensor_utils::MatrixBatchVectorMultiplyAccumulate(
                 aux_input_to_forget_weights_buffer, n_cell, n_aux_input, aux_input_buffer, n_batch,
-                forget_gate_scratch, /*result_stride=*/1);
+                forget_gate_scratch);
         tflite::tensor_utils::MatrixBatchVectorMultiplyAccumulate(
                 aux_input_to_cell_weights_buffer, n_cell, n_aux_input, aux_input_buffer, n_batch,
-                cell_scratch, /*result_stride=*/1);
+                cell_scratch);
         tflite::tensor_utils::MatrixBatchVectorMultiplyAccumulate(
                 aux_input_to_output_weights_buffer, n_cell, n_aux_input, aux_input_buffer, n_batch,
-                output_gate_scratch, /*result_stride=*/1);
+                output_gate_scratch);
     }
 
     // For each batch and cell: compute recurrent_weight * output_state.
     if (!params.use_cifg) {
         tflite::tensor_utils::MatrixBatchVectorMultiplyAccumulate(
                 recurrent_to_input_weights_buffer, n_cell, n_output, output_state_in_buffer,
-                n_batch, input_gate_scratch,
-                /*result_stride*/ 1);
+                n_batch, input_gate_scratch);
     }
     tflite::tensor_utils::MatrixBatchVectorMultiplyAccumulate(
             recurrent_to_forget_weights_buffer, n_cell, n_output, output_state_in_buffer, n_batch,
-            forget_gate_scratch, /*result_stride*/ 1);
+            forget_gate_scratch);
     tflite::tensor_utils::MatrixBatchVectorMultiplyAccumulate(
             recurrent_to_cell_weights_buffer, n_cell, n_output, output_state_in_buffer, n_batch,
-            cell_scratch, /*result_stride*/ 1);
+            cell_scratch);
     tflite::tensor_utils::MatrixBatchVectorMultiplyAccumulate(
             recurrent_to_output_weights_buffer, n_cell, n_output, output_state_in_buffer, n_batch,
-            output_gate_scratch, /*result_stride*/ 1);
+            output_gate_scratch);
 
     // For each batch and cell: update input gate.
     if (!params.use_cifg) {
@@ -942,8 +939,8 @@ bool LSTMCell::LSTMStep(
                 cell_scratch, input_gate_scratch, n_batch * n_cell, cell_state_out_buffer);
     }
     if (params.cell_clip > 0.0) {
-        tflite::tensor_utils::ClipVector(cell_state_out_buffer, n_batch * n_cell, params.cell_clip,
-                                         cell_state_out_buffer);
+        tflite::tensor_utils::CwiseClipping(cell_state_out_buffer, n_batch * n_cell,
+                                            params.cell_clip);
     }
 
     // For each batch and cell: update the output gate.
@@ -978,11 +975,10 @@ bool LSTMCell::LSTMStep(
         }
         tflite::tensor_utils::MatrixBatchVectorMultiplyAccumulate(
                 projection_weights_buffer, n_output, n_cell, output_gate_scratch, n_batch,
-                output_buffer,
-                /*result_stride*/ 1);
+                output_buffer);
         if (params.proj_clip > 0.0) {
-            tflite::tensor_utils::ClipVector(output_buffer, n_batch * n_output, params.proj_clip,
-                                             output_buffer);
+            tflite::tensor_utils::CwiseClipping(output_buffer, n_batch * n_output,
+                                                params.proj_clip);
         }
     } else {
         std::copy_n(output_gate_scratch, n_batch * n_output, output_buffer);

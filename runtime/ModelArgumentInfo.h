@@ -39,10 +39,11 @@ class ModelArgumentInfo {
 
     static std::pair<int, ModelArgumentInfo> createFromPointer(
             const Operand& operand, const ANeuralNetworksOperandType* type,
-            void* data /* nullptr means HAS_NO_VALUE */, uint32_t length);
+            void* data /* nullptr means HAS_NO_VALUE */, uint32_t length,
+            bool paddingEnabled = true);
     static std::pair<int, ModelArgumentInfo> createFromMemory(
             const Operand& operand, const ANeuralNetworksOperandType* type, uint32_t poolIndex,
-            uint32_t offset, uint32_t length);
+            uint32_t offset, uint32_t length, bool paddingEnabled = true);
 
     enum State { POINTER, MEMORY, HAS_NO_VALUE, UNSPECIFIED };
 
@@ -78,6 +79,11 @@ class ModelArgumentInfo {
         return mLocationAndLength.length;
     }
 
+    uint32_t padding() const {
+        CHECK(mState == POINTER || mState == MEMORY);
+        return mLocationAndLength.padding;
+    }
+
     const DataLocation& locationAndLength() const {
         CHECK_EQ(mState, MEMORY);
         return mLocationAndLength;
@@ -99,11 +105,11 @@ class ModelArgumentInfo {
     // If MEMORY then:
     //   mLocationAndLength.{poolIndex, offset, length} is valid.
     //   mDimensions is valid.
-    State mState = UNSPECIFIED;            // fixed at creation
-    void* mBuffer = nullptr;               // fixed at creation
-    DataLocation mLocationAndLength;       // can be updated after creation
-    std::vector<uint32_t> mDimensions;     // can be updated after creation
-    bool mIsSufficient = true;             // can be updated after creation
+    State mState = UNSPECIFIED;         // fixed at creation
+    void* mBuffer = nullptr;            // fixed at creation
+    DataLocation mLocationAndLength;    // can be updated after creation
+    std::vector<uint32_t> mDimensions;  // can be updated after creation
+    bool mIsSufficient = true;          // can be updated after creation
 };
 
 // Convert ModelArgumentInfo to HIDL Request::Argument. For pointer arguments, use the location

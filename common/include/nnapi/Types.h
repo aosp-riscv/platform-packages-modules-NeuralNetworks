@@ -205,6 +205,7 @@ struct DataLocation {
     uint32_t poolIndex = 0;
     uint32_t offset = 0;
     uint32_t length = 0;
+    uint32_t padding = 0;
 };
 
 struct Operand {

@@ -20,10 +20,10 @@
 #ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_SL_SUPPORT_LIBRARY_WRAPPER_H
 #define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_SL_SUPPORT_LIBRARY_WRAPPER_H
 
+#include <android/hardware_buffer.h>
 #include <math.h>
 #include <unistd.h>
 
-#include <android/hardware_buffer.h>
 #include <algorithm>
 #include <memory>
 #include <optional>
@@ -471,6 +471,11 @@ class Execution {
     Result getDuration(Duration durationCode, uint64_t* duration) {
         return static_cast<Result>(mNnApi->ANeuralNetworksExecution_getDuration(
                 mExecution, static_cast<int32_t>(durationCode), duration));
+    }
+
+    Result enableInputAndOutputPadding(bool enable) {
+        return static_cast<Result>(
+                mNnApi->ANeuralNetworksExecution_enableInputAndOutputPadding(mExecution, enable));
     }
 
     // By default, compute() uses the synchronous API. Either an argument or

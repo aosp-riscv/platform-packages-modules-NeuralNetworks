@@ -7673,6 +7673,18 @@ void ANeuralNetworksExecution_free(ANeuralNetworksExecution* execution) __INTROD
  * If the input is optional, you can indicate that it is omitted by
  * passing nullptr for buffer and 0 for length.
  *
+ * Otherwise, if the user has not set the execution to accept padded input buffers by
+ * calling {@link ANeuralNetworksExecution_enableInputAndOutputPadding}, then the length argument
+ * must be equal to the raw size of the input (i.e. the size of an element multiplied by the
+ * number of elements). Passing a length argument with value not equal to the raw size of the input
+ * will result in ANEURALNETWORKS_BAD_DATA.
+ *
+ * Otherwise, if the user has set the execution to accept padded input buffers by calling
+ * {@link ANeuralNetworksExecution_enableInputAndOutputPadding}, the length argument may be greater
+ * than the raw size of the input, and the extra bytes at the end of the buffer may be used
+ * by the driver to access data in chunks, for efficiency. Passing a length argument with value
+ * less than the raw size of the input will result in ANEURALNETWORKS_BAD_DATA.
+ *
  * See {@link ANeuralNetworksExecution} for information on multithreaded usage.
  *
  * Available since NNAPI feature level 1.
@@ -7694,7 +7706,7 @@ void ANeuralNetworksExecution_free(ANeuralNetworksExecution* execution) __INTROD
  *             nor the dimensions it points to need to outlive the call
  *             to {@link ANeuralNetworksExecution_setInput}.
  * @param buffer The buffer containing the data.
- * @param length The length in bytes of the buffer.
+ * @param length The size of the data value in bytes plus any end padding.
  *
  * @return ANEURALNETWORKS_NO_ERROR if successful, ANEURALNETWORKS_BAD_DATA if the
  *         name is not recognized or the buffer is too small for the input.
@@ -7716,6 +7728,23 @@ int ANeuralNetworksExecution_setInput(ANeuralNetworksExecution* execution, int32
  * If the input is optional, you can indicate that it is omitted by
  * using {@link ANeuralNetworksExecution_setInput} instead, passing nullptr for
  * buffer and 0 for length.
+ *
+ * If the memory is an AHardwareBuffer of a format other than AHARDWAREBUFFER_FORMAT_BLOB created
+ * from {@link ANeuralNetworksMemory_createFromAHardwareBuffer}, or an opaque memory object created
+ * from {@link ANeuralNetworksMemory_createFromDesc}, both offset and length must be 0, indicating
+ * the whole memory is used.
+ *
+ * Otherwise, if the user has not set the execution to accept padded input memory objects by
+ * calling {@link ANeuralNetworksExecution_enableInputAndOutputPadding}, then the length argument
+ * must be equal to the raw size of the input (i.e. the size of an element multiplied by the
+ * number of elements). Passing a length argument with value not equal to the raw size of the input
+ * will result in ANEURALNETWORKS_BAD_DATA.
+ *
+ * Otherwise, if the user has set the execution to accept padded input memory objects by calling
+ * {@link ANeuralNetworksExecution_enableInputAndOutputPadding}, the length argument may be greater
+ * than the raw size of the input, and the extra bytes at the end of the memory region may be used
+ * by the driver to access data in chunks, for efficiency. Passing a length argument with value
+ * less than the raw size of the input will result in ANEURALNETWORKS_BAD_DATA.
  *
  * See {@link ANeuralNetworksExecution} for information on multithreaded usage.
  * See {@link ANeuralNetworksMemory_createFromAHardwareBuffer} for information on
@@ -7742,7 +7771,7 @@ int ANeuralNetworksExecution_setInput(ANeuralNetworksExecution* execution, int32
  * @param memory The memory containing the data.
  * @param offset This specifies the location of the data within the memory.
  *               The offset is in bytes from the start of memory.
- * @param length The size in bytes of the data value.
+ * @param length The size of the data value in bytes plus any end padding.
  *
  * @return ANEURALNETWORKS_NO_ERROR if successful, ANEURALNETWORKS_BAD_DATA if the
  *         name is not recognized or the buffer is too small for the input.
@@ -7759,10 +7788,22 @@ int ANeuralNetworksExecution_setInputFromMemory(ANeuralNetworksExecution* execut
  * application must not change the content of the buffer until the execution has
  * completed.
  *
+ * <p>The provided buffer must outlive the execution.</p>
+ *
  * If the output is optional, you can indicate that it is omitted by
  * passing nullptr for buffer and 0 for length.
  *
- * <p>The provided buffer must outlive the execution.</p>
+ * Otherwise, if the user has not set the execution to accept padded output buffers by
+ * calling {@link ANeuralNetworksExecution_enableInputAndOutputPadding}, then the length argument
+ * must be equal to the raw size of the output (i.e. the size of an element multiplied by the
+ * number of elements). Passing a length argument with value not equal to the raw size of the output
+ * will result in ANEURALNETWORKS_BAD_DATA.
+ *
+ * Otherwise, if the user has set the execution to accept padded output buffers by calling
+ * {@link ANeuralNetworksExecution_enableInputAndOutputPadding}, the length argument may be greater
+ * than the raw size of the output, and the extra bytes at the end of the buffer may be used
+ * by the driver to access data in chunks, for efficiency. Passing a length argument with value
+ * less than the raw size of the output will result in ANEURALNETWORKS_BAD_DATA.
  *
  * See {@link ANeuralNetworksExecution} for information on multithreaded usage.
  *
@@ -7790,7 +7831,7 @@ int ANeuralNetworksExecution_setInputFromMemory(ANeuralNetworksExecution* execut
  *             by {@link ANeuralNetworksExecution_getOutputOperandRank} and
  *             {@link ANeuralNetworksExecution_getOutputOperandDimensions}.
  * @param buffer The buffer where the data is to be written.
- * @param length The length in bytes of the buffer.
+ * @param length The size of the data value in bytes plus any end padding.
  *
  * @return ANEURALNETWORKS_NO_ERROR if successful, ANEURALNETWORKS_BAD_DATA if the
  *         name is not recognized or the buffer is too small for the output.
@@ -7806,11 +7847,28 @@ int ANeuralNetworksExecution_setOutput(ANeuralNetworksExecution* execution, int3
  * application must not change the content of the region until the execution has
  * completed.
  *
+ * <p>The provided memory must outlive the execution.</p>
+ *
  * If the output is optional, you can indicate that it is omitted by
  * using {@link ANeuralNetworksExecution_setOutput} instead, passing nullptr for
  * buffer and 0 for length.
  *
- * <p>The provided memory must outlive the execution.</p>
+ * If the memory is an AHardwareBuffer of a format other than AHARDWAREBUFFER_FORMAT_BLOB created
+ * from {@link ANeuralNetworksMemory_createFromAHardwareBuffer}, or an opaque memory object created
+ * from {@link ANeuralNetworksMemory_createFromDesc}, both offset and length must be 0, indicating
+ * the whole memory is used.
+ *
+ * Otherwise, if the user has not set the execution to accept padded output memory objects by
+ * calling {@link ANeuralNetworksExecution_enableInputAndOutputPadding}, then the length argument
+ * must be equal to the raw size of the output (i.e. the size of an element multiplied by the
+ * number of elements). Passing a length argument with value not equal to the raw size of the output
+ * will result in ANEURALNETWORKS_BAD_DATA.
+ *
+ * Otherwise, if the user has set the execution to accept padded output memory objects by calling
+ * {@link ANeuralNetworksExecution_enableInputAndOutputPadding}, the length argument may be greater
+ * than the raw size of the output, and the extra bytes at the end of the memory region may be used
+ * by the driver to access data in chunks, for efficiency. Passing a length argument with value
+ * less than the raw size of the output will result in ANEURALNETWORKS_BAD_DATA.
  *
  * See {@link ANeuralNetworksExecution} for information on multithreaded usage.
  * See {@link ANeuralNetworksMemory_createFromAHardwareBuffer} for information on
@@ -7843,7 +7901,7 @@ int ANeuralNetworksExecution_setOutput(ANeuralNetworksExecution* execution, int3
  * @param memory The memory where the data is to be stored.
  * @param offset This specifies the location of the data within the memory.
  *               The offset is in bytes from the start of memory.
- * @param length The length in bytes of the data value.
+ * @param length The size of the data value in bytes plus any end padding.
  *
  * @return ANEURALNETWORKS_NO_ERROR if successful, ANEURALNETWORKS_BAD_DATA if the
  *         name is not recognized or the buffer is too small for the output.
@@ -8189,6 +8247,43 @@ int ANeuralNetworksExecution_startComputeWithDependencies(
  * Available since NNAPI feature level 5.
  */
 int64_t ANeuralNetworks_getRuntimeFeatureLevel() __INTRODUCED_IN(31);
+
+/**
+ * Specifies whether the {@link ANeuralNetworksExecution} is able to accept padded input and output
+ * buffers and memory objects.
+ *
+ * By default, the input and output buffers and memory objects of {@link ANeuralNetworksExecution}
+ * do not allow padding.
+ *
+ * Setting the execution to accept padded input and output buffers and memory objects enables the
+ * length argument of {@link ANeuralNetworksExecution_setInput},
+ * {@link ANeuralNetworksExecution_setInputFromMemory}, {@link ANeuralNetworksExecution_setOutput},
+ * and {@link ANeuralNetworksExecution_setOutputFromMemory} to be greater than the raw size of the
+ * operand (i.e. the size of an element multiplied by the number of elements). The extra bytes
+ * at the end of the buffer or memory region may be used by the driver to access data in chunks,
+ * for efficiency.
+ *
+ * This method must not be called after {@link ANeuralNetworksExecution_setInput},
+ * {@link ANeuralNetworksExecution_setInputFromMemory}, {@link ANeuralNetworksExecution_setOutput},
+ * or {@link ANeuralNetworksExecution_setOutputFromMemory}.
+ *
+ * See {@link ANeuralNetworksExecution} for information on multithreaded usage.
+ *
+ * @param execution The execution to be modified.
+ * @param enable 'true' if the execution is to be able to accept padded input and output buffers
+ *               and memory objects, 'false' if not.
+ *
+ * @return ANEURALNETWORKS_NO_ERROR if successful.
+ *         ANEURALNETWORKS_UNEXPECTED_NULL if execution is NULL.
+ *         ANEURALNETWORKS_BAD_STATE if {@link ANeuralNetworksExecution_setInput},
+ *         {@link ANeuralNetworksExecution_setInputFromMemory},
+ *         {@link ANeuralNetworksExecution_setOutput}, or
+ *         {@link ANeuralNetworksExecution_setOutputFromMemory} has been called on the execution.
+ *
+ * Available since NNAPI feature level 5.
+ */
+int ANeuralNetworksExecution_enableInputAndOutputPadding(ANeuralNetworksExecution* execution,
+                                                         bool enable) __INTRODUCED_IN(31);
 
 __END_DECLS
 

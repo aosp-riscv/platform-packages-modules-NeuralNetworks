@@ -390,6 +390,11 @@ class Execution {
         return static_cast<Result>(ANeuralNetworksExecution_setLoopTimeout(mExecution, duration));
     }
 
+    Result enableInputAndOutputPadding(bool enable) {
+        return static_cast<Result>(
+                ANeuralNetworksExecution_enableInputAndOutputPadding(mExecution, enable));
+    }
+
     Result startCompute(Event* event) {
         ANeuralNetworksEvent* ev = nullptr;
         Result result = static_cast<Result>(ANeuralNetworksExecution_startCompute(mExecution, &ev));

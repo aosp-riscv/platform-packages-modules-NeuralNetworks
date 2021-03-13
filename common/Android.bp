@@ -99,6 +99,7 @@ cc_library_static {
         "gemmlowp_headers",
         "libeigen",
         "libneuralnetworks_headers",
+        "libruy_headers",
         "tensorflow_headers",
     ],
     shared_libs: [
@@ -236,6 +237,7 @@ cc_library_static {
     ],
     static_libs: [
         "libcrypto_static",
+        "libruy_static",
         "libtextclassifier_hash_static",
     ],
     cflags: [

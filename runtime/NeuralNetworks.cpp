@@ -1572,3 +1572,14 @@ int ANeuralNetworksExecution_startComputeWithDependencies(
 int64_t ANeuralNetworks_getRuntimeFeatureLevel() {
     return kCurrentNNAPIRuntimeFeatureLevel;
 }
+
+int ANeuralNetworksExecution_enableInputAndOutputPadding(ANeuralNetworksExecution* execution,
+                                                         bool enable) {
+    NNTRACE_RT(NNTRACE_PHASE_EXECUTION, "ANeuralNetworksExecution_enableInputAndOutputPadding");
+    if (!execution) {
+        LOG(ERROR) << "ANeuralNetworksExecution_enableInputAndOutputPadding passed a nullptr";
+        return ANEURALNETWORKS_UNEXPECTED_NULL;
+    }
+    ExecutionBuilder* r = reinterpret_cast<ExecutionBuilder*>(execution);
+    return r->enableInputAndOutputPadding(enable);
+}

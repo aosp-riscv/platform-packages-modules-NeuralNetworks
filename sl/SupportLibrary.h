@@ -151,6 +151,8 @@ struct NnApiSupportLibrary {
                                                uint64_t duration);
     int (*ANeuralNetworksExecution_setLoopTimeout)(ANeuralNetworksExecution* execution,
                                                    uint64_t duration);
+    int (*ANeuralNetworksExecution_enableInputAndOutputPadding)(ANeuralNetworksExecution* execution,
+                                                                bool enable);
     int (*ANeuralNetworksEvent_createFromSyncFenceFd)(int sync_fence_fd,
                                                       ANeuralNetworksEvent** event);
     int (*ANeuralNetworksEvent_getSyncFenceFd)(const ANeuralNetworksEvent* event,

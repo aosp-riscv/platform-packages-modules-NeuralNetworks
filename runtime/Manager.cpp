@@ -37,6 +37,7 @@
 #include <vector>
 
 #include "ExecutionCallback.h"
+#include "FeatureLevel.h"
 #include "Memory.h"
 #include "ModelArgumentInfo.h"
 #include "TypeManager.h"
@@ -693,7 +694,7 @@ std::tuple<int, int, ExecuteFencedInfoCallback, Timing> DriverPreparedModel::exe
     SyncFence syncFence = SyncFence::createAsSignaled();
     ExecuteFencedInfoCallback executeFencedInfoCallback = nullptr;
     Timing timing = {};
-    if (mDevice->getFeatureLevel() >= kHalVersionV1_3ToApi.android) {
+    if (mDevice->getFeatureLevel() >= kHalVersionV1_3ToApi.featureLevel) {
         auto result = mPreparedModel->executeFenced(request, waitForHandles, measure, deadline,
                                                     loopTimeoutDuration, timeoutDurationAfterFence);
         if (!result.ok()) {
@@ -800,7 +801,7 @@ class CpuDevice : public Device {
 
    private:
     CpuDevice() = default;
-    const int64_t kFeatureLevel = __ANDROID_API__;
+    const int64_t kFeatureLevel = kCurrentNNAPIRuntimeFeatureLevel;
     const std::string kName = "nnapi-reference";
 #ifndef NN_COMPATIBILITY_LIBRARY_BUILD
     const std::string kVersionString = build::GetBuildNumber();

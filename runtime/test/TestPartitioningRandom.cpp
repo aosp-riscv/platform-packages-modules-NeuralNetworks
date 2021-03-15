@@ -1133,7 +1133,7 @@ TEST_P(RandomPartitioningTest, Test) {
     if (compilationResult == Result::OP_FAILED && hasUnknownDimensions &&
         cNoFallback.getExecutionPlan().hasDynamicTemporaries() &&
         std::any_of(devices.begin(), devices.end(), [](const std::shared_ptr<Device>& device) {
-            return device->getFeatureLevel() < nn::kHalVersionV1_2ToApi.android;
+            return device->getFeatureLevel() < nn::kHalVersionV1_2ToApi.featureLevel;
         })) {
         ASSERT_EQ(cWithFallback.setPartitioning(DeviceManager::kPartitioningWithFallback),
                   Result::NO_ERROR);

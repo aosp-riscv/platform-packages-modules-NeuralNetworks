@@ -24,6 +24,7 @@ LIBNEURALNETWORKS {
     ANeuralNetworks_getDeviceCount; # introduced=Q
     ANeuralNetworks_getDevice; # introduced=Q
     ANeuralNetworks_getMaximumLoopTimeout; # introduced=30
+    ANeuralNetworks_getRuntimeFeatureLevel; # introduced=31
     ANeuralNetworksDevice_getName; # introduced=Q
     ANeuralNetworksDevice_getType; # introduced=Q
     ANeuralNetworksDevice_getVersion; # introduced=Q

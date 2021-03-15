@@ -21,7 +21,9 @@
 #define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_SL_SUPPORT_LIBRARY_WRAPPER_H
 
 #include <math.h>
+#include <unistd.h>
 
+#include <android/hardware_buffer.h>
 #include <algorithm>
 #include <memory>
 #include <optional>
@@ -44,20 +46,37 @@ class Memory {
     Memory(const NnApiSupportLibrary* nnapi, ANeuralNetworksMemory* memory)
         : mNnApi(nnapi), mMemory(memory) {}
 
-    Memory(const NnApiSupportLibrary* nnapi, size_t size, int protect, int fd, size_t offset)
-        : mNnApi(nnapi) {
+    // Create from a FD and may takes ownership of the fd.
+    Memory(const NnApiSupportLibrary* nnapi, size_t size, int protect, int fd, size_t offset,
+           bool ownsFd = false)
+        : mNnApi(nnapi), mOwnedFd(ownsFd ? std::optional<int>{fd} : std::nullopt) {
         mValid = mNnApi->ANeuralNetworksMemory_createFromFd(size, protect, fd, offset, &mMemory) ==
                  ANEURALNETWORKS_NO_ERROR;
     }
 
-    Memory(const NnApiSupportLibrary* nnapi, AHardwareBuffer* buffer) : mNnApi(nnapi) {
+    // Create from a buffer, may take ownership.
+    Memory(const NnApiSupportLibrary* nnapi, AHardwareBuffer* buffer, bool own = false)
+        : mNnApi(nnapi), mOwnedAHB(own ? buffer : nullptr) {
         mValid = mNnApi->ANeuralNetworksMemory_createFromAHardwareBuffer(buffer, &mMemory) ==
+                 ANEURALNETWORKS_NO_ERROR;
+    }
+
+    // Create from a desc
+    Memory(const NnApiSupportLibrary* nnapi, ANeuralNetworksMemoryDesc* desc) : mNnApi(nnapi) {
+        mValid = mNnApi->ANeuralNetworksMemory_createFromDesc(desc, &mMemory) ==
                  ANEURALNETWORKS_NO_ERROR;
     }
 
     virtual ~Memory() {
         if (mMemory) {
             mNnApi->ANeuralNetworksMemory_free(mMemory);
+        }
+        if (mOwnedFd) {
+            close(*mOwnedFd);
+        }
+        if (mOwnedAHB) {
+            AHardwareBuffer_unlock(mOwnedAHB, nullptr);
+            AHardwareBuffer_release(mOwnedAHB);
         }
     }
 
@@ -79,8 +98,10 @@ class Memory {
             mMemory = other.mMemory;
             mValid = other.mValid;
             mNnApi = other.mNnApi;
+            mOwnedFd = other.mOwnedFd;
             other.mMemory = nullptr;
             other.mValid = false;
+            other.mOwnedFd.reset();
         }
         return *this;
     }
@@ -88,10 +109,16 @@ class Memory {
     ANeuralNetworksMemory* get() const { return mMemory; }
     bool isValid() const { return mValid; }
 
+    Result copyTo(Memory& other) {
+        return static_cast<Result>(mNnApi->ANeuralNetworksMemory_copy(mMemory, other.mMemory));
+    }
+
    private:
     const NnApiSupportLibrary* mNnApi = nullptr;
     ANeuralNetworksMemory* mMemory = nullptr;
     bool mValid = true;
+    std::optional<int> mOwnedFd;
+    AHardwareBuffer* mOwnedAHB;
 };
 
 class Model {
@@ -126,6 +153,9 @@ class Model {
             mValid = other.mValid;
             mRelaxed = other.mRelaxed;
             mFinished = other.mFinished;
+            mOperands = std::move(other.mOperands);
+            mInputs = std::move(other.mInputs);
+            mOutputs = std::move(other.mOutputs);
             other.mModel = nullptr;
             other.mNextOperandId = 0;
             other.mValid = false;
@@ -212,6 +242,13 @@ class Model {
         }
     }
 
+    void setOperandValueFromModel(uint32_t index, ANeuralNetworksModel* value) {
+        if (mNnApi->ANeuralNetworksModel_setOperandValueFromModel(mModel, index, value) !=
+            ANEURALNETWORKS_NO_ERROR) {
+            mValid = false;
+        }
+    }
+
     void addOperation(ANeuralNetworksOperationType type, const std::vector<uint32_t>& inputs,
                       const std::vector<uint32_t>& outputs) {
         if (mNnApi->ANeuralNetworksModel_addOperation(
@@ -228,6 +265,9 @@ class Model {
                     static_cast<uint32_t>(outputs.size()),
                     outputs.data()) != ANEURALNETWORKS_NO_ERROR) {
             mValid = false;
+        } else {
+            mInputs = inputs;
+            mOutputs = outputs;
         }
     }
 
@@ -243,6 +283,10 @@ class Model {
     bool isRelaxed() const { return mRelaxed; }
     bool isFinished() const { return mFinished; }
 
+    const std::vector<uint32_t>& getInputs() const { return mInputs; }
+    const std::vector<uint32_t>& getOutputs() const { return mOutputs; }
+    const std::vector<OperandType>& getOperands() const { return mOperands; }
+
    protected:
     const NnApiSupportLibrary* mNnApi = nullptr;
     ANeuralNetworksModel* mModel = nullptr;
@@ -250,6 +294,8 @@ class Model {
     uint32_t mNextOperandId = 0;
     // We keep track of the operand datatypes/dimensions as a convenience to the caller.
     std::vector<OperandType> mOperands;
+    std::vector<uint32_t> mInputs;
+    std::vector<uint32_t> mOutputs;
     bool mValid = true;
     bool mRelaxed = false;
     bool mFinished = false;
@@ -340,7 +386,11 @@ class Execution {
         }
     }
 
-    ~Execution() { mNnApi->ANeuralNetworksExecution_free(mExecution); }
+    ~Execution() {
+        if (mExecution) {
+            mNnApi->ANeuralNetworksExecution_free(mExecution);
+        }
+    }
 
     // Disallow copy semantics to ensure the runtime object can only be freed
     // once. Copy semantics could be enabled if some sort of reference counting
@@ -408,6 +458,21 @@ class Execution {
                 mNnApi->ANeuralNetworksExecution_setLoopTimeout(mExecution, duration));
     }
 
+    Result setMeasureTiming(bool measure) {
+        return static_cast<Result>(
+                mNnApi->ANeuralNetworksExecution_setMeasureTiming(mExecution, measure));
+    }
+
+    Result setTimeout(uint64_t duration) {
+        return static_cast<Result>(
+                mNnApi->ANeuralNetworksExecution_setTimeout(mExecution, duration));
+    }
+
+    Result getDuration(Duration durationCode, uint64_t* duration) {
+        return static_cast<Result>(mNnApi->ANeuralNetworksExecution_getDuration(
+                mExecution, static_cast<int32_t>(durationCode), duration));
+    }
+
     // By default, compute() uses the synchronous API. Either an argument or
     // setComputeMode() can be used to change the behavior of compute() to
     // use the burst API
@@ -439,6 +504,16 @@ class Execution {
             }
         }
         return Result::BAD_DATA;
+    }
+
+    Result startComputeWithDependencies(const std::vector<const ANeuralNetworksEvent*>& deps,
+                                        uint64_t duration, Event* event) {
+        ANeuralNetworksEvent* ev = nullptr;
+        Result result = static_cast<Result>(
+                NNAPI_CALL(ANeuralNetworksExecution_startComputeWithDependencies(
+                        mExecution, deps.data(), deps.size(), duration, &ev)));
+        event->set(ev);
+        return result;
     }
 
     Result getOutputOperandDimensions(uint32_t index, std::vector<uint32_t>* dimensions) {

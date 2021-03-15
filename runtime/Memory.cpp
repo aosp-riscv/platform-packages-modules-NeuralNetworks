@@ -469,7 +469,7 @@ int MemoryBuilder::finish() {
         mAllocator = nullptr;
     }
     mSupportsAhwb = std::all_of(devices.begin(), devices.end(), [](const auto* device) {
-        return device->getFeatureLevel() >= kHalVersionV1_3ToApi.android;
+        return device->getFeatureLevel() >= kHalVersionV1_3ToApi.featureLevel;
     });
     mShouldFallback = std::none_of(mRoles.begin(), mRoles.end(), [](const auto& role) {
         const auto* cb = std::get<const CompilationBuilder*>(role);

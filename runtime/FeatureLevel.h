@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The Android Open Source Project
+ * Copyright (C) 2021 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,19 +14,18 @@
  * limitations under the License.
  */
 
-package {
-    default_applicable_licenses: ["Android-Apache-2.0"],
-}
+#ifndef ANDROID_FRAMEWORKS_ML_NN_RUNTIME_FEATURE_LEVEL_H
+#define ANDROID_FRAMEWORKS_ML_NN_RUNTIME_FEATURE_LEVEL_H
 
-cc_binary {
-    name: "ion_watcher",
-    srcs: [
-        "ion_watcher.cpp",
-    ],
-    shared_libs: [
-        "libbase",
-        "libcutils",
-        "liblog",
-        "libutils",
-    ],
-}
+#include "NeuralNetworks.h"
+
+namespace android {
+namespace nn {
+
+// The current feature level of the NNAPI Runtime
+constexpr FeatureLevelCode kCurrentNNAPIRuntimeFeatureLevel = ANEURALNETWORKS_FEATURE_LEVEL_5;
+
+}  // namespace nn
+}  // namespace android
+
+#endif  // ANDROID_FRAMEWORKS_ML_NN_RUNTIME_FEATURE_LEVEL_H

@@ -20,10 +20,10 @@
 
 #include <ControlFlow.h>
 #include <CpuExecutor.h>
-#include <ExecutionBurstController.h>
 #include <LegacyUtils.h>
 #include <Tracing.h>
 #include <android-base/logging.h>
+#include <nnapi/IBurst.h>
 #include <nnapi/IPreparedModel.h>
 
 #include <algorithm>
@@ -593,7 +593,7 @@ static void asyncStartComputePartitioned(
 
         // Get the current step of the execution.
         std::shared_ptr<StepExecutor> executor;
-        std::shared_ptr<ExecutionBurstController> burstController;
+        SharedBurst burstController;
         int n = doInsufficientSizeFallback
                         ? plan.fallback(controller, &executor, &burstController, &outputShapes)
                         : plan.next(controller, &executor, &burstController, &outputShapes);
@@ -1377,14 +1377,13 @@ bool StepExecutor::isCpu() const {
 }
 
 std::tuple<int, std::vector<OutputShape>, Timing> StepExecutor::compute(
-        const OptionalTimePoint& deadline,
-        const std::shared_ptr<ExecutionBurstController>& burstController) {
+        const OptionalTimePoint& deadline, const SharedBurst& burstController) {
     return computeWithMemories(deadline, mMemories.getObjects(), burstController);
 }
 
 std::tuple<int, std::vector<OutputShape>, Timing> StepExecutor::computeWithMemories(
         const OptionalTimePoint& deadline, const std::vector<const RuntimeMemory*>& memories,
-        const std::shared_ptr<ExecutionBurstController>& burstController) {
+        const SharedBurst& burstController) {
     CHECK(mPreparedModel != nullptr);
 
     if (VLOG_IS_ON(EXECUTION)) {

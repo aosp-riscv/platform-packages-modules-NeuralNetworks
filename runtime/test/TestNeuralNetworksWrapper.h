@@ -308,6 +308,26 @@ class Compilation {
 
     Result finish() { return static_cast<Result>(ANeuralNetworksCompilation_finish(mCompilation)); }
 
+    Result getPreferredMemoryAlignmentForInput(uint32_t index, uint32_t* alignment) const {
+        return static_cast<Result>(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput(
+                mCompilation, index, alignment));
+    };
+
+    Result getPreferredMemoryPaddingForInput(uint32_t index, uint32_t* padding) const {
+        return static_cast<Result>(ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput(
+                mCompilation, index, padding));
+    };
+
+    Result getPreferredMemoryAlignmentForOutput(uint32_t index, uint32_t* alignment) const {
+        return static_cast<Result>(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput(
+                mCompilation, index, alignment));
+    };
+
+    Result getPreferredMemoryPaddingForOutput(uint32_t index, uint32_t* padding) const {
+        return static_cast<Result>(ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput(
+                mCompilation, index, padding));
+    };
+
     ANeuralNetworksCompilation* getHandle() const { return mCompilation; }
 
    protected:

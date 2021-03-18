@@ -708,4 +708,16 @@ typedef int (*ANeuralNetworksEvent_createFromSyncFenceFd_fn)(int sync_fence_fd,
 typedef int (*ANeuralNetworksEvent_getSyncFenceFd_fn)(const ANeuralNetworksEvent* event,
                                                       int* sync_fence_fd);
 
+typedef int (*ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput_fn)(
+        const ANeuralNetworksCompilation* compilation, uint32_t index, uint32_t* alignment);
+
+typedef int (*ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput_fn)(
+        const ANeuralNetworksCompilation* compilation, uint32_t index, uint32_t* padding);
+
+typedef int (*ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput_fn)(
+        const ANeuralNetworksCompilation* compilation, uint32_t index, uint32_t* alignment);
+
+typedef int (*ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput_fn)(
+        const ANeuralNetworksCompilation* compilation, uint32_t index, uint32_t* padding);
+
 #endif  // ANDROID_PACKAGES_MODULES_NEURALNETWORKS_SL_SUPPORT_LIBRARY_TYPES_H

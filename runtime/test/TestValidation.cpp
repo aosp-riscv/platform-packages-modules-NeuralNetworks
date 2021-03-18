@@ -1145,6 +1145,63 @@ TEST_F(ValidationTestCompilation, SetTimeout) {
               ANEURALNETWORKS_BAD_DATA);
 }
 
+TEST_F(ValidationTestCompilation, GetPreferredMemoryAlignmentAndPadding) {
+    uint32_t result;
+
+    // The following calls should fail, because the compilation has not been finished.
+    EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput(mCompilation, 0,
+                                                                             &result),
+              ANEURALNETWORKS_BAD_STATE);
+    EXPECT_EQ(
+            ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput(mCompilation, 0, &result),
+            ANEURALNETWORKS_BAD_STATE);
+    EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput(mCompilation, 0,
+                                                                              &result),
+              ANEURALNETWORKS_BAD_STATE);
+    EXPECT_EQ(
+            ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput(mCompilation, 0, &result),
+            ANEURALNETWORKS_BAD_STATE);
+
+    EXPECT_EQ(ANeuralNetworksCompilation_finish(mCompilation), ANEURALNETWORKS_NO_ERROR);
+
+    // The following calls should fail because of unexpected nullptr.
+    EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput(nullptr, 0, &result),
+              ANEURALNETWORKS_UNEXPECTED_NULL);
+    EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput(mCompilation, 0,
+                                                                             nullptr),
+              ANEURALNETWORKS_UNEXPECTED_NULL);
+    EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput(nullptr, 0, &result),
+              ANEURALNETWORKS_UNEXPECTED_NULL);
+    EXPECT_EQ(
+            ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput(mCompilation, 0, nullptr),
+            ANEURALNETWORKS_UNEXPECTED_NULL);
+    EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput(nullptr, 0, &result),
+              ANEURALNETWORKS_UNEXPECTED_NULL);
+    EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput(mCompilation, 0,
+                                                                              nullptr),
+              ANEURALNETWORKS_UNEXPECTED_NULL);
+    EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput(nullptr, 0, &result),
+              ANEURALNETWORKS_UNEXPECTED_NULL);
+    EXPECT_EQ(
+            ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput(mCompilation, 0, nullptr),
+            ANEURALNETWORKS_UNEXPECTED_NULL);
+
+    // The following calls should fail, because the index is out of range.
+    const uint32_t invalidIndex = 1000;
+    EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput(mCompilation,
+                                                                             invalidIndex, &result),
+              ANEURALNETWORKS_BAD_DATA);
+    EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput(mCompilation,
+                                                                           invalidIndex, &result),
+              ANEURALNETWORKS_BAD_DATA);
+    EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput(
+                      mCompilation, invalidIndex, &result),
+              ANEURALNETWORKS_BAD_DATA);
+    EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput(mCompilation,
+                                                                            invalidIndex, &result),
+              ANEURALNETWORKS_BAD_DATA);
+}
+
 // Also see TEST_F(ValidationTestCompilationForDevices_1, CreateExecution)
 TEST_F(ValidationTestCompilation, CreateExecution) {
     ANeuralNetworksExecution* execution = nullptr;
@@ -2766,6 +2823,25 @@ class ValidationTestInvalidCompilation : public ValidationTestModel {
 
     ANeuralNetworksCompilation* mInvalidCompilation = nullptr;
 };
+
+TEST_F(ValidationTestInvalidCompilation, GetPreferredMemoryAlignmentAndPadding) {
+    if (!mInvalidCompilation) {
+        return;
+    }
+    uint32_t result;
+    EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput(mInvalidCompilation, 0,
+                                                                             &result),
+              ANEURALNETWORKS_BAD_STATE);
+    EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput(mInvalidCompilation, 0,
+                                                                           &result),
+              ANEURALNETWORKS_BAD_STATE);
+    EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput(mInvalidCompilation,
+                                                                              0, &result),
+              ANEURALNETWORKS_BAD_STATE);
+    EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput(mInvalidCompilation, 0,
+                                                                            &result),
+              ANEURALNETWORKS_BAD_STATE);
+}
 
 TEST_F(ValidationTestInvalidCompilation, CreateExecution) {
     if (!mInvalidCompilation) {

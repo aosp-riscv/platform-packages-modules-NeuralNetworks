@@ -1583,3 +1583,55 @@ int ANeuralNetworksExecution_enableInputAndOutputPadding(ANeuralNetworksExecutio
     ExecutionBuilder* r = reinterpret_cast<ExecutionBuilder*>(execution);
     return r->enableInputAndOutputPadding(enable);
 }
+
+int ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput(
+        const ANeuralNetworksCompilation* compilation, uint32_t index, uint32_t* alignment) {
+    NNTRACE_RT(NNTRACE_PHASE_COMPILATION,
+               "ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput");
+    if (!compilation || !alignment) {
+        LOG(ERROR) << "ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput passed a "
+                      "nullptr";
+        return ANEURALNETWORKS_UNEXPECTED_NULL;
+    }
+    const CompilationBuilder* c = reinterpret_cast<const CompilationBuilder*>(compilation);
+    return c->getPreferredMemoryAlignmentForInput(index, alignment);
+}
+
+int ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput(
+        const ANeuralNetworksCompilation* compilation, uint32_t index, uint32_t* padding) {
+    NNTRACE_RT(NNTRACE_PHASE_COMPILATION,
+               "ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput");
+    if (!compilation || !padding) {
+        LOG(ERROR) << "ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput passed a "
+                      "nullptr";
+        return ANEURALNETWORKS_UNEXPECTED_NULL;
+    }
+    const CompilationBuilder* c = reinterpret_cast<const CompilationBuilder*>(compilation);
+    return c->getPreferredMemoryPaddingForInput(index, padding);
+}
+
+int ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput(
+        const ANeuralNetworksCompilation* compilation, uint32_t index, uint32_t* alignment) {
+    NNTRACE_RT(NNTRACE_PHASE_COMPILATION,
+               "ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput");
+    if (!compilation || !alignment) {
+        LOG(ERROR) << "ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput passed a "
+                      "nullptr";
+        return ANEURALNETWORKS_UNEXPECTED_NULL;
+    }
+    const CompilationBuilder* c = reinterpret_cast<const CompilationBuilder*>(compilation);
+    return c->getPreferredMemoryAlignmentForOutput(index, alignment);
+}
+
+int ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput(
+        const ANeuralNetworksCompilation* compilation, uint32_t index, uint32_t* padding) {
+    NNTRACE_RT(NNTRACE_PHASE_COMPILATION,
+               "ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput");
+    if (!compilation || !padding) {
+        LOG(ERROR) << "ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput passed a "
+                      "nullptr";
+        return ANEURALNETWORKS_UNEXPECTED_NULL;
+    }
+    const CompilationBuilder* c = reinterpret_cast<const CompilationBuilder*>(compilation);
+    return c->getPreferredMemoryPaddingForOutput(index, padding);
+}

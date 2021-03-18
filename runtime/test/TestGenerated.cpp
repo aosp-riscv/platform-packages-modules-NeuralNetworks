@@ -280,11 +280,37 @@ void GeneratedTests::executeWithCompilation(const Compilation& compilation,
     }
 }
 
+static bool isPowerOfTwo(uint32_t x) {
+    return x > 0 && ((x & (x - 1)) == 0);
+}
+
+static void validateCompilationMemoryPreferences(const Compilation& compilation,
+                                                 const TestModel& testModel) {
+    for (uint32_t i = 0; i < testModel.main.inputIndexes.size(); i++) {
+        SCOPED_TRACE("Input index: " + std::to_string(i));
+        uint32_t alignment = 0, padding = 0;
+        ASSERT_EQ(compilation.getPreferredMemoryAlignmentForInput(i, &alignment), Result::NO_ERROR);
+        ASSERT_EQ(compilation.getPreferredMemoryPaddingForInput(i, &padding), Result::NO_ERROR);
+        EXPECT_TRUE(isPowerOfTwo(alignment)) << "alignment: " << alignment;
+        EXPECT_TRUE(isPowerOfTwo(padding)) << "padding: " << padding;
+    }
+    for (uint32_t i = 0; i < testModel.main.outputIndexes.size(); i++) {
+        SCOPED_TRACE("Output index: " + std::to_string(i));
+        uint32_t alignment = 0, padding = 0;
+        ASSERT_EQ(compilation.getPreferredMemoryAlignmentForOutput(i, &alignment),
+                  Result::NO_ERROR);
+        ASSERT_EQ(compilation.getPreferredMemoryPaddingForOutput(i, &padding), Result::NO_ERROR);
+        EXPECT_TRUE(isPowerOfTwo(alignment)) << "alignment: " << alignment;
+        EXPECT_TRUE(isPowerOfTwo(padding)) << "padding: " << padding;
+    }
+}
+
 void GeneratedTests::executeOnce(const Model& model, const TestModel& testModel) {
     NNTRACE_APP(NNTRACE_PHASE_OVERALL, "executeOnce");
     std::optional<Compilation> compilation = compileModel(model);
     // Early return if compilation fails. The compilation result code is checked in compileModel.
     if (!compilation) return;
+    validateCompilationMemoryPreferences(compilation.value(), testModel);
     executeWithCompilation(compilation.value(), testModel);
 }
 

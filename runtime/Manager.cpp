@@ -26,6 +26,7 @@
 #include <nnapi/IDevice.h>
 #include <nnapi/IPreparedModel.h>
 #include <nnapi/SharedMemory.h>
+#include <nnapi/Types.h>
 #include <nnapi/Validation.h>
 
 #include <algorithm>
@@ -155,6 +156,16 @@ class DriverPreparedModel : public RuntimePreparedModel {
 
     GeneralResult<SharedBurst> configureExecutionBurst() const override {
         return mPreparedModel->configureExecutionBurst();
+    }
+
+    std::pair<uint32_t, uint32_t> getMemoryPreference() const override {
+        if (mDevice->getFeatureLevel() >= __ANDROID_API_S__) {
+            return {kDefaultRequestMemoryAlignment, kDefaultRequestMemoryPadding};
+        } else {
+            // We are not able to pass memory padding information to HIDL drivers, so return the
+            // minimum padding.
+            return {kDefaultRequestMemoryAlignment, kMinMemoryPadding};
+        }
     }
 
    private:
@@ -787,11 +798,19 @@ class CpuPreparedModel : public RuntimePreparedModel {
             const OptionalDuration& loopTimeoutDuration,
             const OptionalDuration& timeoutDurationAfterFence) const override;
 
+    std::pair<uint32_t, uint32_t> getMemoryPreference() const override {
+        return {kPreferredAlignment, kPreferredPadding};
+    }
+
     // Prefer to use CpuPreparedModel::create.
     CpuPreparedModel(Model model, std::vector<RunTimePoolInfo> poolInfos)
         : mModel(std::move(model)), mModelPoolInfos(std::move(poolInfos)) {}
 
    private:
+    // TFLite kernels prefers 64 bytes for padding and alignment.
+    static constexpr uint32_t kPreferredAlignment = 64;
+    static constexpr uint32_t kPreferredPadding = 64;
+
     const Model mModel;
     const std::vector<RunTimePoolInfo> mModelPoolInfos;
 };

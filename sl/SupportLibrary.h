@@ -181,6 +181,14 @@ struct NnApiSupportLibrary {
                                                           ANeuralNetworksOperationType* type);
     int (*ANeuralNetworksModel_setOperandExtensionData)(ANeuralNetworksModel* model, int32_t index,
                                                         const void* data, size_t length);
+    int (*ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput)(
+            const ANeuralNetworksCompilation* compilation, uint32_t index, uint32_t* alignment);
+    int (*ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput)(
+            const ANeuralNetworksCompilation* compilation, uint32_t index, uint32_t* padding);
+    int (*ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput)(
+            const ANeuralNetworksCompilation* compilation, uint32_t index, uint32_t* alignment);
+    int (*ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput)(
+            const ANeuralNetworksCompilation* compilation, uint32_t index, uint32_t* padding);
 };
 
 /**

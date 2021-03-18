@@ -20,7 +20,6 @@
 
 #include <ControlFlow.h>
 #include <CpuExecutor.h>
-#include <ExecutionBurstController.h>
 #include <GraphDump.h>
 #include <LegacyUtils.h>
 #include <MetaModel.h>
@@ -28,6 +27,7 @@
 #include <TokenHasher.h>
 #include <Tracing.h>
 #include <fcntl.h>
+#include <nnapi/IBurst.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 
@@ -262,7 +262,7 @@ int DynamicTemporaries::allocate(uint32_t stepIndex) {
 
     // perform layout
     uint32_t newSize = 0;
-    for (const auto sourceOperandIndex : sourceOperandIndexesI->second) {
+    for (const auto& sourceOperandIndex : sourceOperandIndexesI->second) {
         InternalLocationAndShape& temp = mSourceOperandToTemporary.at(sourceOperandIndex);
         temp.offset = addTemporaryOfSize(&newSize, temp.length);
     }
@@ -973,12 +973,11 @@ ExecutionPlan::Controller::Controller(
 // indicate the regular execution path should be used. This can occur either
 // because PreparedModel was nullptr (cpu was best choice), or because the
 // IPreparedModel was of insufficient version or failed to configure the burst.
-std::vector<std::shared_ptr<ExecutionBurstController>> ExecutionPlan::makeBursts(
-        int preference) const {
+std::vector<SharedBurst> ExecutionPlan::makeBursts() const {
     switch (mState) {
         // burst object for each partition in the compound case
         case COMPOUND: {
-            std::vector<std::shared_ptr<ExecutionBurstController>> bursts;
+            std::vector<SharedBurst> bursts;
             bursts.reserve(compound()->mSteps.size());
             for (const auto& logicalStep : compound()->mSteps) {
                 if (!logicalStep->isExecution()) {
@@ -987,10 +986,12 @@ std::vector<std::shared_ptr<ExecutionBurstController>> ExecutionPlan::makeBursts
                 }
                 if (const auto preparedModel =
                             logicalStep->executionStep()->getPreparedStepModel()) {
-                    const bool preferPowerOverLatency =
-                            (preference == ANEURALNETWORKS_PREFER_LOW_POWER);
-                    bursts.push_back(
-                            preparedModel->configureExecutionBurst(preferPowerOverLatency));
+                    const auto maybeBurst = preparedModel->configureExecutionBurst();
+                    if (!maybeBurst.has_value()) {
+                        LOG(ERROR) << "preparedModel->configureExecutionBurst() failed with "
+                                   << maybeBurst.error().code << ": " << maybeBurst.error().message;
+                    }
+                    bursts.push_back(maybeBurst.value_or(nullptr));
                 } else {
                     bursts.push_back(nullptr);
                 }
@@ -999,12 +1000,15 @@ std::vector<std::shared_ptr<ExecutionBurstController>> ExecutionPlan::makeBursts
         }
         // single burst object for the simple case
         case SIMPLE: {
-            std::vector<std::shared_ptr<ExecutionBurstController>> burst;
+            std::vector<SharedBurst> burst;
             auto simpleBody = simple();
             if (const auto preparedModel = simpleBody->mPreparedModel) {
-                const bool preferPowerOverLatency =
-                        (preference == ANEURALNETWORKS_PREFER_LOW_POWER);
-                burst.push_back(preparedModel->configureExecutionBurst(preferPowerOverLatency));
+                const auto maybeBurst = preparedModel->configureExecutionBurst();
+                if (!maybeBurst.has_value()) {
+                    LOG(ERROR) << "preparedModel->configureExecutionBurst() failed with "
+                               << maybeBurst.error().code << ": " << maybeBurst.error().message;
+                }
+                burst.push_back(maybeBurst.value_or(nullptr));
             } else {
                 burst.push_back(nullptr);
             }
@@ -1198,8 +1202,7 @@ std::shared_ptr<ExecutionPlan::Controller> ExecutionPlan::makeController(
 
 // TODO: Find a better way to provide this functionality.
 int ExecutionPlan::fallback(std::shared_ptr<Controller> controller,
-                            std::shared_ptr<StepExecutor>* executor,
-                            std::shared_ptr<ExecutionBurstController>* burstController,
+                            std::shared_ptr<StepExecutor>* executor, SharedBurst* burstController,
                             const std::vector<OutputShape>* mainModelOutputShapes) const {
     *executor = nullptr;
     if (burstController != nullptr) {
@@ -1314,8 +1317,7 @@ int ExecutionPlan::readConditionValue(std::shared_ptr<Controller> controller,
 }
 
 int ExecutionPlan::next(std::shared_ptr<Controller> controller,
-                        std::shared_ptr<StepExecutor>* executor,
-                        std::shared_ptr<ExecutionBurstController>* burstController,
+                        std::shared_ptr<StepExecutor>* executor, SharedBurst* burstController,
                         const std::vector<OutputShape>* mainModelOutputShapes,
                         int syncFdOfLastStep) const {
     controller->mLastStepSyncFd = syncFdOfLastStep;
@@ -1363,7 +1365,7 @@ int ExecutionPlan::next(std::shared_ptr<Controller> controller,
 
 int ExecutionPlan::nextCompound(std::shared_ptr<Controller> controller,
                                 std::shared_ptr<StepExecutor>* executor,
-                                std::shared_ptr<ExecutionBurstController>* burstController,
+                                SharedBurst* burstController,
                                 const std::vector<OutputShape>* mainModelOutputShapes) const {
     if (controller->mNextStepIndex == Controller::kBadStepIndex) {
         return ANEURALNETWORKS_OP_FAILED;
@@ -1392,7 +1394,7 @@ int ExecutionPlan::nextCompound(std::shared_ptr<Controller> controller,
 
 int ExecutionPlan::nextCompound(const ExecutionStep* step, std::shared_ptr<Controller> controller,
                                 std::shared_ptr<StepExecutor>* executor,
-                                std::shared_ptr<ExecutionBurstController>* burstController,
+                                SharedBurst* burstController,
                                 const std::vector<OutputShape>* mainModelOutputShapes) const {
     VLOG(EXECUTION) << "next: Step#" << controller->mNextStepIndex << ": execute on "
                     << step->getDevice()->getName();
@@ -1492,7 +1494,7 @@ int ExecutionPlan::Controller::waitForLastStepSyncFence() const {
 
 int ExecutionPlan::nextCompound(const IfStep* step, std::shared_ptr<Controller> controller,
                                 std::shared_ptr<StepExecutor>* executor,
-                                std::shared_ptr<ExecutionBurstController>* burstController,
+                                SharedBurst* burstController,
                                 const std::vector<OutputShape>* mainModelOutputShapes) const {
     VLOG(EXECUTION) << "next: " << *step;
     // If the last step has a sync fence, wait for it to signal before reading the condition value.
@@ -1532,7 +1534,7 @@ int ExecutionPlan::nextCompound(const IfStep* step, std::shared_ptr<Controller> 
 
 int ExecutionPlan::nextCompound(const WhileStep* step, std::shared_ptr<Controller> controller,
                                 std::shared_ptr<StepExecutor>* executor,
-                                std::shared_ptr<ExecutionBurstController>* burstController,
+                                SharedBurst* burstController,
                                 const std::vector<OutputShape>* mainModelOutputShapes) const {
     WhileState& state = controller->mWhileState[controller->mNextStepIndex];
     if (state.stage == WhileState::EVALUATE_CONDITION) {
@@ -1654,7 +1656,7 @@ int ExecutionPlan::nextCompound(const WhileStep* step, std::shared_ptr<Controlle
 
 int ExecutionPlan::nextCompound(const GotoStep* step, std::shared_ptr<Controller> controller,
                                 std::shared_ptr<StepExecutor>* executor,
-                                std::shared_ptr<ExecutionBurstController>* burstController,
+                                SharedBurst* burstController,
                                 const std::vector<OutputShape>* mainModelOutputShapes) const {
     VLOG(EXECUTION) << "next: " << *step;
     controller->mNextStepIndex = step->gotoStepIndex;

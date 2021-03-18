@@ -22,6 +22,7 @@
 #include <android-base/macros.h>
 #include <android-base/scopeguard.h>
 #include <nnapi/IBuffer.h>
+#include <nnapi/IBurst.h>
 #include <nnapi/SharedMemory.h>
 #include <nnapi/Validation.h>
 #include <sys/mman.h>
@@ -43,7 +44,6 @@ namespace nn {
 
 class CompilationBuilder;
 class Device;
-class ExecutionBurstController;
 class ModelBuilder;
 class RuntimePreparedModel;
 
@@ -171,9 +171,7 @@ class RuntimeMemory {
     DISALLOW_COPY_AND_ASSIGN(RuntimeMemory);
 
    public:
-    // Custom destructor to notify any ExecutionBurstControllers currently using
-    // this memory that it is being freed.
-    virtual ~RuntimeMemory();
+    virtual ~RuntimeMemory() = default;
 
     Request::MemoryPool getMemoryPool() const;
     const SharedMemory& getMemory() const { return kMemory; }
@@ -190,13 +188,10 @@ class RuntimeMemory {
         mValidator = std::move(validator);
     }
 
-    // Unique key representing this memory object.
-    intptr_t getKey() const;
-
-    // Marks a burst object as currently using this memory. When this
-    // memory object is destroyed, it will automatically free this memory from
-    // the bursts' memory cache.
-    void usedBy(const std::shared_ptr<ExecutionBurstController>& burst) const;
+    // This function binds `cacheHold` to the memory object, holding it for as long as the Memory
+    // object is alive. This keeps the cache present while the Memory object is alive. If
+    // `cacheHold` is null, this function is a no-op.
+    void hold(const IBurst::OptionalCacheHold& cacheHold) const;
 
     static int copy(const RuntimeMemory& src, const RuntimeMemory& dst);
 
@@ -214,15 +209,10 @@ class RuntimeMemory {
 
    private:
     mutable std::mutex mMutex;
-    // mUsedBy is essentially a set of burst objects which use this RuntimeMemory
-    // object. However, std::weak_ptr does not have comparison operations nor a
-    // std::hash implementation. This is because it is either a valid pointer
-    // (non-null) if the shared object is still alive, or it is null if the
-    // object has been freed. To circumvent this, mUsedBy is a map with the raw
-    // pointer as the key and the weak_ptr as the value.
-    mutable std::unordered_map<const ExecutionBurstController*,
-                               std::weak_ptr<ExecutionBurstController>>
-            mUsedBy;
+
+    // This set contains `CacheHold` objects, holding it for as long as the Memory object is alive.
+    // This keeps the cache present while the Memory object is alive.
+    mutable std::set<IBurst::OptionalCacheHold> mHold;
 
     mutable std::optional<RunTimePoolInfo> mCachedRunTimePoolInfo;
     mutable bool mHasCachedRunTimePoolInfo = false;

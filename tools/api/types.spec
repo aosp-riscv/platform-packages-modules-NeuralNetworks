@@ -21,35 +21,35 @@
 %define or_1.2 or {@link ANEURALNETWORKS_%{1}}
 %define NDK_if_specified  (if specified)
 %define otherOperandParameters other operand parameters
-%define-lines AVAIL1
+%section AVAIL1
      *
      * Available since NNAPI feature level 1.
-%/define-lines
-%define-lines AVAIL1Short
+%/section
+%section AVAIL1Short
  *
  * Available since NNAPI feature level 1.
-%/define-lines
-%define-lines AVAIL2
+%/section
+%section AVAIL2
      *
      * Available since NNAPI feature level 2.
-%/define-lines
-%define-lines AVAIL3
+%/section
+%section AVAIL3
      *
      * Available since NNAPI feature level 3.
-%/define-lines
-%define-lines AVAIL4
+%/section
+%section AVAIL4
      *
      * Available since NNAPI feature level 4.
-%/define-lines
-%define-lines OutputState
+%/section
+%section OutputState
      *
      * Important: As of NNAPI feature level 3, there is no way to get the output state tensors out
      * and NNAPI does not maintain internal states. This operator does not support the usage pattern
      * in which multiple cells are chained and state tensors are propagated.
-%/define-lines
-%define-lines PaddingCodeValues
+%/section
+%section PaddingCodeValues
      *      {@link PaddingCode} values.
-%/define-lines
+%/section
 %/kind
 
 %kind hal*
@@ -66,35 +66,35 @@
 %define NNAPILevel4 HAL version 1.3
 %define NDK_if_specified
 %define otherOperandParameters extraParams
-%define-lines AVAIL1
-%/define-lines
-%define-lines AVAIL1Short
-%/define-lines
-%define-lines AVAIL2
-%/define-lines
-%define-lines AVAIL3
-%/define-lines
-%define-lines AVAIL4
-%/define-lines
-%define-lines PaddingCodeValues
+%section AVAIL1
+%/section
+%section AVAIL1Short
+%/section
+%section AVAIL2
+%/section
+%section AVAIL3
+%/section
+%section AVAIL4
+%/section
+%section PaddingCodeValues
      *      following values: {0 (NONE), 1 (SAME), 2 (VALID)}.
-%/define-lines
-%define-lines OutputState
-%/define-lines
+%/section
+%section OutputState
+%/section
 %/kind
 
 %kind hal_1.0 hal_1.1
 %define DeclareOperation %{1} = %{2}
 %define BeforeNNAPILevel3For For
 %define or_1.2
-%define-lines NHWC_NCHW
+%section NHWC_NCHW
      * Supported tensor rank: 4, with "NHWC" (i.e., Num_samples, Height, Width,
      * and Channels) data layout.
-%/define-lines
-%define-lines GenericZero
-%/define-lines
-%define-lines ZeroBatchesNNAPILevel3
-%/define-lines
+%/section
+%section GenericZero
+%/section
+%section ZeroBatchesNNAPILevel3
+%/section
 %define DeclareOperation_1.2 @@@NOT_DEFINED@@@
 %define DeclareOperation_1.3 @@@NOT_DEFINED@@@
 %/kind
@@ -117,22 +117,22 @@
 %/kind
 
 %kind ndk hal_1.2 hal_1.3
-%define-lines NHWC_NCHW
+%section NHWC_NCHW
      * Supported tensor rank: 4, with "NHWC" or "NCHW" data layout.
      * With the default data layout NHWC, the data is stored in the order of:
      * [batch, height, width, channels]. Alternatively, the data layout could
      * be NCHW, the data storage order of: [batch, channels, height, width].
      * NCHW is supported since %{NNAPILevel3}.
-%/define-lines
-%define-lines GenericZero
+%/section
+%section GenericZero
      * Since %{NNAPILevel3}, generic zero-sized input tensor is supported. Zero
      * dimension is only compatible with 0 or 1. The size of the output
      * dimension is zero if either of corresponding input dimension is zero.
      *
-%/define-lines
-%define-lines ZeroBatchesNNAPILevel3
+%/section
+%section ZeroBatchesNNAPILevel3
      *      Since %{NNAPILevel3}, zero batches is supported for this tensor.
-%/define-lines
+%/section
 %/kind
 
 %kind ndk hal_1.3
@@ -186,7 +186,7 @@
  * types. Most used are {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32},
  * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM},
  * and {@link %{OperandTypeLinkPfx}INT32}.
-%insert-lines AVAIL1Short
+%insert AVAIL1Short
  */
 %/section
 
@@ -225,7 +225,7 @@
  * Operation types.
  *
  * The type of an operation in a model.
-%insert-lines AVAIL1Short
+%insert AVAIL1Short
  */
 %/section
 
@@ -251,7 +251,7 @@
      *     input2.dimension = {5, 4, 3, 1}
      *     output.dimension = {5, 4, 3, 2}
      *
-%insert-lines GenericZero
+%insert GenericZero
      * Supported tensor {@link %{OperandType}}:
 %kind ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
@@ -295,7 +295,7 @@
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
      *      the scale and zeroPoint can be different from inputs' scale and zeroPoint.
 %/kind
-%insert-lines AVAIL1
+%insert AVAIL1
      */
     %{DeclareOperation ADD 0},
 
@@ -322,14 +322,14 @@
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
-%insert-lines NHWC_NCHW
+%insert NHWC_NCHW
      *
      * Both explicit padding and implicit padding are supported.
      *
      * Inputs (explicit padding):
      * * 0: A 4-D tensor, of shape [batches, height, width, depth], specifying
      *      the input.
-%insert-lines ZeroBatchesNNAPILevel3
+%insert ZeroBatchesNNAPILevel3
      * * 1: An {@link %{OperandTypeLinkPfx}INT32} scalar, specifying the padding on
      *      the left, in the ‘width’ dimension.
      * * 2: An {@link %{OperandTypeLinkPfx}INT32} scalar, specifying the padding on
@@ -358,10 +358,10 @@
      * Inputs (implicit padding):
      * * 0: A 4-D tensor, of shape [batches, height, width, depth], specifying
      *      the input.
-%insert-lines ZeroBatchesNNAPILevel3
+%insert ZeroBatchesNNAPILevel3
      * * 1: An {@link %{OperandTypeLinkPfx}INT32} scalar, specifying the implicit
      *      padding scheme, has to be one of the
-%insert-lines PaddingCodeValues
+%insert PaddingCodeValues
      * * 2: An {@link %{OperandTypeLinkPfx}INT32} scalar, specifying the stride when
      *      walking through input in the ‘width’ dimension.
      * * 3: An {@link %{OperandTypeLinkPfx}INT32} scalar, specifying the stride when
@@ -390,7 +390,7 @@
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
      *      the scale and zeroPoint must be the same as input0.
 %/kind
-%insert-lines AVAIL1
+%insert AVAIL1
      */
     %{DeclareOperation AVERAGE_POOL_2D 1},
 
@@ -452,7 +452,7 @@
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
      *      the scale and zeroPoint values can be different from input tensors.
 %/kind
-%insert-lines AVAIL1
+%insert AVAIL1
      */
     %{DeclareOperation CONCATENATION 2},
 
@@ -510,14 +510,14 @@
      * * * each value scaling is separate and equal to input.scale * filter.scales[channel]).
      *
 %/kind
-%insert-lines NHWC_NCHW
+%insert NHWC_NCHW
      *
      * Both explicit padding and implicit padding are supported.
      *
      * Inputs (explicit padding):
      * * 0: A 4-D tensor, of shape [batches, height, width, depth_in],
      *      specifying the input.
-%insert-lines ZeroBatchesNNAPILevel3
+%insert ZeroBatchesNNAPILevel3
      * * 1: A 4-D tensor, of shape
      *      [depth_out, filter_height, filter_width, depth_in], specifying the
      *      filter.
@@ -577,7 +577,7 @@
      * Inputs (implicit padding):
      * * 0: A 4-D tensor, of shape [batches, height, width, depth_in],
      *      specifying the input.
-%insert-lines ZeroBatchesNNAPILevel3
+%insert ZeroBatchesNNAPILevel3
      * * 1: A 4-D tensor, of shape
      *      [depth_out, filter_height, filter_width, depth_in], specifying the
      *      filter.
@@ -606,7 +606,7 @@
 %/kind
      * * 3: An {@link %{OperandTypeLinkPfx}INT32} scalar, specifying the implicit
      *      padding scheme, has to be one of the
-%insert-lines PaddingCodeValues
+%insert PaddingCodeValues
      * * 4: An {@link %{OperandTypeLinkPfx}INT32} scalar, specifying the stride when
      *      walking through input in the ‘width’ dimension.
      * * 5: An {@link %{OperandTypeLinkPfx}INT32} scalar, specifying the stride when
@@ -636,7 +636,7 @@
      *      %{BeforeNNAPILevel3For} output tensor of
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}, the following condition must
      *      be satisfied: output_scale > input_scale * filter_scale
-%insert-lines AVAIL1
+%insert AVAIL1
      */
     %{DeclareOperation CONV_2D 3},
 
@@ -698,7 +698,7 @@
      * * * each value scaling is separate and equal to input.scale * filter.scales[channel]).
      *
 %/kind
-%insert-lines NHWC_NCHW
+%insert NHWC_NCHW
      *
      * Both explicit padding and implicit padding are supported.
      *
@@ -786,7 +786,7 @@
 %/kind
      * * 3: An {@link %{OperandTypeLinkPfx}INT32} scalar, specifying the implicit
      *      padding scheme, has to be one of the
-%insert-lines PaddingCodeValues
+%insert PaddingCodeValues
      * * 4: An {@link %{OperandTypeLinkPfx}INT32} scalar, specifying the stride when
      *      walking through input in the ‘width’ dimension.
      * * 5: An {@link %{OperandTypeLinkPfx}INT32} scalar, specifying the stride when
@@ -818,7 +818,7 @@
      *      output tensor of {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM},
      *      the following condition must be satisfied:
      *      output_scale > input_scale * filter_scale
-%insert-lines AVAIL1
+%insert AVAIL1
      */
     %{DeclareOperation DEPTHWISE_CONV_2D 4},
 
@@ -847,7 +847,7 @@
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
-%insert-lines NHWC_NCHW
+%insert NHWC_NCHW
      *
      * Inputs:
      * * 0: A 4-D tensor, of shape [batches, height, width, depth_in],
@@ -872,7 +872,7 @@
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
      *      the scale and zeroPoint must be the same as input0.
 %/kind
-%insert-lines AVAIL1
+%insert AVAIL1
      */
     %{DeclareOperation DEPTH_TO_SPACE 5},
 
@@ -909,7 +909,7 @@
      *
      * Outputs:
      * * 0: A tensor with the same shape as input0.
-%insert-lines AVAIL1
+%insert AVAIL1
      */
     %{DeclareOperation DEQUANTIZE 6},
 
@@ -965,7 +965,7 @@
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
 %/kind
      *      the scale and zeroPoint must be the same as input1.
-%insert-lines AVAIL1
+%insert AVAIL1
      */
     %{DeclareOperation EMBEDDING_LOOKUP 7},
 
@@ -986,7 +986,7 @@
      * Outputs:
      * * 0: The output tensor, of the same {@link %{OperandType}} and dimensions as
      *      the input tensor.
-%insert-lines AVAIL1
+%insert AVAIL1
      */
     %{DeclareOperation FLOOR 8},
 
@@ -1043,7 +1043,7 @@
      * * 0: The output tensor, of shape [batch_size, num_units]. %{BeforeNNAPILevel3For}
      *      output tensor of {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}, the following
      *      condition must be satisfied: output_scale > input_scale * filter_scale.
-%insert-lines AVAIL1
+%insert AVAIL1
      */
     %{DeclareOperation FULLY_CONNECTED 9},
 
@@ -1101,7 +1101,7 @@
      *      Stored as {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} with offset 0
      *      and scale 1.0f.
      *      A non-zero byte represents True, a hit. A zero indicates otherwise.
-%insert-lines AVAIL1
+%insert AVAIL1
      */
     %{DeclareOperation HASHTABLE_LOOKUP 10},
 
@@ -1166,7 +1166,7 @@
      *      the result is undefined. Since %{NNAPILevel4}, if the elements along an axis
      *      are all zeros, the result is logical zero.
 %/kind
-%insert-lines AVAIL1
+%insert AVAIL1
      */
     %{DeclareOperation L2_NORMALIZATION 11},
 
@@ -1188,14 +1188,14 @@
 %/kind
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      *
-%insert-lines NHWC_NCHW
+%insert NHWC_NCHW
      *
      * Both explicit padding and implicit padding are supported.
      *
      * Inputs (explicit padding):
      * * 0: A 4-D tensor, of shape [batches, height, width, depth], specifying
      *      the input.
-%insert-lines ZeroBatchesNNAPILevel3
+%insert ZeroBatchesNNAPILevel3
      * * 1: An {@link %{OperandTypeLinkPfx}INT32} scalar, specifying the padding on
      *      the left, in the ‘width’ dimension.
      * * 2: An {@link %{OperandTypeLinkPfx}INT32} scalar, specifying the padding on
@@ -1224,10 +1224,10 @@
      * Inputs (implicit padding):
      * * 0: A 4-D tensor, of shape [batches, height, width, depth], specifying
      *      the input.
-%insert-lines ZeroBatchesNNAPILevel3
+%insert ZeroBatchesNNAPILevel3
      * * 1: An {@link %{OperandTypeLinkPfx}INT32} scalar, specifying the implicit
      *      padding scheme, has to be one of the
-%insert-lines PaddingCodeValues
+%insert PaddingCodeValues
      * * 2: An {@link %{OperandTypeLinkPfx}INT32} scalar, specifying the stride when
      *      walking through input in the ‘width’ dimension.
      * * 3: An {@link %{OperandTypeLinkPfx}INT32} scalar, specifying the stride when
@@ -1248,7 +1248,7 @@
      * Outputs:
      * * 0: The output 4-D tensor, of shape
      *      [batches, out_height, out_width, depth].
-%insert-lines AVAIL1
+%insert AVAIL1
      */
     %{DeclareOperation L2_POOL_2D 12},
 
@@ -1320,7 +1320,7 @@
      *
      * Outputs:
      * * 0: The output tensor of same shape as input0.
-%insert-lines AVAIL1
+%insert AVAIL1
      */
     %{DeclareOperation LOCAL_RESPONSE_NORMALIZATION 13},
 
@@ -1357,7 +1357,7 @@
      *      For {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED},
      *      the scale must be 1.f / 256 and the zeroPoint must be -128.
 %/kind
-%insert-lines AVAIL1
+%insert AVAIL1
      */
     %{DeclareOperation LOGISTIC 14},
 
@@ -1421,7 +1421,7 @@
      *      If the projection type is Dense:
      *      Output.Dim == { Tensor[0].Dim[0] * Tensor[0].Dim[1] }
      *      A flattened tensor that represents projected bit vectors.
-%insert-lines AVAIL1
+%insert AVAIL1
 %kind ndk hal_1.2+
      * The offset value for sparse projections was added in %{NNAPILevel3}.
 %/kind
@@ -1655,7 +1655,7 @@
      * * 3: The output (\f$o_t\f$).
      *      A 2-D tensor of shape [batch_size, output_size]. This is effectively
      *      the same as the current “output state (out)” value.
-%insert-lines AVAIL1
+%insert AVAIL1
      */
     %{DeclareOperation LSTM 16},
 
@@ -1682,14 +1682,14 @@
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
-%insert-lines NHWC_NCHW
+%insert NHWC_NCHW
      *
      * Both explicit padding and implicit padding are supported.
      *
      * Inputs (explicit padding):
      * * 0: A 4-D tensor, of shape [batches, height, width, depth], specifying
      *      the input.
-%insert-lines ZeroBatchesNNAPILevel3
+%insert ZeroBatchesNNAPILevel3
      * * 1: An {@link %{OperandTypeLinkPfx}INT32} scalar, specifying the padding on
      *      the left, in the ‘width’ dimension.
      * * 2: An {@link %{OperandTypeLinkPfx}INT32} scalar, specifying the padding on
@@ -1718,10 +1718,10 @@
      * Inputs (implicit padding):
      * * 0: A 4-D tensor, of shape [batches, height, width, depth], specifying
      *      the input.
-%insert-lines ZeroBatchesNNAPILevel3
+%insert ZeroBatchesNNAPILevel3
      * * 1: An {@link %{OperandTypeLinkPfx}INT32} scalar, specifying the implicit
      *      padding scheme, has to be one of the
-%insert-lines PaddingCodeValues
+%insert PaddingCodeValues
      * * 2: An {@link %{OperandTypeLinkPfx}INT32} scalar, specifying the stride when
      *      walking through input in the ‘width’ dimension.
      * * 3: An {@link %{OperandTypeLinkPfx}INT32} scalar, specifying the stride when
@@ -1750,7 +1750,7 @@
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
      *      the scale and zeroPoint must be the same as input0.
 %/kind
-%insert-lines AVAIL1
+%insert AVAIL1
      */
     %{DeclareOperation MAX_POOL_2D 17},
 
@@ -1769,7 +1769,7 @@
      * of the input operands. It starts with the trailing dimensions, and works
      * its way forward.
      *
-%insert-lines GenericZero
+%insert GenericZero
      * Supported tensor {@link %{OperandType}}:
 %kind ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
@@ -1807,7 +1807,7 @@
      *      the following condition must be satisfied:
      *      output_scale > input1_scale * input2_scale.
 %/kind
-%insert-lines AVAIL1
+%insert AVAIL1
      */
     %{DeclareOperation MUL 18},
 
@@ -1846,7 +1846,7 @@
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
      *      the scale and zeroPoint must be the same as input0.
 %/kind
-%insert-lines AVAIL1
+%insert AVAIL1
      */
     %{DeclareOperation RELU 19},
 
@@ -1885,7 +1885,7 @@
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
      *      the scale and zeroPoint must be the same as input0.
 %/kind
-%insert-lines AVAIL1
+%insert AVAIL1
      */
     %{DeclareOperation RELU1 20},
 
@@ -1924,7 +1924,7 @@
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
      *      the scale and zeroPoint must be the same as input0.
 %/kind
-%insert-lines AVAIL1
+%insert AVAIL1
      */
     %{DeclareOperation RELU6 21},
 
@@ -1967,7 +1967,7 @@
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
      *      the scale and zeroPoint must be the same as input0.
 %/kind
-%insert-lines AVAIL1
+%insert AVAIL1
      */
     %{DeclareOperation RESHAPE 22},
 
@@ -1990,7 +1990,7 @@
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
-%insert-lines NHWC_NCHW
+%insert NHWC_NCHW
      *
 %kind ndk hal_1.2+
      * Both resizing by shape and resizing by scale are supported.
@@ -1999,7 +1999,7 @@
      * Inputs (resizing by shape):
      * * 0: A 4-D tensor, of shape [batches, height, width, depth], specifying
      *      the input.
-%insert-lines ZeroBatchesNNAPILevel3
+%insert ZeroBatchesNNAPILevel3
      * * 1: An {@link %{OperandTypeLinkPfx}INT32} scalar, specifying the output
      *      width of the output tensor.
      * * 2: An {@link %{OperandTypeLinkPfx}INT32} scalar, specifying the output
@@ -2068,7 +2068,7 @@
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
      *      the scale and zeroPoint must be the same as input0.
 %/kind
-%insert-lines AVAIL1
+%insert AVAIL1
      */
     %{DeclareOperation RESIZE_BILINEAR 23},
 
@@ -2123,7 +2123,7 @@
      * * 1: output.
      *      A 2-D tensor of shape [batch_size, num_units]. This is effectively
      *      the same as the current state value.
-%insert-lines AVAIL1
+%insert AVAIL1
      */
     %{DeclareOperation RNN 24},
 
@@ -2196,7 +2196,7 @@
      *      For {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED},
      *      the scale must be 1.f / 256 and the zeroPoint must be -128.
 %/kind
-%insert-lines AVAIL1
+%insert AVAIL1
      */
     %{DeclareOperation SOFTMAX 25},
 
@@ -2224,7 +2224,7 @@
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
-%insert-lines NHWC_NCHW
+%insert NHWC_NCHW
      *
      * Inputs:
      * * 0: A 4-D tensor, of shape [batches, height, width, depth_in],
@@ -2249,7 +2249,7 @@
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
      *      the scale and zeroPoint must be the same as input0.
 %/kind
-%insert-lines AVAIL1
+%insert AVAIL1
      */
     %{DeclareOperation SPACE_TO_DEPTH 26},
 
@@ -2329,7 +2329,7 @@
      * * 1: output.
      *      A 2-D tensor of the same {@link %{OperandType}} as the inputs, with shape
      *      [batch_size, num_units].
-%insert-lines AVAIL1
+%insert AVAIL1
      */
     %{DeclareOperation SVDF 27},
 
@@ -2370,7 +2370,7 @@
      *      For {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED},
      *      the scale must be 1.f / 128 and the zeroPoint must be 0.
 %/kind
-%insert-lines AVAIL1
+%insert AVAIL1
      */
     %{DeclareOperation TANH 28},
 %/section
@@ -2401,7 +2401,7 @@
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
-%insert-lines NHWC_NCHW
+%insert NHWC_NCHW
      *
      * Inputs:
      * * 0: An n-D tensor, specifying the tensor to be reshaped
@@ -2424,7 +2424,7 @@
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
      *      the scale and zeroPoint must be the same as input0.
 %/kind
-%insert-lines AVAIL2
+%insert AVAIL2
      */
     %{DeclareOperation BATCH_TO_SPACE_ND 29},
 
@@ -2455,7 +2455,7 @@
      *     input2.dimension = {5, 4, 3, 1}
      *     output.dimension = {5, 4, 3, 2}
      *
-%insert-lines GenericZero
+%insert GenericZero
      * Supported tensor {@link %{OperandType}}:
 %kind ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
@@ -2481,7 +2481,7 @@
      *
      * Outputs:
      * * 0: A tensor of the same {@link %{OperandType}} as input0.
-%insert-lines AVAIL2
+%insert AVAIL2
      */
     %{DeclareOperation DIV 30},
 
@@ -2531,7 +2531,7 @@
 %/kind
      *      If all dimensions are reduced and keep_dims is false, the output
      *      shape is [1].
-%insert-lines AVAIL2
+%insert AVAIL2
      */
     %{DeclareOperation MEAN 31},
 
@@ -2589,7 +2589,7 @@
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} is undefined.
      *      Since %{NNAPILevel3}, the pad value is always the logical zero.
 %/kind
-%insert-lines AVAIL2
+%insert AVAIL2
      */
     %{DeclareOperation PAD 32},
 
@@ -2619,7 +2619,7 @@
      *   (the pad value is undefined)
 %/kind
      *
-%insert-lines NHWC_NCHW
+%insert NHWC_NCHW
      *
      * Inputs:
      * * 0: An n-D tensor, specifying the input.
@@ -2656,7 +2656,7 @@
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} is undefined.
      *      Since %{NNAPILevel3}, the pad value is always the logical zero.
 %/kind
-%insert-lines AVAIL2
+%insert AVAIL2
      */
     %{DeclareOperation SPACE_TO_BATCH_ND 33},
 
@@ -2702,7 +2702,7 @@
 %/kind
      *      If all input dimensions are equal to 1 and are to be squeezed, the
      *      output shape is [1].
-%insert-lines AVAIL2
+%insert AVAIL2
      */
     %{DeclareOperation SQUEEZE 34},
 
@@ -2763,7 +2763,7 @@
 %/kind
      *      If shrink_axis_mask is true for all input dimensions, the output
      *      shape is [1].
-%insert-lines AVAIL2
+%insert AVAIL2
      */
     %{DeclareOperation STRIDED_SLICE 35},
 
@@ -2787,7 +2787,7 @@
      *     input2.dimension = {5, 4, 3, 1}
      *     output.dimension = {5, 4, 3, 2}
      *
-%insert-lines GenericZero
+%insert GenericZero
      * Supported tensor {@link %{OperandType}}:
 %kind ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
@@ -2826,7 +2826,7 @@
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
      *      the scale and zeroPoint can be different from inputs' scale and zeroPoint.
 %/kind
-%insert-lines AVAIL2
+%insert AVAIL2
      */
     %{DeclareOperation SUB 36},
 
@@ -2869,7 +2869,7 @@
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
      *      the scale and zeroPoint must be the same as input0.
 %/kind
-%insert-lines AVAIL2
+%insert AVAIL2
      */
     %{DeclareOperation TRANSPOSE 37},
 %/section
@@ -2885,7 +2885,7 @@
      *
      * Values of this operand type are either true or false. A zero value
      * represents false; any other value represents true.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{ANN}BOOL = 6,
     /**
@@ -2896,12 +2896,12 @@
      * realValue = integerValue * scale.
      *
      * scale is a 32 bit floating point with value greater than zero.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{ANN}TENSOR_QUANT16_SYMM = 7,
     /**
      * A tensor of IEEE 754 16 bit floating point values.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{ANN}TENSOR_FLOAT16 = 8,
     /**
@@ -2909,12 +2909,12 @@
      *
      * Values of this operand type are either true or false. A zero value
      * represents false; any other value represents true.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{ANN}TENSOR_BOOL8 = 9,
     /**
      * An IEEE 754 16 bit floating point scalar value.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{ANN}FLOAT16 = 10,
     /**
@@ -2941,7 +2941,7 @@
      * realValue[..., C, ...] =
      *     integerValue[..., C, ...] * scales[C]
      * where C is an index in the Channel dimension.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{ANN}TENSOR_QUANT8_SYMM_PER_CHANNEL = 11,
     /**
@@ -2954,7 +2954,7 @@
      *
      * The formula is:
      * real_value = (integer_value - zeroPoint) * scale.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{ANN}TENSOR_QUANT16_ASYMM = 12,
     /**
@@ -2965,7 +2965,7 @@
      * realValue = integerValue * scale.
      *
      * scale is a 32 bit floating point with value greater than zero.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{ANN}TENSOR_QUANT8_SYMM = 13,
 %/section
@@ -2997,7 +2997,7 @@
      *
      * Outputs:
      * * 0: The output tensor of same shape as input0.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 ABS 38},
 
@@ -3024,7 +3024,7 @@
      * Outputs:
      * * 0: An (n - 1)-D {@link %{OperandTypeLinkPfx}TENSOR_INT32} tensor.
      *      If input is 1-dimensional, the output shape is [1].
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     // There is no underscore in ARG_MAX to avoid name conflict with
     // the macro defined in libc/kernel/uapi/linux/limits.h.
@@ -3053,7 +3053,7 @@
      * Outputs:
      * * 0: An (n - 1)-D {@link %{OperandTypeLinkPfx}TENSOR_INT32} tensor.
      *      If input is 1-dimensional, the output shape is [1].
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 ARGMIN 40},  // See ARGMAX for naming discussion.
 
@@ -3105,7 +3105,7 @@
      *      output bounding box for each class, with format [x1, y1, x2, y2].
      *      For type of {@link %{OperandTypeLinkPfx}TENSOR_QUANT16_ASYMM}, the
      *      scale must be 0.125 and the zero point must be 0.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 AXIS_ALIGNED_BBOX_TRANSFORM 41},
 
@@ -3408,8 +3408,8 @@
      *      then outputs 2-4 must be present as well.
      *      Available since %{NNAPILevel4}.
 %/kind
-%insert-lines AVAIL3
-%insert-lines OutputState
+%insert AVAIL3
+%insert OutputState
      */
     %{DeclareOperation_1.2 BIDIRECTIONAL_SEQUENCE_LSTM 42},
 
@@ -3575,8 +3575,8 @@
      *      2 must be present as well.
      *      Available since %{NNAPILevel4}.
 %/kind
-%insert-lines AVAIL3
-%insert-lines OutputState
+%insert AVAIL3
+%insert OutputState
      */
     %{DeclareOperation_1.2 BIDIRECTIONAL_SEQUENCE_RNN 43},
 
@@ -3669,7 +3669,7 @@
      * * 3: A 1-D {@link %{OperandTypeLinkPfx}TENSOR_INT32} tensor, of shape
      *      [num_output_rois], specifying the batch index of each box. Boxes
      *      with the same batch index are grouped together.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 BOX_WITH_NMS_LIMIT 44},
 
@@ -3703,7 +3703,7 @@
      *
      * Outputs:
      * * 0: A tensor with the same shape as input0.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 CAST 45},
 
@@ -3751,7 +3751,7 @@
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
      *      the scale and zeroPoint must be the same as input0.
 %/kind
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 CHANNEL_SHUFFLE 46},
 
@@ -3832,7 +3832,7 @@
      *      output detection.
      * * 3: An 1-D {@link %{OperandTypeLinkPfx}TENSOR_INT32} tensor, of shape [batches],
      *      specifying the number of valid output detections for each batch.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 DETECTION_POSTPROCESSING 47},
 
@@ -3860,7 +3860,7 @@
      *
      * Outputs:
      * * 0: A tensor of {@link %{OperandTypeLinkPfx}TENSOR_BOOL8}.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 EQUAL 48},
 
@@ -3878,7 +3878,7 @@
      *
      * Outputs:
      * * 0: The output tensor of same shape as input0.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 EXP 49},
 
@@ -3916,7 +3916,7 @@
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
 %/kind
      *      the scale and zeroPoint must be the same as input0.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 EXPAND_DIMS 50},
 
@@ -3963,7 +3963,7 @@
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
 %/kind
      *      the scale and zeroPoint must be the same as input0.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 GATHER 51},
 
@@ -4060,7 +4060,7 @@
      * * 2: A 1-D {@link %{OperandTypeLinkPfx}TENSOR_INT32} tensor, of shape
      *      [num_output_rois], specifying the batch index of each box. Boxes
      *      with the same batch index are grouped together.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 GENERATE_PROPOSALS 52},
 
@@ -4088,7 +4088,7 @@
      *
      * Outputs:
      * * 0: A tensor of {@link %{OperandTypeLinkPfx}TENSOR_BOOL8}.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 GREATER 53},
     /**
@@ -4115,7 +4115,7 @@
      *
      * Outputs:
      * * 0: A tensor of {@link %{OperandTypeLinkPfx}TENSOR_BOOL8}.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 GREATER_EQUAL 54},
 
@@ -4260,7 +4260,7 @@
      *      bias_scale[i] = input_scale * filter_scale[i].
      * * 3: An {@link %{OperandTypeLinkPfx}INT32} scalar, specifying the implicit
      *      padding scheme, has to be one of the
-%insert-lines PaddingCodeValues
+%insert PaddingCodeValues
      * * 4: An {@link %{OperandTypeLinkPfx}INT32} scalar, specifying the stride when
      *      walking through input in the ‘width’ dimension.
      * * 5: An {@link %{OperandTypeLinkPfx}INT32} scalar, specifying the stride when
@@ -4284,7 +4284,7 @@
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
      *      the scale and zeroPoint can be different from inputs' scale and zeroPoint.
 %/kind
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 GROUPED_CONV_2D 55},
 
@@ -4348,7 +4348,7 @@
      *      [keypoint_x, keypoint_y].
      *      For type of {@link %{OperandTypeLinkPfx}TENSOR_QUANT16_ASYMM}, the
      *      scale must be 0.125 and the zero point must be 0.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 HEATMAP_MAX_KEYPOINT 56},
 
@@ -4400,7 +4400,7 @@
      *
      * Outputs:
      * * 0: A tensor of the same {@link %{OperandType}} and same shape as input0.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 INSTANCE_NORMALIZATION 57},
 
@@ -4428,7 +4428,7 @@
      *
      * Outputs:
      * * 0: A tensor of {@link %{OperandTypeLinkPfx}TENSOR_BOOL8}.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 LESS 58},
 
@@ -4456,7 +4456,7 @@
      *
      * Outputs:
      * * 0: A tensor of {@link %{OperandTypeLinkPfx}TENSOR_BOOL8}.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 LESS_EQUAL 59},
 
@@ -4474,7 +4474,7 @@
      *
      * Outputs:
      * * 0: The output tensor of same shape as input0.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 LOG 60},
 
@@ -4495,7 +4495,7 @@
      *
      * Outputs:
      * * 0: A tensor of {@link %{OperandTypeLinkPfx}TENSOR_BOOL8}.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 LOGICAL_AND 61},
 
@@ -4512,7 +4512,7 @@
      *
      * Outputs:
      * * 0: The output tensor of same shape as input0.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 LOGICAL_NOT 62},
 
@@ -4533,7 +4533,7 @@
      *
      * Outputs:
      * * 0: A tensor of {@link %{OperandTypeLinkPfx}TENSOR_BOOL8}.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 LOGICAL_OR 63},
 
@@ -4565,7 +4565,7 @@
      * Outputs:
      * * 0: The output tensor of the same {@link %{OperandType}} and shape as
      *      input0.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 LOG_SOFTMAX 64},
 
@@ -4600,7 +4600,7 @@
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
      *      the scale and zeroPoint can be different from inputs' scale and zeroPoint.
 %/kind
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 MAXIMUM 65},
 
@@ -4635,7 +4635,7 @@
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
      *      the scale and zeroPoint can be different from inputs' scale and zeroPoint.
 %/kind
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 MINIMUM 66},
 
@@ -4654,7 +4654,7 @@
      *
      * Outputs:
      * * 0: The output tensor of same shape as input0.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 NEG 67},
 
@@ -4682,7 +4682,7 @@
      *
      * Outputs:
      * * 0: A tensor of {@link %{OperandTypeLinkPfx}TENSOR_BOOL8}.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 NOT_EQUAL 68},
 
@@ -4739,7 +4739,7 @@
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
      *      the scale and zeroPoint must be the same as input0.
 %/kind
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 PAD_V2 69},
 
@@ -4770,7 +4770,7 @@
      *
      * Outputs:
      * * 0: An output tensor.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 POW 70},
 
@@ -4819,7 +4819,7 @@
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
      *      the scales and zeroPoint can be different from input0 scale and zeroPoint.
 %/kind
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 PRELU 71},
 
@@ -4860,7 +4860,7 @@
 %else
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}.
 %/kind
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 QUANTIZE 72},
 
@@ -4987,7 +4987,7 @@
      * Outputs:
      * * 0: A 2-D {@link %{OperandTypeLinkPfx}TENSOR_INT32} tensor with shape
      *      [batches, samples], containing the drawn samples.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 RANDOM_MULTINOMIAL 74},
 
@@ -5015,7 +5015,7 @@
      * * 0: A tensor of the same {@link %{OperandType}} as input0.
      *      If all dimensions are reduced and keep_dims is false, the output
      *      shape is [1].
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 REDUCE_ALL 75},
 
@@ -5043,7 +5043,7 @@
      * * 0: A tensor of the same {@link %{OperandType}} as input0.
      *      If all dimensions are reduced and keep_dims is false, the output
      *      shape is [1].
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 REDUCE_ANY 76},
 
@@ -5084,7 +5084,7 @@
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
      *      the scale and zeroPoint must be the same as input0.
 %/kind
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 REDUCE_MAX 77},
 
@@ -5125,7 +5125,7 @@
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
      *      the scale and zeroPoint must be the same as input0.
 %/kind
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 REDUCE_MIN 78},
 
@@ -5153,7 +5153,7 @@
      * * 0: A tensor of the same {@link %{OperandType}} as input0.
      *      If all dimensions are reduced and keep_dims is false, the output
      *      shape is [1].
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 REDUCE_PROD 79},
 
@@ -5181,7 +5181,7 @@
      * * 0: A tensor of the same {@link %{OperandType}} as input0.
      *      If all dimensions are reduced and keep_dims is false, the output
      *      shape is [1].
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 REDUCE_SUM 80},
 
@@ -5250,7 +5250,7 @@
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
 %/kind
      *      the scale and zeroPoint can be different from the input0 scale and zeroPoint.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 ROI_ALIGN 81},
 
@@ -5315,7 +5315,7 @@
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
 %/kind
      *      the scale and zeroPoint must be the same as input0.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 ROI_POOLING 82},
 
@@ -5333,7 +5333,7 @@
      *
      * Outputs:
      * * 0: The output tensor of same shape as input0.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 RSQRT 83},
 
@@ -5375,7 +5375,7 @@
      * * 0: A tensor of the same type and shape as input1 and input2.
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
      *      the scale and zeroPoint can be different from inputs' scale and zeroPoint.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 SELECT 84},
 
@@ -5393,7 +5393,7 @@
      *
      * Outputs:
      * * 0: The output tensor of same shape as input0.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 SIN 85},
 
@@ -5436,7 +5436,7 @@
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
 %/kind
      *      its scale and zeroPoint has to be same as the input0 scale and zeroPoint.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 SLICE 86},
 
@@ -5471,7 +5471,7 @@
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
      *      the scale and zeroPoint must be the same as input0.
 %/kind
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 SPLIT 87},
 
@@ -5489,7 +5489,7 @@
      *
      * Outputs:
      * * 0: The output tensor of same shape as input0.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 SQRT 88},
 
@@ -5528,7 +5528,7 @@
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
      *      the scale and zeroPoint must be the same as input0.
 %/kind
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 TILE 89},
 
@@ -5567,7 +5567,7 @@
 %/kind
      * * 1: An n-D tensor of type {@link %{OperandTypeLinkPfx}TENSOR_INT32}
      *      containing the indices of values within the last dimension of input.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 TOPK_V2 90},
 
@@ -5697,7 +5697,7 @@
      *      tensor shape.
      * * 4: An {@link %{OperandTypeLinkPfx}INT32} scalar, specifying the implicit
      *      padding scheme, has to be one of the
-%insert-lines PaddingCodeValues
+%insert PaddingCodeValues
      * * 5: An {@link %{OperandTypeLinkPfx}INT32} scalar, specifying the stride when
      *      walking through input in the ‘width’ dimension.
      * * 6: An {@link %{OperandTypeLinkPfx}INT32} scalar, specifying the stride when
@@ -5718,7 +5718,7 @@
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
 %/kind
      *      the scale and zeroPoint can be different from inputs' scale and zeroPoint.
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 TRANSPOSE_CONV_2D 91},
 
@@ -5839,8 +5839,8 @@
      *      and can be omitted.
      *      Available since %{NNAPILevel4}.
 %/kind
-%insert-lines AVAIL3
-%insert-lines OutputState
+%insert AVAIL3
+%insert OutputState
      */
     %{DeclareOperation_1.2 UNIDIRECTIONAL_SEQUENCE_LSTM 92},
 
@@ -5902,8 +5902,8 @@
      *      and can be omitted.
      *      Available since %{NNAPILevel4}.
 %/kind
-%insert-lines AVAIL3
-%insert-lines OutputState
+%insert AVAIL3
+%insert OutputState
      */
     %{DeclareOperation_1.2 UNIDIRECTIONAL_SEQUENCE_RNN 93},
 
@@ -5994,7 +5994,7 @@
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
      *      the scale and zeroPoint must be the same as input0.
 %/kind
-%insert-lines AVAIL3
+%insert AVAIL3
      */
     %{DeclareOperation_1.2 RESIZE_NEAREST_NEIGHBOR 94},
 %/section
@@ -6019,7 +6019,7 @@
      *
      * The formula is:
      * real_value = (integer_value - zeroPoint) * scale.
-%insert-lines AVAIL4
+%insert AVAIL4
      */
     %{ANN}TENSOR_QUANT8_ASYMM_SIGNED = 14,
 
@@ -6034,7 +6034,7 @@
      *
      * Must have the lifetime {@link OperandLifeTime::SUBGRAPH}.
 %/kind
-%insert-lines AVAIL4
+%insert AVAIL4
      */
     %{ANN}%{MODEL_or_SUBGRAPH} = 15,
 %/section
@@ -6175,7 +6175,7 @@
      *      "output state (out)" value.
      *      Type: {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED}
      *      Shape: [batchSize, outputSize]
-%insert-lines AVAIL4
+%insert AVAIL4
      */
     %{DeclareOperation_1.3 QUANTIZED_LSTM 95},
 
@@ -6205,7 +6205,7 @@
      *
      * Outputs:
      * * 0 ~ (m - 1): Outputs produced by the selected %{model_or_subgraph}.
-%insert-lines AVAIL4
+%insert AVAIL4
      */
     %{DeclareOperation_1.3 IF 96},
 
@@ -6286,7 +6286,7 @@
      *
      * Outputs:
      * * 0 ~ (m - 1): Outputs produced by the loop.
-%insert-lines AVAIL4
+%insert AVAIL4
      */
     %{DeclareOperation_1.3 WHILE 97},
 
@@ -6313,7 +6313,7 @@
      *
      * Outputs:
      * * 0: The output tensor of same shape and type as input0.
-%insert-lines AVAIL4
+%insert AVAIL4
      */
     %{DeclareOperation_1.3 ELU 98},
 
@@ -6342,7 +6342,7 @@
      * * 0: The output tensor of same shape and type as input0.
      *      Scale and zero point of this tensor may be different from the input
      *      tensor's parameters.
-%insert-lines AVAIL4
+%insert AVAIL4
      */
     %{DeclareOperation_1.3 HARD_SWISH 99},
 
@@ -6368,7 +6368,7 @@
      *
      * Outputs:
      * * 0: The output tensor.
-%insert-lines AVAIL4
+%insert AVAIL4
      */
     %{DeclareOperation_1.3 FILL 100},
 
@@ -6398,7 +6398,7 @@
      * Outputs:
      * * 0: A scalar of {@link %{OperandTypeLinkPfx}INT32}, specifying the rank
      *      of the input tensor.
-%insert-lines AVAIL4
+%insert AVAIL4
      */
     %{DeclareOperation_1.3 RANK 101},
 %/section

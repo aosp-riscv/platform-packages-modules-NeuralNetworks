@@ -48,17 +48,15 @@ class Specification(Reader):
     super(Specification, self).__init__(filename)
     self.sections = dict() # key is section name, value is array of strings (lines) in the section
     self.section = None # name of current %section
+    self.section_start = None # first line number of current %section
     self.defmacro = dict() # key is macro name, value is string (body of macro)
-    self.deflines = dict() # key is definition name, value is array of strings (lines) in the definition
-    self.deflines_key = None # name of current %define-lines
     self.kind = kind
     self.kinds = None # remember %define-kinds
     self.conditional = self.UNCONDITIONAL
+    self.conditional_start = None # first line number of current %kind
 
   def finish(self):
     assert self.section is None, "\"%section " + self.section + \
-      "\" not terminated by end of specification file"
-    assert self.deflines_key is None, "\"%define-lines " + self.deflines_key + \
       "\" not terminated by end of specification file"
     assert self.conditional is self.UNCONDITIONAL, "%kind not terminated by end of specification file"
 
@@ -137,9 +135,10 @@ class Specification(Reader):
         definition, etc.
     """
 
-    DIRECTIVES = ["%define", "%define-kinds", "%define-lines", "%/define-lines",
-                  "%else", "%insert-lines", "%kind", "%/kind", "%section",
-                  "%/section"]
+    DIRECTIVES = [
+        "%define", "%define-kinds", "%else", "%insert", "%insert-indented",
+        "%kind", "%/kind", "%section", "%/section"
+    ]
 
     # Common typos: /%directive, \%directive
     matchbad = re.search("^[/\\\]%(\S*)", self.line)
@@ -158,49 +157,32 @@ class Specification(Reader):
       if not directive in DIRECTIVES:
         assert False, "Unknown directive \"" + directive + "\" on " + self.context()
 
-      # Check for end of multiline macro
-      match = re.search("^%/define-lines\s*(\S*)", self.line)
-      if match:
-        assert match[1] == "", "Malformed directive \"%/define-lines\" on " + self.context()
-        assert not self.deflines_key is None, "%/define-lines with no matching %define-lines on " + \
-          self.context()
-        self.deflines_key = None
-        return
-
-      # Directives are forbidden within multiline macros
-      assert self.deflines_key is None, "Directive is not permitted in definition of \"" + \
-        self.deflines_key + "\" at " + self.context()
-
-      # Check for define (multi line)
-      match = re.search("^%define-lines\s+(\S+)\s*$", self.line)
-      if match:
-        key = match[1]
-        if self.conditional is self.CONDITIONAL_OFF:
-          self.deflines_key = ""
-          return
-        assert not key in self.deflines, "Duplicate definition of \"" + key + "\" on " + self.context()
-        self.deflines[key] = []
-        self.deflines_key = key
-        # Non-directive lines will be added to self.deflines[key] as they are read
-        # until we see %/define-lines
-        return
-
       # Check for insert
-      match = re.search("^%insert-lines\s+(\S+)\s*$", self.line)
+      match = re.search("^%insert(?:-indented\s+(\S+))?\s+(\S+)\s*$", self.line)
       if match:
-        assert not self.section is None, "%insert-lines outside %section at " + self.context()
-        key = match[1]
-        assert key in self.deflines, "Missing definition of lines \"" + key + "\" at " + self.context()
+        directive = self.line.split(" ", 1)[0]
+        assert not self.section is None, directive + " outside %section at " + self.context()
+        count = match[1] or "0"
+        key = match[2]
+        assert re.match("^\d+$", count), "Bad count \"" + count + "\" on " + self.context()
+        assert key in self.sections, "Unknown section \"" + key + "\" on " + self.context()
+        assert key != self.section, "Cannot insert section \"" + key + "\" into itself on " + self.context()
         if self.conditional is self.CONDITIONAL_OFF:
           return
-        self.sections[self.section].extend(self.deflines[key]);
+        indent = " " * int(count)
+        self.sections[self.section].extend(
+            (indent + line if line.rstrip("\n") else line)
+            for line in self.sections[key])
         return
 
       # Check for start of section
       match = re.search("^%section\s+(\S+)\s*$", self.line)
       if match:
         assert self.section is None, "Nested %section is forbidden at " + self.context()
-        assert self.conditional is self.UNCONDITIONAL, "%section within %kind is forbidden at " + self.context()
+        self.section_start = self.lineno
+        if self.conditional is self.CONDITIONAL_OFF:
+          self.section = ""
+          return
         key = match[1]
         assert not key in self.sections, "Duplicate definition of \"" + key + "\" on " + self.context()
         self.sections[key] = []
@@ -212,24 +194,30 @@ class Specification(Reader):
       # Check for end of section
       if re.search("^%/section\s*$", self.line):
         assert not self.section is None, "%/section with no matching %section on " + self.context()
-        assert self.conditional is self.UNCONDITIONAL # can't actually happen
+        assert self.conditional_start is None or self.conditional_start < self.section_start, \
+            "%kind not terminated by end of %section on " + self.context()
         self.section = None
+        self.section_start = None
         return
 
       # Check for start of kind
       match = re.search("^%kind\s+((\S+)(\s+\S+)*)\s*$", self.line)
       if match:
-        assert self.conditional is self.UNCONDITIONAL, "%kind is nested at " + self.context()
+        assert self.conditional is self.UNCONDITIONAL, \
+            "Nested %kind is forbidden at " + self.context()
         patterns = match[1]
         if self.match_kind(patterns):
           self.conditional = self.CONDITIONAL_ON
         else:
           self.conditional = self.CONDITIONAL_OFF
+        self.conditional_start = self.lineno
         return
 
       # Check for complement of kind (else)
       if re.search("^%else\s*$", self.line):
         assert not self.conditional is self.UNCONDITIONAL, "%else without matching %kind on " + self.context()
+        assert self.section_start is None or self.section_start < self.conditional_start, \
+            "%section not terminated by %else on " + self.context()
         if self.conditional == self.CONDITIONAL_ON:
           self.conditional = self.CONDITIONAL_OFF
         else:
@@ -256,7 +244,10 @@ class Specification(Reader):
       # Check for end of kind
       if re.search("^%/kind\s*$", self.line):
         assert not self.conditional is self.UNCONDITIONAL, "%/kind without matching %kind on " + self.context()
+        assert self.section_start is None or self.section_start < self.conditional_start, \
+            "%section not terminated by end of %kind on " + self.context()
         self.conditional = self.UNCONDITIONAL
+        self.conditional_start = None
         return
 
       # Check for kinds definition
@@ -290,8 +281,6 @@ class Specification(Reader):
 
     if self.conditional is self.CONDITIONAL_OFF:
       pass
-    elif not self.deflines_key is None:
-      self.deflines[self.deflines_key].append(self.macro_substitution())
     elif self.section is None:
       # Treat as comment
       pass
@@ -323,7 +312,7 @@ class Template(Reader):
       if match:
         count = match[1] or "0"
         key = match[2]
-        assert re.match("\d+", count), "Bad count \"" + count + "\" on " + self.context()
+        assert re.match("^\d+$", count), "Bad count \"" + count + "\" on " + self.context()
         assert key in specification.sections, "Unknown section \"" + key + "\" on " + self.context()
         indent = " " * int(count)
         for line in specification.sections[key]:
@@ -362,7 +351,6 @@ if __name__ == "__main__":
   specification.read()
   if (args.verbose):
     print(specification.defmacro)
-    print(specification.deflines)
 
   # Read the template
   template = Template(args.template, specification)
@@ -375,6 +363,5 @@ if __name__ == "__main__":
 # TODO: Write test cases for malformed specification and template files
 # TODO: Find a cleaner way to handle conditionals (%kind) or nesting in general;
 #       maybe add support for more nesting
-# TODO: Unify section/define-lines, rather than having two kinds of text regions?
-#       Could we take this further and do away with the distinction between a
-#       specification file and a template file, and add a %include directive?
+# TODO: Could we do away with the distinction between a specification file and a
+#       template file and add a %include directive?

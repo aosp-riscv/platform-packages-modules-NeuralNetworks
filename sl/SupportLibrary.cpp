@@ -127,6 +127,10 @@ std::unique_ptr<const NnApiSupportLibrary> LoadNnApiSupportLibrary(void* lib_han
     LOAD_FUNCTION(lib_handle, ANeuralNetworksModel_getExtensionOperandType);
     LOAD_FUNCTION(lib_handle, ANeuralNetworksModel_getExtensionOperationType);
     LOAD_FUNCTION(lib_handle, ANeuralNetworksModel_setOperandExtensionData);
+    LOAD_FUNCTION(lib_handle, ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput);
+    LOAD_FUNCTION(lib_handle, ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput);
+    LOAD_FUNCTION(lib_handle, ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput);
+    LOAD_FUNCTION(lib_handle, ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput);
 
     nnapi->lib_handle = lib_handle;
     return nnapi;

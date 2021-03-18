@@ -61,6 +61,10 @@ LIBNEURALNETWORKS {
     ANeuralNetworksCompilation_finish;
     ANeuralNetworksCompilation_setPriority; # introduced=30
     ANeuralNetworksCompilation_setTimeout; # introduced=30
+    ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput; # introduced=31
+    ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput; # introduced=31
+    ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput; # introduced=31
+    ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput; # introduced=31
     ANeuralNetworksBurst_create; # introduced=Q
     ANeuralNetworksBurst_free; # introduced=Q
     ANeuralNetworksExecution_burstCompute; # introduced=Q

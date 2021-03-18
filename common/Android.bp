@@ -267,7 +267,6 @@ cc_defaults {
     min_sdk_version: "29",
     cflags: [
         "-DNN_COMPATIBILITY_LIBRARY_BUILD",
-        "-DNN_NO_BURST",
     ],
 }
 

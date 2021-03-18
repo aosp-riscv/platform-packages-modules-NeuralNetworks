@@ -19,6 +19,7 @@
 
 #include <ControlFlow.h>
 #include <CpuExecutor.h>
+#include <nnapi/IBurst.h>
 #include <nnapi/IPreparedModel.h>
 #include <nnapi/Validation.h>
 
@@ -42,7 +43,6 @@ class BurstBuilder;
 class CompilationBuilder;
 class Device;
 class DynamicTemporaries;
-class ExecutionBurstController;
 class ExecutionPlan;
 class ExecutionStep;
 class ModelBuilder;
@@ -54,7 +54,7 @@ class ExecutionBuilder {
     friend class StepExecutor;
 
    public:
-    ExecutionBuilder(const CompilationBuilder* compilation);
+    explicit ExecutionBuilder(const CompilationBuilder* compilation);
 
     int setInput(uint32_t index, const ANeuralNetworksOperandType* type, const void* buffer,
                  size_t length);
@@ -306,8 +306,7 @@ class StepExecutor {
 
     // Executes using the (driver, preparedModel) specified at construction time.
     std::tuple<int, std::vector<OutputShape>, Timing> compute(
-            const OptionalTimePoint& deadline,
-            const std::shared_ptr<ExecutionBurstController>& burstController = nullptr);
+            const OptionalTimePoint& deadline, const SharedBurst& burstController = nullptr);
 
     // Re-compiles and executes using the CPU, regardless of the (driver,
     // preparedModel) specified at construction time.
@@ -345,7 +344,7 @@ class StepExecutor {
 
     std::tuple<int, std::vector<OutputShape>, Timing> computeWithMemories(
             const OptionalTimePoint& deadline, const std::vector<const RuntimeMemory*>& memories,
-            const std::shared_ptr<ExecutionBurstController>& burstController = nullptr);
+            const SharedBurst& burstController = nullptr);
 
     // describes the full (possibly multiple-"step") execution
     ExecutionBuilder* mExecutionBuilder;

@@ -76,15 +76,14 @@ delimited by certain directives.
 
 Certain regions can enclose certain other regions, but this is very limited:
 
-* A conditional region can enclose a definition region.
-* A section region can enclose a conditional region or a definition region.
+* A conditional region can enclose a section region.
+* A section region can enclose a conditional region.
 
 Equivalently:
 
 * A conditional region can be enclosed by a section region.
-* A definition region can be enclosed by a conditional region or a section
-  region.
-  
+* A section region can be enclosed by a conditional region.
+
 #### null region
 
 A *null region* is a sequence of lines that is not part of any other region.
@@ -106,23 +105,15 @@ any).  When the condition is **off**, lines in the region other than the `%else`
 directive are ignored *except* that even ignored directives undergo some level
 of syntactic and semantic checking.
 
-#### definition region
-
-A *definition region* is a sequence of lines immediately preceded by the
-`%define-lines *name*` directive and immediately followed by the
-`%/define-lines` directive.  Every non-comment line in the sequence undergoes
-macro substitution, and the resulting lines are associated with the region name.
-They can later be added to a section region with the `%insert-lines` directive.
-
-This can be thought of as a multi-line macro facility.
-
 #### section region
 
 A *section region* is a sequence of lines immediately preceded by the `%section
 *name*` directive and immediately followed by the `%/section` directive.  Every
-non-comment line in the sequence undergoes macro substitution, and the resulting
-lines are associated with the section name.  They can be inserted into the
-generated output file as directed by the template file's `%insert` and
+line in the sequence that doesn't begin with `%` undergoes macro substitution,
+and the resulting lines are associated with the section name.  They can be
+inserted into the generated output file as directed by the template file's
+`%insert` and `%insert-indented` directives.  They can be added to another
+section region with the with the specification file's `%insert` and
 `%insert-indented` directives.
 
 This is the mechanism by which a specification file contributes text to the
@@ -138,10 +129,10 @@ line -- it may contain whitespace itself. For example,
 
   %define test  this body begins and ends with a space character 
 
-Macro substitution occurs within a definition region or a section region: a
-substring `%{*name*}` is replaced with the corresponding *body*.  Macro
-substitution is *not* recursive: A substring `%{*name2*}` in *body* will not
-undergo macro substitution, except as discussed for *macro arguments* below.
+Macro substitution occurs within a section region: a substring `%{*name*}` is
+replaced with the corresponding *body*.  Macro substitution is *not* recursive:
+A substring `%{*name2*}` in *body* will not undergo macro substitution, except
+as discussed for *macro arguments* below.
 
 Permitted in regions: null, conditional, section
 
@@ -152,31 +143,37 @@ The more general form of a macro invocation is `%{*name* *arglist*}`, where
 substring of the form `%{argnum}` will be replaced by the corresponding argument
 from *arglist*.  For example, if the definition is
 
-  %define test second is %{2}, first is %{1}
-  
+```
+%define test second is %{2}, first is %{1}
+```
+
 then the macro invocation
 
-  %{test alpha beta}
-  
+```
+%{test alpha beta}
+```
+
 is expanded to
 
-  second is beta, first is alpha
+```
+second is beta, first is alpha
+```
 
 The only check on the number of arguments supplied at macro invocation time is
 that there must be at least as many arguments as the highest `%{argnum}`
 reference in the macro body.  In the example above, `%{test alpha}` would be an
 error, but `%{test alpha beta gamma}` would not.
 
-#### `%define-lines *name*`, `%/define-lines`
+#### `%insert *name*`
 
-`%define-lines *name*` creates a *definition region* terminated by
-`%/define-lines`.
+Adds all lines from the named section region to the current section region.
 
-Permitted in regions: null, conditional, section
+Permitted in regions: section
 
-#### `%insert-lines *name*`
+#### `%insert-indented *count* *name*`
 
-Adds all lines from the named definition region to the current section region.
+Similar to `%insert *name*`, but each non-empty added line is prefixed
+with *count* space characters.  *count* must be a non-negative integer.
 
 Permitted in regions: section
 
@@ -218,4 +215,4 @@ Permitted in regions: null, section
 
 `%section *name*` creates a *section region* terminated by `%/section`.
 
-Permitted in regions: null
+Permitted in regions: null, conditional

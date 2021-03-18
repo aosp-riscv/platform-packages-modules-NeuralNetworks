@@ -375,6 +375,8 @@ Result<Version> validateOperandDataLocation(
         const std::vector<Model::Subgraph>& subgraphs,
         std::vector<std::optional<Version>>* subgraphVersionCache) {
     const DataLocation& location = operand.location;
+    NN_VALIDATE_EQ(location.padding, 0u)
+            << "DataLocation with a non-zero padding used in Model: " << location.padding;
     switch (operand.lifetime) {
         case Operand::LifeTime::CONSTANT_COPY:
             NN_VALIDATE(location.pointer == kNullptrVariant)
@@ -1044,8 +1046,14 @@ Result<Version> validateRequestArgument(const Request::Argument& requestArgument
             NN_VALIDATE(location.pointer == kNullptrVariant);
             NN_VALIDATE_LT(location.poolIndex, memorySizes.size());
             // Do the addition using uint64_t to avoid potential wrap-around problems.
-            const auto lastPosition = static_cast<uint64_t>(location.offset) + location.length;
-            NN_VALIDATE_LE(lastPosition, memorySizes[location.poolIndex]);
+            const auto lastPosition =
+                    static_cast<uint64_t>(location.offset) + location.length + location.padding;
+            const auto memorySize = memorySizes[location.poolIndex];
+            NN_VALIDATE_LE(lastPosition, memorySize);
+            if (memorySize > 0) {
+                // Must specify a positive length if the memory pool has a known size.
+                NN_VALIDATE_GT(location.length, 0u);
+            }
             return Version::ANDROID_OC_MR1;
         }
         case Request::Argument::LifeTime::NO_VALUE:
@@ -1053,6 +1061,7 @@ Result<Version> validateRequestArgument(const Request::Argument& requestArgument
             NN_VALIDATE_EQ(location.poolIndex, 0u);
             NN_VALIDATE_EQ(location.offset, 0u);
             NN_VALIDATE_EQ(location.length, 0u);
+            NN_VALIDATE_EQ(location.padding, 0u);
             NN_VALIDATE(dimensions.empty());
             return Version::ANDROID_OC_MR1;
         case Request::Argument::LifeTime::POINTER: {
@@ -1144,13 +1153,14 @@ Result<Version> validateRequestArgumentsForModel(
         const uint32_t operandIndex = operandIndexes[requestArgumentIndex];
         const Operand& operand = operands[operandIndex];
         if (requestArgument.lifetime != Request::Argument::LifeTime::NO_VALUE) {
+            const bool isExtensionType = isExtension(operand.type);
             // If the argument specified a dimension, validate it.
             uint32_t modelRank = operand.dimensions.size();
             uint32_t requestRank = requestArgument.dimensions.size();
             if (requestRank == 0) {
                 // NOTE: validateRequestArguments cannot validate unknown tensor rank with
                 // extension operand type.
-                if (!isExtension(operand.type) && !isNonExtensionScalar(operand.type)) {
+                if (!isExtensionType && !isNonExtensionScalar(operand.type)) {
                     if (modelRank <= 0) {
                         NN_VALIDATE(isOutput)
                                 << "Model has unknown input rank but the request does not "
@@ -1189,6 +1199,19 @@ Result<Version> validateRequestArgumentsForModel(
                         // Unspecified output dimensions introduced in Android Q.
                         version = combineVersions(version, Version::ANDROID_Q);
                     }
+                }
+            }
+            // NOTE: validateRequestArguments cannot validate DataLocation::length
+            // with extension operand type.
+            if (!isExtensionType && requestArgument.location.length != 0) {
+                const auto dimensions =
+                        NN_TRY(combineDimensions(operand.dimensions, requestArgument.dimensions));
+                const size_t expectedLength = getNonExtensionSize(operand.type, dimensions).value();
+                if (expectedLength != 0) {
+                    NN_VALIDATE_EQ(requestArgument.location.length, expectedLength)
+                            << "Request " << type << " " << requestArgumentIndex
+                            << " expected a size of " << expectedLength << " but got "
+                            << requestArgument.location.length;
                 }
             }
         }

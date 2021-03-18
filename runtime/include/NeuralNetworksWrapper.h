@@ -506,6 +506,30 @@ class Compilation {
         return static_cast<Result>(NNAPI_CALL(ANeuralNetworksCompilation_finish(mCompilation)));
     }
 
+    Result getPreferredMemoryAlignmentForInput(uint32_t index, uint32_t* alignment) const {
+        return static_cast<Result>(
+                NNAPI_CALL(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput(
+                        mCompilation, index, alignment)));
+    };
+
+    Result getPreferredMemoryPaddingForInput(uint32_t index, uint32_t* padding) const {
+        return static_cast<Result>(
+                NNAPI_CALL(ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput(
+                        mCompilation, index, padding)));
+    };
+
+    Result getPreferredMemoryAlignmentForOutput(uint32_t index, uint32_t* alignment) const {
+        return static_cast<Result>(
+                NNAPI_CALL(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput(
+                        mCompilation, index, alignment)));
+    };
+
+    Result getPreferredMemoryPaddingForOutput(uint32_t index, uint32_t* padding) const {
+        return static_cast<Result>(
+                NNAPI_CALL(ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput(
+                        mCompilation, index, padding)));
+    };
+
     ANeuralNetworksCompilation* getHandle() const { return mCompilation; }
 
 #ifdef NNTEST_SLTS
@@ -585,6 +609,11 @@ class Execution {
                                uint32_t length, const ANeuralNetworksOperandType* type = nullptr) {
         return static_cast<Result>(NNAPI_CALL(ANeuralNetworksExecution_setOutputFromMemory(
                 mExecution, index, type, memory->get(), offset, length)));
+    }
+
+    Result enableInputAndOutputPadding(bool enable) {
+        return static_cast<Result>(NNAPI_CALL(
+                ANeuralNetworksExecution_enableInputAndOutputPadding(mExecution, enable)));
     }
 
 #ifndef NNTEST_SLTS

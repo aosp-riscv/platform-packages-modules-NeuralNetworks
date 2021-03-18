@@ -77,6 +77,8 @@ class ExecutionBuilder {
 
     uint64_t getLoopTimeoutDuration() const { return mLoopTimeoutDuration; }
 
+    int enableInputAndOutputPadding(bool enable);
+
     int computeFenced(const std::vector<int>& wait_for, uint64_t timeoutDurationAfterFence,
                       int* sync_fence);
 
@@ -207,6 +209,13 @@ class ExecutionBuilder {
     // launch of execution on the driver fails, then this callback will be
     // nullptr.
     ExecuteFencedInfoCallback mFencedExecutionCallback;
+
+    // Whether set{Input,Output}[FromMemory] can accept padded length or not.
+    bool mInputAndOutputPaddingEnabled = false;
+
+    // enableInputAndOutputPadding may only be called before any call of
+    // set{Input,Output}[FromMemory]
+    bool mHasCalledSetInputOutput = false;
 };
 
 // class StepExecutor is used to execute a single "step" in a

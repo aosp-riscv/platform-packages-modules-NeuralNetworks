@@ -55,6 +55,11 @@ class CompilationBuilder {
 
     int finish();
 
+    int getPreferredMemoryAlignmentForInput(uint32_t index, uint32_t* alignment) const;
+    int getPreferredMemoryPaddingForInput(uint32_t index, uint32_t* padding) const;
+    int getPreferredMemoryAlignmentForOutput(uint32_t index, uint32_t* alignment) const;
+    int getPreferredMemoryPaddingForOutput(uint32_t index, uint32_t* padding) const;
+
     int createExecution(ExecutionBuilder** execution);
 
     int createBurst(BurstBuilder** burst);

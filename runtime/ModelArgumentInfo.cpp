@@ -113,12 +113,13 @@ std::pair<int, ModelArgumentInfo> ModelArgumentInfo::createFromMemory(
 int ModelArgumentInfo::updateDimensionInfo(const Operand& operand,
                                            const ANeuralNetworksOperandType* newType) {
     if (newType == nullptr) {
-        mDimensions = operand.dimensions;
+        mInitialDimensions = operand.dimensions;
     } else {
         const uint32_t count = newType->dimensionCount;
-        mDimensions = std::vector<uint32_t>(count);
-        std::copy(&newType->dimensions[0], &newType->dimensions[count], mDimensions.begin());
+        mInitialDimensions = std::vector<uint32_t>(count);
+        std::copy(&newType->dimensions[0], &newType->dimensions[count], mInitialDimensions.begin());
     }
+    mDimensions = mInitialDimensions;
     return ANEURALNETWORKS_NO_ERROR;
 }
 

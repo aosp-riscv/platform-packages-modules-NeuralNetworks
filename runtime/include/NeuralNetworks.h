@@ -559,7 +559,12 @@ int ANeuralNetworksCompilation_setCaching(ANeuralNetworksCompilation* compilatio
  * then execution will be aborted and {@link ANEURALNETWORKS_MISSED_DEADLINE_*}
  * will be returned.
  *
- * See {@link ANeuralNetworksExecution} for information on multithreaded usage.
+ * Before NNAPI feature level 5, this function may only be invoked when the execution is in the
+ * preparation state. Starting at NNAPI feature level 5, if the user sets the execution to be
+ * reusable by {@link ANeuralNetworksExecution_setReusable}, this function may also be invoked when
+ * the execution is in the completed state.
+ *
+ * See {@link ANeuralNetworksExecution} for information on execution states and multithreaded usage.
  *
  * See {@link ANeuralNetworksExecution_burstCompute} for burst synchronous execution.
  * See {@link ANeuralNetworksExecution_startCompute} for regular asynchronous execution.
@@ -578,12 +583,11 @@ int ANeuralNetworksExecution_compute(ANeuralNetworksExecution* execution) __INTR
 
 /**
  * Get the dimensional information of the specified output operand of the model of the
- * {@link ANeuralNetworksExecution}.
+ * latest computation evaluated on {@link ANeuralNetworksExecution}.
  *
- * The execution must have completed.  On asynchronous execution initiated by
- * {@link ANeuralNetworksExecution_startCompute} or
- * {@link ANeuralNetworksExecution_startComputeWithDependencies},
- * {@link ANeuralNetworksEvent_wait} must be called prior to this function.
+ * This function may only be invoked when the execution is in the completed state.
+ *
+ * See {@link ANeuralNetworksExecution} for information on execution states.
  *
  * @param execution The execution to be queried.
  * @param index The index of the output argument we are querying. It is
@@ -604,12 +608,12 @@ int ANeuralNetworksExecution_getOutputOperandRank(ANeuralNetworksExecution* exec
 
 /**
  * Get the dimensional information of the specified output operand of the model of the
- * {@link ANeuralNetworksExecution}. The target output operand cannot be a scalar.
+ * latest computation evaluated on {@link ANeuralNetworksExecution}. The target output operand
+ * cannot be a scalar.
  *
- * The execution must have completed.  On asynchronous execution initiated by
- * {@link ANeuralNetworksExecution_startCompute} or
- * {@link ANeuralNetworksExecution_startComputeWithDependencies},
- * {@link ANeuralNetworksEvent_wait} must be called prior to this function.
+ * This function may only be invoked when the execution is in the completed state.
+ *
+ * See {@link ANeuralNetworksExecution} for information on execution states.
  *
  * @param execution The execution to be queried.
  * @param index The index of the output argument we are querying. It is an index into the lists
@@ -680,6 +684,13 @@ void ANeuralNetworksBurst_free(ANeuralNetworksBurst* burst) __INTRODUCED_IN(29);
  * {@link ANeuralNetworksExecution} launched before the previous has finished
  * will result in ANEURALNETWORKS_BAD_STATE.</p>
  *
+ * Before NNAPI feature level 5, this function may only be invoked when the execution is in the
+ * preparation state. Starting at NNAPI feature level 5, if the user sets the execution to be
+ * reusable by {@link ANeuralNetworksExecution_setReusable}, this function may also be invoked when
+ * the execution is in the completed state.
+ *
+ * See {@link ANeuralNetworksExecution} for information on execution states and multithreaded usage.
+ *
  * See {@link ANeuralNetworksExecution_compute} for synchronous execution.
  * See {@link ANeuralNetworksExecution_startCompute} for regular asynchronous execution.
  * See {@link ANeuralNetworksExecution_startComputeWithDependencies} for
@@ -748,7 +759,9 @@ int ANeuralNetworksMemory_createFromAHardwareBuffer(const AHardwareBuffer* ahwb,
  * {@link ANeuralNetworksDevice_getFeatureLevel} that is lower than
  * {@link ANEURALNETWORKS_FEATURE_LEVEL_3}, then the duration will not be measured.
  *
- * See {@link ANeuralNetworksExecution} for information on multithreaded usage.
+ * This function may only be invoked when the execution is in the preparation state.
+ *
+ * See {@link ANeuralNetworksExecution} for information on execution states and multithreaded usage.
  *
  * Available since NNAPI feature level 3.
  *
@@ -761,12 +774,12 @@ int ANeuralNetworksExecution_setMeasureTiming(ANeuralNetworksExecution* executio
         __INTRODUCED_IN(29);
 
 /**
- * Get the time spent in the specified {@link ANeuralNetworksExecution}, in nanoseconds.
+ * Get the time spent in the latest computation evaluated on the specified
+ * {@link ANeuralNetworksExecution}, in nanoseconds.
  *
- * The execution must have completed.  On asynchronous execution initiated by
- * {@link ANeuralNetworksExecution_startCompute} or
- * {@link ANeuralNetworksExecution_startComputeWithDependencies},
- * {@link ANeuralNetworksEvent_wait} must be called prior to this function.
+ * This function may only be invoked when the execution is in the completed state.
+ *
+ * See {@link ANeuralNetworksExecution} for information on execution states.
  *
  * @param execution The execution to be queried.
  * @param durationCode The measurement to be queried, specified by {@link DurationCode}.
@@ -1394,7 +1407,9 @@ void ANeuralNetworksExecution_free(ANeuralNetworksExecution* execution) __INTROD
  * by the driver to access data in chunks, for efficiency. Passing a length argument with value
  * less than the raw size of the input will result in ANEURALNETWORKS_BAD_DATA.
  *
- * See {@link ANeuralNetworksExecution} for information on multithreaded usage.
+ * This function may only be invoked when the execution is in the preparation state.
+ *
+ * See {@link ANeuralNetworksExecution} for information on execution states and multithreaded usage.
  * See {@link ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput} and
  * {@link ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput} for information on getting
  * preferred buffer alignment and padding, to improve performance.
@@ -1458,7 +1473,9 @@ int ANeuralNetworksExecution_setInput(ANeuralNetworksExecution* execution, int32
  * by the driver to access data in chunks, for efficiency. Passing a length argument with value
  * less than the raw size of the input will result in ANEURALNETWORKS_BAD_DATA.
  *
- * See {@link ANeuralNetworksExecution} for information on multithreaded usage.
+ * This function may only be invoked when the execution is in the preparation state.
+ *
+ * See {@link ANeuralNetworksExecution} for information on execution states and multithreaded usage.
  * See {@link ANeuralNetworksMemory_createFromAHardwareBuffer} for information on
  * AHardwareBuffer usage.
  * See {@link ANeuralNetworksMemory_createFromDesc} for information on usage of memory objects
@@ -1520,7 +1537,9 @@ int ANeuralNetworksExecution_setInputFromMemory(ANeuralNetworksExecution* execut
  * by the driver to access data in chunks, for efficiency. Passing a length argument with value
  * less than the raw size of the output will result in ANEURALNETWORKS_BAD_DATA.
  *
- * See {@link ANeuralNetworksExecution} for information on multithreaded usage.
+ * This function may only be invoked when the execution is in the preparation state.
+ *
+ * See {@link ANeuralNetworksExecution} for information on execution states and multithreaded usage.
  * See {@link ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput} and
  * {@link ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput} for information on getting
  * preferred buffer alignment and padding, to improve performance.
@@ -1588,7 +1607,9 @@ int ANeuralNetworksExecution_setOutput(ANeuralNetworksExecution* execution, int3
  * by the driver to access data in chunks, for efficiency. Passing a length argument with value
  * less than the raw size of the output will result in ANEURALNETWORKS_BAD_DATA.
  *
- * See {@link ANeuralNetworksExecution} for information on multithreaded usage.
+ * This function may only be invoked when the execution is in the preparation state.
+ *
+ * See {@link ANeuralNetworksExecution} for information on execution states and multithreaded usage.
  * See {@link ANeuralNetworksMemory_createFromAHardwareBuffer} for information on
  * AHardwareBuffer usage.
  * See {@link ANeuralNetworksMemory_createFromDesc} for information on usage of memory objects
@@ -1664,7 +1685,12 @@ int ANeuralNetworksExecution_setOutputFromMemory(ANeuralNetworksExecution* execu
  * will not complete within the timeout duration, the device may choose to skip
  * the execution and instead return {@link ANEURALNETWORKS_MISSED_DEADLINE_*}.
  *
- * See {@link ANeuralNetworksExecution} for information on multithreaded usage.
+ * Before NNAPI feature level 5, this function may only be invoked when the execution is in the
+ * preparation state. Starting at NNAPI feature level 5, if the user sets the execution to be
+ * reusable by {@link ANeuralNetworksExecution_setReusable}, this function may also be invoked when
+ * the execution is in the completed state.
+ *
+ * See {@link ANeuralNetworksExecution} for information on execution states and multithreaded usage.
  *
  * See {@link ANeuralNetworksExecution_compute} for synchronous execution.
  * See {@link ANeuralNetworksExecution_burstCompute} for burst synchronous execution.
@@ -1715,7 +1741,9 @@ int ANeuralNetworksExecution_startCompute(ANeuralNetworksExecution* execution,
  * {@link ANEURALNETWORKS_FEATURE_LEVEL_4}, then the timeout duration hint will
  * be ignored.
  *
- * See {@link ANeuralNetworksExecution} for information on multithreaded usage.
+ * This function may only be invoked when the execution is in the preparation state.
+ *
+ * See {@link ANeuralNetworksExecution} for information on execution states and multithreaded usage.
  *
  * @param execution The execution to be modified.
  * @param duration The maximum amount of time in nanoseconds that is expected to
@@ -1741,7 +1769,9 @@ int ANeuralNetworksExecution_setTimeout(ANeuralNetworksExecution* execution, uin
  * {@link ANeuralNetworks_getMaximumLoopTimeout} for the default
  * and maximum timeout values.
  *
- * See {@link ANeuralNetworksExecution} for information on multithreaded usage.
+ * This function may only be invoked when the execution is in the preparation state.
+ *
+ * See {@link ANeuralNetworksExecution} for information on execution states and multithreaded usage.
  *
  * @param execution The execution to be modified.
  * @param duration The maximum amount of time in nanoseconds that can be spent
@@ -1792,7 +1822,7 @@ uint64_t ANeuralNetworks_getMaximumLoopTimeout() __INTRODUCED_IN(30);
  * the execution will be aborted, and {@link ANEURALNETWORKS_MISSED_DEADLINE_*}
  * will be returned here.
  *
- * See {@link ANeuralNetworksExecution} for information on multithreaded usage.
+ * See {@link ANeuralNetworksExecution} for information on execution states and multithreaded usage.
  *
  * Available since NNAPI feature level 1.
  *
@@ -1905,7 +1935,12 @@ int ANeuralNetworksEvent_getSyncFenceFd(const ANeuralNetworksEvent* event, int* 
  * will be returned through {@link ANeuralNetworksEvent_wait} on the event
  * object.
  *
- * See {@link ANeuralNetworksExecution} for information on multithreaded usage.
+ * Before NNAPI feature level 5, this function may only be invoked when the execution is in the
+ * preparation state. Starting at NNAPI feature level 5, if the user sets the execution to be
+ * reusable by {@link ANeuralNetworksExecution_setReusable}, this function may also be invoked when
+ * the execution is in the completed state.
+ *
+ * See {@link ANeuralNetworksExecution} for information on execution states and multithreaded usage.
  *
  * See {@link ANeuralNetworksExecution_compute} for synchronous execution.
  * See {@link ANeuralNetworksExecution_burstCompute} for burst synchronous execution.
@@ -2144,6 +2179,33 @@ int ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput(
  */
 int ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput(
         const ANeuralNetworksCompilation* compilation, uint32_t index, uint32_t* padding)
+        __INTRODUCED_IN(31);
+
+/**
+ * Specifies whether the {@link ANeuralNetworksExecution} can be reused for multiple computations.
+ *
+ * By default, the {@link ANeuralNetworksExecution} is not reusable.
+ *
+ * Setting the execution to be reusable enables multiple computations to be scheduled and evaluated
+ * on the same execution sequentially, either by means of
+ * {@link ANeuralNetworksExecution_burstCompute}, {@link ANeuralNetworksExecution_compute},
+ * {@link ANeuralNetworksExecution_startCompute} or
+ * {@link ANeuralNetworksExecution_startComputeWithDependencies}.
+ *
+ * This function may only be invoked when the execution is in the preparation state.
+ *
+ * See {@link ANeuralNetworksExecution} for information on execution states and multithreaded usage.
+ *
+ * @param execution The execution to be modified.
+ * @param reusable 'true' if the execution is to be reusable, 'false' if not.
+ *
+ * @return ANEURALNETWORKS_NO_ERROR if successful.
+ *         ANEURALNETWORKS_UNEXPECTED_NULL if execution is NULL.
+ *         ANEURALNETWORKS_BAD_STATE if the execution is not in the preparation state.
+ *
+ * Available since NNAPI feature level 5.
+ */
+int ANeuralNetworksExecution_setReusable(ANeuralNetworksExecution* execution, bool reusable)
         __INTRODUCED_IN(31);
 
 __END_DECLS

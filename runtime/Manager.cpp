@@ -196,17 +196,20 @@ int64_t DriverDevice::getFeatureLevel() const {
     Version featureLevel = kInterface->getFeatureLevel();
     switch (featureLevel) {
         case Version::ANDROID_OC_MR1:
-            return __ANDROID_API_O_MR1__;
+            return ANEURALNETWORKS_FEATURE_LEVEL_1;
         case Version::ANDROID_P:
-            return __ANDROID_API_P__;
+            return ANEURALNETWORKS_FEATURE_LEVEL_2;
         case Version::ANDROID_Q:
-            return __ANDROID_API_Q__;
+            return ANEURALNETWORKS_FEATURE_LEVEL_3;
         case Version::ANDROID_R:
-            return __ANDROID_API_R__;
-        default:
-            LOG(FATAL) << "Unsupported driver feature level: " << featureLevel;
-            return -1;
-    };
+            return ANEURALNETWORKS_FEATURE_LEVEL_4;
+        case Version::ANDROID_S:
+            return ANEURALNETWORKS_FEATURE_LEVEL_5;
+        case Version::CURRENT_RUNTIME:
+            break;
+    }
+    LOG(FATAL) << "Unsupported driver feature level: " << featureLevel;
+    return -1;
 }
 
 GeneralResult<std::vector<bool>> DriverDevice::getSupportedOperationsImpl(

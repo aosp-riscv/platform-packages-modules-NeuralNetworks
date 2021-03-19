@@ -635,6 +635,9 @@ typedef int (*ANeuralNetworksExecution_setTimeout_fn)(ANeuralNetworksExecution* 
 typedef int (*ANeuralNetworksExecution_setLoopTimeout_fn)(ANeuralNetworksExecution* execution,
                                                           uint64_t duration);
 
+typedef int (*ANeuralNetworksExecution_setReusable_fn)(ANeuralNetworksExecution* execution,
+                                                       bool reusable);
+
 typedef int (*ANeuralNetworksExecution_getOutputOperandRank_fn)(ANeuralNetworksExecution* execution,
                                                                 int32_t index, uint32_t* rank);
 

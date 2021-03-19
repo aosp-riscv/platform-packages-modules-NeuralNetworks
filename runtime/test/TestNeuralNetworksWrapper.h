@@ -415,6 +415,10 @@ class Execution {
                 ANeuralNetworksExecution_enableInputAndOutputPadding(mExecution, enable));
     }
 
+    Result setReusable(bool reusable) {
+        return static_cast<Result>(ANeuralNetworksExecution_setReusable(mExecution, reusable));
+    }
+
     Result startCompute(Event* event) {
         ANeuralNetworksEvent* ev = nullptr;
         Result result = static_cast<Result>(ANeuralNetworksExecution_startCompute(mExecution, &ev));

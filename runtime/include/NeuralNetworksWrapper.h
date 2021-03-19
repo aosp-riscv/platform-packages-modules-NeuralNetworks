@@ -616,6 +616,11 @@ class Execution {
                 ANeuralNetworksExecution_enableInputAndOutputPadding(mExecution, enable)));
     }
 
+    Result setReusable(bool reusable) {
+        return static_cast<Result>(
+                NNAPI_CALL(ANeuralNetworksExecution_setReusable(mExecution, reusable)));
+    }
+
 #ifndef NNTEST_SLTS
     Result startCompute(Event* event) {
         ANeuralNetworksEvent* ev = nullptr;

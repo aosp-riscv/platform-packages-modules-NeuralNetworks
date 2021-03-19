@@ -1268,133 +1268,255 @@ TEST_F(ValidationTestCompilation, ExecutionUsability) {
     enum class ExecutionType : uint32_t { ASYNC, SYNC, BURST, FENCED };
     for (auto executionType :
          {ExecutionType::ASYNC, ExecutionType::SYNC, ExecutionType::BURST, ExecutionType::FENCED}) {
-        SCOPED_TRACE(static_cast<uint32_t>(executionType));
+        for (bool explicitlyDisableReusablility : {false, true}) {
+            SCOPED_TRACE(static_cast<uint32_t>(executionType));
+            SCOPED_TRACE(explicitlyDisableReusablility);
 
-        ANeuralNetworksExecution* execution;
-        ASSERT_EQ(ANeuralNetworksExecution_create(mCompilation, &execution),
-                  ANEURALNETWORKS_NO_ERROR);
+            ANeuralNetworksExecution* execution;
+            ASSERT_EQ(ANeuralNetworksExecution_create(mCompilation, &execution),
+                      ANEURALNETWORKS_NO_ERROR);
 
-        float in0[] = {0.0f, 0.0f}, in1[] = {1.0f, 1.0f}, out0[2];
-        int in2 = 0;
-        ASSERT_EQ(ANeuralNetworksExecution_setInput(execution, 0, nullptr, &in0, sizeof(in0)),
-                  ANEURALNETWORKS_NO_ERROR);
-        ASSERT_EQ(ANeuralNetworksExecution_setInput(execution, 1, nullptr, &in1, sizeof(in1)),
-                  ANEURALNETWORKS_NO_ERROR);
-        ASSERT_EQ(ANeuralNetworksExecution_setInput(execution, 2, nullptr, &in2, sizeof(in2)),
-                  ANEURALNETWORKS_NO_ERROR);
-        ASSERT_EQ(ANeuralNetworksExecution_setOutput(execution, 0, nullptr, &out0, sizeof(out0)),
-                  ANEURALNETWORKS_NO_ERROR);
-
-        const size_t memorySize = std::max(sizeof(in0), sizeof(out0));
-        int memoryFd = ASharedMemory_create("nnMemory", memorySize);
-        ASSERT_GT(memoryFd, 0);
-        ANeuralNetworksMemory* memory;
-        EXPECT_EQ(ANeuralNetworksMemory_createFromFd(memorySize, PROT_READ | PROT_WRITE, memoryFd,
-                                                     0, &memory),
-                  ANEURALNETWORKS_NO_ERROR);
-
-        auto testTooLate = [this, execution, &in0, &out0, memory] {
-            // Try a bunch of things that are impermissible if the execution has started.
-
-            // Set loop timeout.
-            ASSERT_EQ(ANeuralNetworksExecution_setLoopTimeout(execution, kShortWaitInNanoseconds),
-                      ANEURALNETWORKS_BAD_STATE);
-
-            // Enable/Disable input and output padding.
-            ASSERT_EQ(ANeuralNetworksExecution_enableInputAndOutputPadding(execution, true),
-                      ANEURALNETWORKS_BAD_STATE);
-            ASSERT_EQ(ANeuralNetworksExecution_enableInputAndOutputPadding(execution, false),
-                      ANEURALNETWORKS_BAD_STATE);
+            if (explicitlyDisableReusablility) {
+                ASSERT_EQ(ANeuralNetworksExecution_setReusable(execution, false),
+                          ANEURALNETWORKS_NO_ERROR);
+            }
 
             // Set inputs and outputs.
+            float in0[] = {0.0f, 0.0f}, in1[] = {1.0f, 1.0f}, out0[2];
+            int in2 = 0;
             ASSERT_EQ(ANeuralNetworksExecution_setInput(execution, 0, nullptr, &in0, sizeof(in0)),
-                      ANEURALNETWORKS_BAD_STATE);
+                      ANEURALNETWORKS_NO_ERROR);
+            ASSERT_EQ(ANeuralNetworksExecution_setInput(execution, 1, nullptr, &in1, sizeof(in1)),
+                      ANEURALNETWORKS_NO_ERROR);
+            ASSERT_EQ(ANeuralNetworksExecution_setInput(execution, 2, nullptr, &in2, sizeof(in2)),
+                      ANEURALNETWORKS_NO_ERROR);
             ASSERT_EQ(
                     ANeuralNetworksExecution_setOutput(execution, 0, nullptr, &out0, sizeof(out0)),
-                    ANEURALNETWORKS_BAD_STATE);
-            ASSERT_EQ(ANeuralNetworksExecution_setInputFromMemory(execution, 0, nullptr, memory, 0,
-                                                                  sizeof(in0)),
-                      ANEURALNETWORKS_BAD_STATE);
-            ASSERT_EQ(ANeuralNetworksExecution_setOutputFromMemory(execution, 0, nullptr, memory, 0,
-                                                                   sizeof(out0)),
-                      ANEURALNETWORKS_BAD_STATE);
+                    ANEURALNETWORKS_NO_ERROR);
 
-            // Reuse for asynchronous execution.
-            {
-                ANeuralNetworksEvent* event;
-                ASSERT_EQ(ANeuralNetworksExecution_startCompute(execution, &event),
+            const size_t memorySize = std::max(sizeof(in0), sizeof(out0));
+            int memoryFd = ASharedMemory_create("nnMemory", memorySize);
+            ASSERT_GT(memoryFd, 0);
+            ANeuralNetworksMemory* memory;
+            EXPECT_EQ(ANeuralNetworksMemory_createFromFd(memorySize, PROT_READ | PROT_WRITE,
+                                                         memoryFd, 0, &memory),
+                      ANEURALNETWORKS_NO_ERROR);
+
+            auto testTooLate = [this, execution, &in0, &out0, memory] {
+                // Try a bunch of things that are impermissible if the execution has started.
+
+                // Set loop timeout.
+                ASSERT_EQ(
+                        ANeuralNetworksExecution_setLoopTimeout(execution, kShortWaitInNanoseconds),
+                        ANEURALNETWORKS_BAD_STATE);
+
+                // Enable/Disable input and output padding.
+                ASSERT_EQ(ANeuralNetworksExecution_enableInputAndOutputPadding(execution, true),
                           ANEURALNETWORKS_BAD_STATE);
+                ASSERT_EQ(ANeuralNetworksExecution_enableInputAndOutputPadding(execution, false),
+                          ANEURALNETWORKS_BAD_STATE);
+
+                // Set inputs and outputs.
+                ASSERT_EQ(
+                        ANeuralNetworksExecution_setInput(execution, 0, nullptr, &in0, sizeof(in0)),
+                        ANEURALNETWORKS_BAD_STATE);
+                ASSERT_EQ(ANeuralNetworksExecution_setOutput(execution, 0, nullptr, &out0,
+                                                             sizeof(out0)),
+                          ANEURALNETWORKS_BAD_STATE);
+                ASSERT_EQ(ANeuralNetworksExecution_setInputFromMemory(execution, 0, nullptr, memory,
+                                                                      0, sizeof(in0)),
+                          ANEURALNETWORKS_BAD_STATE);
+                ASSERT_EQ(ANeuralNetworksExecution_setOutputFromMemory(execution, 0, nullptr,
+                                                                       memory, 0, sizeof(out0)),
+                          ANEURALNETWORKS_BAD_STATE);
+
+                // Set reusable.
+                ASSERT_EQ(ANeuralNetworksExecution_setReusable(execution, true),
+                          ANEURALNETWORKS_BAD_STATE);
+                ASSERT_EQ(ANeuralNetworksExecution_setReusable(execution, false),
+                          ANEURALNETWORKS_BAD_STATE);
+
+                // Reuse for asynchronous execution.
+                {
+                    ANeuralNetworksEvent* event;
+                    ASSERT_EQ(ANeuralNetworksExecution_startCompute(execution, &event),
+                              ANEURALNETWORKS_BAD_STATE);
+                }
+
+                // Reuse for synchronous execution.
+                ASSERT_EQ(ANeuralNetworksExecution_compute(execution), ANEURALNETWORKS_BAD_STATE);
+
+                // Reuse for burst execution.
+                {
+                    ANeuralNetworksBurst* burst;
+                    ASSERT_EQ(ANeuralNetworksBurst_create(mCompilation, &burst),
+                              ANEURALNETWORKS_NO_ERROR);
+                    ASSERT_EQ(ANeuralNetworksExecution_burstCompute(execution, burst),
+                              ANEURALNETWORKS_BAD_STATE);
+                    ANeuralNetworksBurst_free(burst);
+                }
+
+                // Reuse for fenced execution.
+                {
+                    ANeuralNetworksEvent* event;
+                    ASSERT_EQ(ANeuralNetworksExecution_startComputeWithDependencies(
+                                      execution, nullptr, 0, 0, &event),
+                              ANEURALNETWORKS_BAD_STATE);
+                }
+            };
+
+            // Compute.
+            switch (executionType) {
+                case ExecutionType::ASYNC: {
+                    ANeuralNetworksEvent* event;
+                    ASSERT_EQ(ANeuralNetworksExecution_startCompute(execution, &event),
+                              ANEURALNETWORKS_NO_ERROR);
+                    testTooLate();
+                    ASSERT_EQ(ANeuralNetworksEvent_wait(event), ANEURALNETWORKS_NO_ERROR);
+                    testTooLate();
+                    ANeuralNetworksEvent_free(event);
+                    break;
+                }
+                case ExecutionType::SYNC: {
+                    ASSERT_EQ(ANeuralNetworksExecution_compute(execution),
+                              ANEURALNETWORKS_NO_ERROR);
+                    testTooLate();
+                    break;
+                }
+                case ExecutionType::BURST: {
+                    ANeuralNetworksBurst* burst;
+                    ASSERT_EQ(ANeuralNetworksBurst_create(mCompilation, &burst),
+                              ANEURALNETWORKS_NO_ERROR);
+                    ASSERT_EQ(ANeuralNetworksExecution_burstCompute(execution, burst),
+                              ANEURALNETWORKS_NO_ERROR);
+                    testTooLate();
+                    ANeuralNetworksBurst_free(burst);
+                    break;
+                }
+                case ExecutionType::FENCED: {
+                    ANeuralNetworksEvent* event;
+                    ASSERT_EQ(ANeuralNetworksExecution_startComputeWithDependencies(
+                                      execution, nullptr, 0, 0, &event),
+                              ANEURALNETWORKS_NO_ERROR);
+                    testTooLate();
+                    ASSERT_EQ(ANeuralNetworksEvent_wait(event), ANEURALNETWORKS_NO_ERROR);
+                    testTooLate();
+                    ANeuralNetworksEvent_free(event);
+                    break;
+                }
+                default:
+                    FAIL() << "Unreachable";
             }
 
-            // Reuse for synchronous execution.
-            ASSERT_EQ(ANeuralNetworksExecution_compute(execution), ANEURALNETWORKS_BAD_STATE);
+            // close memory
+            ANeuralNetworksExecution_free(execution);
+            ANeuralNetworksMemory_free(memory);
+            close(memoryFd);
+        }
+    }
+}
 
-            // Reuse for burst execution.
-            {
-                ANeuralNetworksBurst* burst;
-                ASSERT_EQ(ANeuralNetworksBurst_create(mCompilation, &burst),
-                          ANEURALNETWORKS_NO_ERROR);
-                ASSERT_EQ(ANeuralNetworksExecution_burstCompute(execution, burst),
-                          ANEURALNETWORKS_BAD_STATE);
-                ANeuralNetworksBurst_free(burst);
-            }
+static void testConcurrentExecution(bool reusable, ANeuralNetworksCompilation* compilation) {
+    ASSERT_EQ(ANeuralNetworksCompilation_finish(compilation), ANEURALNETWORKS_NO_ERROR);
 
-            // Reuse for fenced execution.
-            {
-                ANeuralNetworksEvent* event;
-                ASSERT_EQ(ANeuralNetworksExecution_startComputeWithDependencies(execution, nullptr,
-                                                                                0, 0, &event),
-                          ANEURALNETWORKS_BAD_STATE);
-            }
-        };
-
-        // Compute.
+    enum class ExecutionType : uint32_t { ASYNC, SYNC, BURST, FENCED };
+    const auto compute = [compilation](ExecutionType executionType,
+                                       ANeuralNetworksExecution* execution) -> int {
         switch (executionType) {
             case ExecutionType::ASYNC: {
                 ANeuralNetworksEvent* event;
-                ASSERT_EQ(ANeuralNetworksExecution_startCompute(execution, &event),
-                          ANEURALNETWORKS_NO_ERROR);
-                testTooLate();
-                ASSERT_EQ(ANeuralNetworksEvent_wait(event), ANEURALNETWORKS_NO_ERROR);
-                testTooLate();
+                int result = ANeuralNetworksExecution_startCompute(execution, &event);
+                if (result == ANEURALNETWORKS_NO_ERROR) {
+                    result = ANeuralNetworksEvent_wait(event);
+                }
                 ANeuralNetworksEvent_free(event);
-                break;
+                return result;
             }
             case ExecutionType::SYNC: {
-                ASSERT_EQ(ANeuralNetworksExecution_compute(execution), ANEURALNETWORKS_NO_ERROR);
-                testTooLate();
-                break;
+                return ANeuralNetworksExecution_compute(execution);
             }
             case ExecutionType::BURST: {
                 ANeuralNetworksBurst* burst;
-                ASSERT_EQ(ANeuralNetworksBurst_create(mCompilation, &burst),
-                          ANEURALNETWORKS_NO_ERROR);
-                ASSERT_EQ(ANeuralNetworksExecution_burstCompute(execution, burst),
-                          ANEURALNETWORKS_NO_ERROR);
-                testTooLate();
+                int result = ANeuralNetworksBurst_create(compilation, &burst);
+                if (result == ANEURALNETWORKS_NO_ERROR) {
+                    result = ANeuralNetworksExecution_burstCompute(execution, burst);
+                }
                 ANeuralNetworksBurst_free(burst);
-                break;
+                return result;
             }
             case ExecutionType::FENCED: {
                 ANeuralNetworksEvent* event;
-                ASSERT_EQ(ANeuralNetworksExecution_startComputeWithDependencies(execution, nullptr,
-                                                                                0, 0, &event),
-                          ANEURALNETWORKS_NO_ERROR);
-                testTooLate();
-                ASSERT_EQ(ANeuralNetworksEvent_wait(event), ANEURALNETWORKS_NO_ERROR);
-                testTooLate();
+                int result = ANeuralNetworksExecution_startComputeWithDependencies(
+                        execution, nullptr, 0, 0, &event);
+                if (result == ANEURALNETWORKS_NO_ERROR) {
+                    result = ANeuralNetworksEvent_wait(event);
+                }
                 ANeuralNetworksEvent_free(event);
-                break;
+                return result;
             }
-            default:
-                FAIL() << "Unreachable";
         }
+    };
 
-        // close memory
-        ANeuralNetworksExecution_free(execution);
-        ANeuralNetworksMemory_free(memory);
-        close(memoryFd);
+    const std::vector<ExecutionType> kExecutionTypes = {
+            ExecutionType::ASYNC, ExecutionType::SYNC, ExecutionType::BURST, ExecutionType::FENCED};
+    for (auto executionType1 : kExecutionTypes) {
+        for (auto executionType2 : kExecutionTypes) {
+            SCOPED_TRACE(static_cast<uint32_t>(executionType1));
+            SCOPED_TRACE(static_cast<uint32_t>(executionType2));
+
+            ANeuralNetworksExecution* execution;
+            ASSERT_EQ(ANeuralNetworksExecution_create(compilation, &execution),
+                      ANEURALNETWORKS_NO_ERROR);
+
+            float in0[] = {0.0f, 0.0f}, in1[] = {1.0f, 1.0f}, out0[2];
+            int in2 = 0;
+            ASSERT_EQ(ANeuralNetworksExecution_setInput(execution, 0, nullptr, &in0, sizeof(in0)),
+                      ANEURALNETWORKS_NO_ERROR);
+            ASSERT_EQ(ANeuralNetworksExecution_setInput(execution, 1, nullptr, &in1, sizeof(in1)),
+                      ANEURALNETWORKS_NO_ERROR);
+            ASSERT_EQ(ANeuralNetworksExecution_setInput(execution, 2, nullptr, &in2, sizeof(in2)),
+                      ANEURALNETWORKS_NO_ERROR);
+            ASSERT_EQ(
+                    ANeuralNetworksExecution_setOutput(execution, 0, nullptr, &out0, sizeof(out0)),
+                    ANEURALNETWORKS_NO_ERROR);
+            ASSERT_EQ(ANeuralNetworksExecution_setReusable(execution, reusable),
+                      ANEURALNETWORKS_NO_ERROR);
+
+            // Compute on the same execution concurrently.
+            auto first = std::async(std::launch::async, [compute, executionType1, execution] {
+                return compute(executionType1, execution);
+            });
+            auto second = std::async(std::launch::async, [compute, executionType2, execution] {
+                return compute(executionType2, execution);
+            });
+            const int result1 = first.get();
+            const int result2 = second.get();
+
+            // At least one result must be ANEURALNETWORKS_NO_ERROR. One may return
+            // ANEURALNETWORKS_BAD_STATE if the other is already executing.
+            EXPECT_TRUE(result1 == ANEURALNETWORKS_BAD_STATE ||
+                        result1 == ANEURALNETWORKS_NO_ERROR);
+            EXPECT_TRUE(result2 == ANEURALNETWORKS_BAD_STATE ||
+                        result2 == ANEURALNETWORKS_NO_ERROR);
+            EXPECT_TRUE(result1 == ANEURALNETWORKS_NO_ERROR || result2 == ANEURALNETWORKS_NO_ERROR);
+
+            // If the execution is not reusable, one result must be ANEURALNETWORKS_BAD_STATE.
+            if (!reusable) {
+                EXPECT_TRUE(result1 == ANEURALNETWORKS_BAD_STATE ||
+                            result2 == ANEURALNETWORKS_BAD_STATE);
+            }
+
+            ANeuralNetworksExecution_free(execution);
+        }
     }
+}
+
+// Also see TEST_F(ValidationTestBurst, BurstComputeConcurrent)
+TEST_F(ValidationTestCompilation, ReusableExecutionConcurrent) {
+    testConcurrentExecution(/*reusable=*/true, mCompilation);
+}
+TEST_F(ValidationTestCompilation, NonReusableExecutionConcurrent) {
+    testConcurrentExecution(/*reusable=*/false, mCompilation);
 }
 
 TEST_F(ValidationTestExecution, SetLoopTimeout) {
@@ -1406,6 +1528,12 @@ TEST_F(ValidationTestExecution, EnableInputAndOutputPadding) {
     EXPECT_EQ(ANeuralNetworksExecution_enableInputAndOutputPadding(nullptr, true),
               ANEURALNETWORKS_UNEXPECTED_NULL);
     EXPECT_EQ(ANeuralNetworksExecution_enableInputAndOutputPadding(nullptr, false),
+              ANEURALNETWORKS_UNEXPECTED_NULL);
+}
+
+TEST_F(ValidationTestExecution, ExecutionSetReusable) {
+    EXPECT_EQ(ANeuralNetworksExecution_setReusable(nullptr, true), ANEURALNETWORKS_UNEXPECTED_NULL);
+    EXPECT_EQ(ANeuralNetworksExecution_setReusable(nullptr, false),
               ANEURALNETWORKS_UNEXPECTED_NULL);
 }
 

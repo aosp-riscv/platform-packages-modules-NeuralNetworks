@@ -1381,8 +1381,7 @@ int ANeuralNetworksEvent_wait(ANeuralNetworksEvent* event) {
     }
 
     IEvent* e = reinterpret_cast<IEvent*>(event);
-    e->wait();
-    return convertErrorStatusToResultCode(e->getStatus());
+    return convertErrorStatusToResultCode(e->wait());
 }
 
 void ANeuralNetworksEvent_free(ANeuralNetworksEvent* event) {
@@ -1481,7 +1480,8 @@ int ANeuralNetworksEvent_createFromSyncFenceFd(int syncFenceFd, ANeuralNetworksE
         *event = nullptr;
         return ANEURALNETWORKS_BAD_DATA;
     }
-    std::unique_ptr<SyncFenceEvent> e = std::make_unique<SyncFenceEvent>(syncFenceFd, nullptr);
+    std::unique_ptr<SyncFenceEvent> e =
+            std::make_unique<SyncFenceEvent>(syncFenceFd, nullptr, nullptr);
     *event = reinterpret_cast<ANeuralNetworksEvent*>(e.release());
     return ANEURALNETWORKS_NO_ERROR;
 }
@@ -1559,8 +1559,11 @@ int ANeuralNetworksExecution_startComputeWithDependencies(
 
     int syncFenceToSignal = -1;
     int n = r->computeFenced(waitForList, duration, &syncFenceToSignal);
-    std::unique_ptr<SyncFenceEvent> e =
-            std::make_unique<SyncFenceEvent>(syncFenceToSignal, r->getExecuteFencedInfoCallback());
+    std::unique_ptr<SyncFenceEvent> e = std::make_unique<SyncFenceEvent>(
+            syncFenceToSignal, r->getExecuteFencedInfoCallback(),
+            // TODO(miaowang): support dynamic output shape only with memory domain.
+            // For now just return empty output shapes.
+            [r](ErrorStatus status) { return r->finishComputation(status, {}); });
     if (n != ANEURALNETWORKS_NO_ERROR) {
         *event = nullptr;
     } else {
@@ -1634,4 +1637,14 @@ int ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput(
     }
     const CompilationBuilder* c = reinterpret_cast<const CompilationBuilder*>(compilation);
     return c->getPreferredMemoryPaddingForOutput(index, padding);
+}
+
+int ANeuralNetworksExecution_setReusable(ANeuralNetworksExecution* execution, bool reusable) {
+    NNTRACE_RT(NNTRACE_PHASE_EXECUTION, "ANeuralNetworksExecution_setReusable");
+    if (!execution) {
+        LOG(ERROR) << "ANeuralNetworksExecution_setReusable passed a nullptr";
+        return ANEURALNETWORKS_UNEXPECTED_NULL;
+    }
+    ExecutionBuilder* r = reinterpret_cast<ExecutionBuilder*>(execution);
+    return r->setReusable(reusable);
 }

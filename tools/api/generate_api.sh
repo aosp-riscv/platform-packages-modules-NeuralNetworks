@@ -39,7 +39,7 @@ function doit {
 
 case "${MODE}" in
   update)
-    doit ndk $(dirname $0)/NeuralNetworks.t ${NDKDIR}/NeuralNetworks.h
+    doit ndk $(dirname $0)/NeuralNetworksTypes.t ${NDKDIR}/NeuralNetworksTypes.h
     doit hal_1.0 ${HALDIR}/1.0/types.t ${HALDIR}/1.0/types.hal
     doit hal_1.1 ${HALDIR}/1.1/types.t ${HALDIR}/1.1/types.hal
     doit hal_1.2 ${HALDIR}/1.2/types.t ${HALDIR}/1.2/types.hal
@@ -47,11 +47,11 @@ case "${MODE}" in
     ;;
   ndk_hook)
     TEMPDIR=$(mktemp -d)
-    doit ndk $(dirname $0)/NeuralNetworks.t ${TEMPDIR}/NeuralNetworks.h
+    doit ndk $(dirname $0)/NeuralNetworksTypes.t ${TEMPDIR}/NeuralNetworksTypes.h
     if [[ ${RET} -eq 0 ]] ; then
-      ${DRYRUN} cmp -s ${NDKDIR}/NeuralNetworks.h ${TEMPDIR}/NeuralNetworks.h || {
+      ${DRYRUN} cmp -s ${NDKDIR}/NeuralNetworksTypes.h ${TEMPDIR}/NeuralNetworksTypes.h || {
         RET=1
-        echo >&2 "Error: NeuralNetworks.h is out of sync with NeuralNetworks.t or types.spec. Please run generate_api.sh before uploading."
+        echo >&2 "Error: NeuralNetworksTypes.h is out of sync with NeuralNetworksTypes.t or types.spec. Please run generate_api.sh before uploading."
       }
     fi
     ;;

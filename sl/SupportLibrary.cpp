@@ -116,6 +116,7 @@ std::unique_ptr<const NnApiSupportLibrary> LoadNnApiSupportLibrary(void* lib_han
     LOAD_FUNCTION(lib_handle, ANeuralNetworksExecution_setTimeout);
     LOAD_FUNCTION(lib_handle, ANeuralNetworksExecution_setLoopTimeout);
     LOAD_FUNCTION(lib_handle, ANeuralNetworksExecution_enableInputAndOutputPadding);
+    LOAD_FUNCTION(lib_handle, ANeuralNetworksExecution_setReusable);
     LOAD_FUNCTION(lib_handle, ANeuralNetworksEvent_createFromSyncFenceFd);
     LOAD_FUNCTION(lib_handle, ANeuralNetworksEvent_getSyncFenceFd);
     LOAD_FUNCTION(lib_handle, ANeuralNetworksEvent_free);

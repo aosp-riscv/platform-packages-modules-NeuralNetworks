@@ -502,6 +502,11 @@ class Execution {
                 mNnApi->ANeuralNetworksExecution_enableInputAndOutputPadding(mExecution, enable));
     }
 
+    Result setReusable(bool reusable) {
+        return static_cast<Result>(
+                mNnApi->ANeuralNetworksExecution_setReusable(mExecution, reusable));
+    }
+
     // By default, compute() uses the synchronous API. Either an argument or
     // setComputeMode() can be used to change the behavior of compute() to
     // use the burst API

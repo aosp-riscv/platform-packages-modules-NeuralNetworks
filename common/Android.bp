@@ -385,6 +385,7 @@ cc_library_static {
         "neuralnetworks_utils_defaults",
     ],
     srcs: [
+        "DynamicCLDeps.cpp",
         "SharedMemory.cpp",
         "SharedMemoryAndroid.cpp",
         "TypeUtils.cpp",

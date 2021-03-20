@@ -37,6 +37,7 @@ cc_defaults {
         "android.hidl.memory@1.0",
         "libandroid",
         "libbase",
+        "libbinder_ndk",
         "libcutils",
         "libfmq",
         "libhidlbase",
@@ -47,6 +48,7 @@ cc_defaults {
         "libutils",
     ],
     static_libs: [
+        "android.hardware.common-V2-ndk_platform",
         "android.hardware.neuralnetworks-V1-ndk_platform",
         "android.hardware.neuralnetworks@1.0",
         "android.hardware.neuralnetworks@1.1",

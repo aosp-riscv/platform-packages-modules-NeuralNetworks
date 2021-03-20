@@ -110,7 +110,7 @@ const std::string& Device::getVersionString() const {
 }
 
 Version Device::getFeatureLevel() const {
-    return Version::CURRENT_RUNTIME;
+    return Version::ANDROID_S;
 }
 
 DeviceType Device::getType() const {

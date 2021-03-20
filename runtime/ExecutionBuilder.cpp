@@ -162,33 +162,9 @@ const ModelBuilder* ExecutionBuilder::getSourceModel(uint32_t index) const {
     return mPlan->getSourceModels().getModel(index);
 }
 
-bool ExecutionBuilder::isFinished() const {
-    CHECK(!(mFinishedWithoutSyncFence && hasSyncFence()));
-    if (mFinishedWithoutSyncFence) {
-        return true;
-    }
-    if (hasSyncFence()) {
-        auto r = syncWait(mSyncFenceFd, 0);
-        CHECK(r != FenceState::UNKNOWN);
-        return r != FenceState::ACTIVE;
-    }
-    return false;
-}
-
-ExecutionBuilder::Completion ExecutionBuilder::completedWith() const {
-    CHECK(isFinished());
-    if (hasSyncFence()) {
-        auto r = syncWait(mSyncFenceFd, 0);
-        CHECK(r == FenceState::SIGNALED || r == FenceState::ERROR);
-        return (r == FenceState::SIGNALED) ? Completion::NO_ERROR : Completion::OTHER_ERROR;
-    } else {
-        return mCompletionWithoutSyncFence;
-    }
-}
-
 int ExecutionBuilder::setInput(uint32_t index, const ANeuralNetworksOperandType* type,
                                const void* buffer, size_t length) {
-    if (mStarted) {
+    if (computationStarted()) {
         LOG(ERROR) << "ANeuralNetworksExecution_setInput called after the "
                       "execution has started.";
         return ANEURALNETWORKS_BAD_STATE;
@@ -225,7 +201,7 @@ int ExecutionBuilder::setInputFromMemory(uint32_t index, const ANeuralNetworksOp
                                          size_t length) {
     // Should be similar to StepExecutor::setInputOrOutputFromMemory()
 
-    if (mStarted) {
+    if (computationStarted()) {
         LOG(ERROR) << "ANeuralNetworksExecution_setInputFromMemory called after the "
                       "execution has started.";
         return ANEURALNETWORKS_BAD_STATE;
@@ -270,7 +246,7 @@ int ExecutionBuilder::setInputFromMemory(uint32_t index, const ANeuralNetworksOp
 
 int ExecutionBuilder::setOutput(uint32_t index, const ANeuralNetworksOperandType* type,
                                 void* buffer, size_t length) {
-    if (mStarted) {
+    if (computationStarted()) {
         LOG(ERROR) << "ANeuralNetworksExecution_setOutput called after the "
                       "execution has started.";
         return ANEURALNETWORKS_BAD_STATE;
@@ -306,7 +282,7 @@ int ExecutionBuilder::setOutputFromMemory(uint32_t index, const ANeuralNetworksO
                                           size_t length) {
     // Should be similar to StepExecutor::setInputOrOutputFromMemory()
 
-    if (mStarted) {
+    if (computationStarted()) {
         LOG(ERROR) << "ANeuralNetworksExecution_setOutputFromMemory called after the "
                       "execution has started.";
         return ANEURALNETWORKS_BAD_STATE;
@@ -356,7 +332,7 @@ int ExecutionBuilder::setMeasureTiming(bool measure) {
                    << "with numDevices = 1";
         return ANEURALNETWORKS_BAD_DATA;
     }
-    if (mStarted) {
+    if (computationStarted()) {
         LOG(ERROR) << "ANeuralNetworksExecution_setMeasureTiming called after the "
                       "execution has started.";
         return ANEURALNETWORKS_BAD_STATE;
@@ -366,7 +342,7 @@ int ExecutionBuilder::setMeasureTiming(bool measure) {
 }
 
 int ExecutionBuilder::getDuration(int32_t durationCode, uint64_t* duration) const {
-    if (!isFinished()) {
+    if (!completed()) {
         LOG(ERROR) << "ANeuralNetworksExecution_getDuration called before the "
                       "execution has finished.";
         *duration = UINT64_MAX;
@@ -430,7 +406,7 @@ int ExecutionBuilder::setTimeoutDuration(uint64_t duration) {
                       "ANeuralNetworksCompilation_createForDevices with numDevices = 1";
         return ANEURALNETWORKS_BAD_DATA;
     }
-    if (mStarted) {
+    if (computationStarted()) {
         LOG(ERROR) << "ANeuralNetworksExecution_setTimeout called after the execution has started.";
         return ANEURALNETWORKS_BAD_STATE;
     }
@@ -447,7 +423,7 @@ std::optional<uint64_t> ExecutionBuilder::getTimeoutDuration() const {
 }
 
 int ExecutionBuilder::setLoopTimeout(uint64_t duration) {
-    if (mStarted) {
+    if (computationStarted()) {
         LOG(ERROR) << "ANeuralNetworksExecution_setLoopTimeout called after the "
                       "execution has started.";
         return ANEURALNETWORKS_BAD_STATE;
@@ -462,7 +438,7 @@ int ExecutionBuilder::setLoopTimeout(uint64_t duration) {
 }
 
 int ExecutionBuilder::enableInputAndOutputPadding(bool enable) {
-    if (mStarted) {
+    if (computationStarted()) {
         LOG(ERROR) << "ANeuralNetworksExecution_enableInputAndOutputPadding called after the "
                       "execution has started.";
         return ANEURALNETWORKS_BAD_STATE;
@@ -476,8 +452,18 @@ int ExecutionBuilder::enableInputAndOutputPadding(bool enable) {
     return ANEURALNETWORKS_NO_ERROR;
 }
 
+int ExecutionBuilder::setReusable(bool reusable) {
+    if (computationStarted()) {
+        LOG(ERROR) << "ANeuralNetworksExecution_setReusable called after the "
+                      "execution has started.";
+        return ANEURALNETWORKS_BAD_STATE;
+    }
+    mReusable = reusable;
+    return ANEURALNETWORKS_NO_ERROR;
+}
+
 int ExecutionBuilder::getOutputOperandDimensions(uint32_t index, uint32_t* dimensions) {
-    if (!isFinished()) {
+    if (!completed()) {
         LOG(ERROR) << "ANeuralNetworksExecution_getOutputOperandDimensions called before the "
                       "execution has finished.";
         return ANEURALNETWORKS_BAD_STATE;
@@ -506,7 +492,7 @@ int ExecutionBuilder::getOutputOperandDimensions(uint32_t index, uint32_t* dimen
 }
 
 int ExecutionBuilder::getOutputOperandRank(uint32_t index, uint32_t* rank) {
-    if (!isFinished()) {
+    if (!completed()) {
         LOG(ERROR) << "ANeuralNetworksExecution_getOutputOperandRank called before the "
                       "execution has finished.";
         return ANEURALNETWORKS_BAD_STATE;
@@ -525,6 +511,22 @@ int ExecutionBuilder::getOutputOperandRank(uint32_t index, uint32_t* rank) {
     *rank = static_cast<uint32_t>(mOutputs[index].dimensions().size());
     return mOutputs[index].isSufficient() ? ANEURALNETWORKS_NO_ERROR
                                           : ANEURALNETWORKS_OUTPUT_INSUFFICIENT_SIZE;
+}
+
+bool ExecutionBuilder::checkAndSetComputationState(const char* name) {
+    std::lock_guard<std::mutex> lock(mStateWriteMutex);
+    if (!mReusable && mState == State::COMPLETED) {
+        LOG(ERROR) << "ANeuralNetworksExecution_" << name
+                   << " called on a non-reusable execution that has already completed";
+        return false;
+    }
+    if (mState == State::COMPUTATION) {
+        LOG(ERROR) << "ANeuralNetworksExecution_" << name
+                   << " called on an execution that has already started";
+        return false;
+    }
+    mState = State::COMPUTATION;
+    return true;
 }
 
 // Attempt synchronous execution of full model on CPU.
@@ -809,14 +811,6 @@ static std::tuple<int, int, ExecuteFencedInfoCallback> startComputeFenced(
         // If the code reached the end of the plan without error, then return
         // with no error.
         if (executor == nullptr) {
-            // If the final step returns a -1 for sync fence, the execution is finished.
-            // Update the output shapes.
-            if (syncFence == -1) {
-                // TODO(miaowang): support dynamic output shape only with memory domain.
-                // For now just return the initial output shapes.
-                executionBuilder->finishWithoutSyncFence(
-                        ErrorStatus::NONE, executionBuilder->getInitialOutputShapes());
-            }
             return {ANEURALNETWORKS_NO_ERROR, syncFence, executeFencedInfoCallback};
         }
         const bool executorIsCpu = executor->isCpu();
@@ -868,9 +862,7 @@ static std::tuple<int, int, ExecuteFencedInfoCallback> startComputeFenced(
         }
     }
     auto [fullN, fullOutputShapes, fullTiming] = cpuFallbackFull(executionBuilder);
-    const ErrorStatus fullStatus = convertResultCodeToErrorStatus(fullN);
     syncFence = -1;
-    executionBuilder->finishWithoutSyncFence(fullStatus, fullOutputShapes);
     executionBuilder->reportTimingWithoutFencedExecutionCallback(fullTiming);
     return std::make_tuple(fullN, syncFence, nullptr);
 }
@@ -878,9 +870,7 @@ static std::tuple<int, int, ExecuteFencedInfoCallback> startComputeFenced(
 int ExecutionBuilder::computeFenced(const std::vector<int>& waitFor,
                                     uint64_t timeoutDurationAfterFence, int* syncFence) {
     CHECK(syncFence != nullptr);
-    if (mStarted) {
-        LOG(ERROR) << "ANeuralNetworksExecution_startComputeWithDependencies"
-                      " called on an execution that has already started";
+    if (!checkAndSetComputationState("startComputeWithDependencies")) {
         return ANEURALNETWORKS_BAD_STATE;
     }
     if (timeoutDurationAfterFence > 0) {
@@ -890,7 +880,7 @@ int ExecutionBuilder::computeFenced(const std::vector<int>& waitFor,
                        "duration on an ANeuralNetworksExecution "
                        "created from an ANeuralNetworksCompilation that was not created by "
                        "ANeuralNetworksCompilation_createForDevices with numDevices = 1";
-            return ANEURALNETWORKS_BAD_DATA;
+            return finishComputation(ANEURALNETWORKS_BAD_DATA, {});
         }
     }
     const auto deadline = makeDeadline(mTimeoutDuration);
@@ -898,14 +888,14 @@ int ExecutionBuilder::computeFenced(const std::vector<int>& waitFor,
         if (p.state() == ModelArgumentInfo::UNSPECIFIED) {
             LOG(ERROR) << "ANeuralNetworksExecution_startComputeWithDependencies"
                           " not all inputs specified";
-            return ANEURALNETWORKS_BAD_DATA;
+            return finishComputation(ANEURALNETWORKS_BAD_DATA, {});
         }
     }
     for (auto& p : mOutputs) {
         if (p.state() == ModelArgumentInfo::UNSPECIFIED) {
             LOG(ERROR) << "ANeuralNetworksExecution_startComputeWithDependencies"
                           " not all outputs specified";
-            return ANEURALNETWORKS_BAD_DATA;
+            return finishComputation(ANEURALNETWORKS_BAD_DATA, {});
         }
     }
     for (uint32_t i = 0; i < mOutputs.size(); i++) {
@@ -914,10 +904,13 @@ int ExecutionBuilder::computeFenced(const std::vector<int>& waitFor,
                                 "ANeuralNetworksExecution_startComputeWithDependencies", false)) {
             LOG(ERROR) << "ANeuralNetworksExecution_startComputeWithDependencies"
                           " not all outputs have fully specified dimensions";
-            return ANEURALNETWORKS_BAD_DATA;
+            return finishComputation(ANEURALNETWORKS_BAD_DATA, {});
         }
     }
-    mStarted = true;
+
+    // Unlike ExecutionBuilder::compute, we do not need to reset output dimensions here because
+    // fenced executions do not support dynamic output shape.
+
     const bool allowCpuFallback = DeviceManager::partitioningAllowsFallback(mPartitioning);
     std::shared_ptr<ExecutionPlan::Controller> controller = mPlan->makeController(this, nullptr);
     VLOG(EXECUTION) << "ExecutionBuilder::computeFenced";
@@ -926,6 +919,13 @@ int ExecutionBuilder::computeFenced(const std::vector<int>& waitFor,
             startComputeFenced(this, *mPlan, controller, waitFor, timeoutDurationAfterFence,
                                deadline, allowCpuFallback);
     *syncFence = mSyncFenceFd;
+    // If there is an error, call finishComputation to mark the computation as completed.
+    // Otherwise, we will call finishComputation in SyncFenceEvent::wait().
+    if (result != ANEURALNETWORKS_NO_ERROR) {
+        // TODO(miaowang): support dynamic output shape only with memory domain.
+        // For now just return empty output shapes.
+        result = finishComputation(result, {});
+    }
     return result;
 }
 
@@ -944,40 +944,40 @@ int ExecutionBuilder::compute(std::shared_ptr<ExecutionCallback>* synchronizatio
     // TODO validate that we have full types for all inputs and outputs,
     // that the graph is not cyclic,
 
-    auto name = [synchronous, burstBuilder] {
-        return burstBuilder ? "burstCompute" : synchronous ? "compute" : "startCompute";
-    };
-    if (mStarted) {
-        LOG(ERROR) << "ANeuralNetworksExecution_" << name()
-                   << " called on an execution that has already started";
+    const char* name = burstBuilder ? "burstCompute" : synchronous ? "compute" : "startCompute";
+    if (!checkAndSetComputationState(name)) {
         return ANEURALNETWORKS_BAD_STATE;
     }
     for (auto& p : mInputs) {
         if (p.state() == ModelArgumentInfo::UNSPECIFIED) {
-            LOG(ERROR) << "ANeuralNetworksExecution_" << name() << " not all inputs specified";
-            return ANEURALNETWORKS_BAD_DATA;
+            LOG(ERROR) << "ANeuralNetworksExecution_" << name << " not all inputs specified";
+            return finishComputation(ANEURALNETWORKS_BAD_DATA, {});
         } else if (p.state() == ModelArgumentInfo::MEMORY) {
             const RuntimeMemory* memory = mMemories[p.locationAndLength().poolIndex];
             if (!memory->getValidator().validateInputDimensions(p.dimensions())) {
-                return ANEURALNETWORKS_OP_FAILED;
+                return finishComputation(ANEURALNETWORKS_OP_FAILED, {});
             }
         }
     }
     for (auto& p : mOutputs) {
         if (p.state() == ModelArgumentInfo::UNSPECIFIED) {
-            LOG(ERROR) << "ANeuralNetworksExecution_" << name() << " not all outputs specified";
-            return ANEURALNETWORKS_BAD_DATA;
+            LOG(ERROR) << "ANeuralNetworksExecution_" << name << " not all outputs specified";
+            return finishComputation(ANEURALNETWORKS_BAD_DATA, {});
         }
     }
 
+    // Reset output dimensions.
+    for (auto& output : mOutputs) {
+        output.reset();
+    }
+
     auto wrappedFinish = [this](ErrorStatus error, const std::vector<OutputShape>& outputShapes) {
-        return finishWithoutSyncFence(error, outputShapes);
+        return finishComputation(error, outputShapes);
     };
 
     // TODO: For asynchronous execution, entire plan-based-path should run in an
     // asynchronous thread -- take the asynchronous thread logic out of
     // CpuPreparedModel::execute() and use it to wrap the plan-based-path.
-    mStarted = true;
     const bool allowCpuFallback = DeviceManager::partitioningAllowsFallback(mPartitioning);
     std::shared_ptr<ExecutionPlan::Controller> controller =
             mPlan->makeController(this, burstBuilder);
@@ -1088,33 +1088,36 @@ bool ExecutionBuilder::updateMemories() {
     return true;
 }
 
-ErrorStatus ExecutionBuilder::finishWithoutSyncFence(ErrorStatus status,
-                                                     const std::vector<OutputShape>& outputShapes) {
-    CHECK(!mFinishedWithoutSyncFence) << "ExecutionBuilder::finishWithoutSyncFence is called twice";
-    CHECK(!hasSyncFence())
-            << "ExecutionBuilder::finishWithoutSyncFence is called when hasSyncFence()";
+int ExecutionBuilder::finishComputation(int result, const std::vector<OutputShape>& outputShapes) {
+    const auto status = convertResultCodeToErrorStatus(result);
     if (!updateOutputShapes(status, outputShapes) || !updateMemories()) {
-        status = ErrorStatus::GENERAL_FAILURE;
+        result = ANEURALNETWORKS_OP_FAILED;
     }
-    bool success = status == ErrorStatus::NONE;
+    bool success = result == ANEURALNETWORKS_NO_ERROR;
     for (const auto& output : mOutputs) {
         if (output.state() != ModelArgumentInfo::MEMORY) continue;
         const RuntimeMemory* memory = mMemories[output.locationAndLength().poolIndex];
         memory->getValidator().setInitialized(success);
     }
-    switch (convertErrorStatusToResultCode(status)) {
+    switch (result) {
         case ANEURALNETWORKS_NO_ERROR:
-            mCompletionWithoutSyncFence = Completion::NO_ERROR;
+            mCompletion = Completion::NO_ERROR;
             break;
         case ANEURALNETWORKS_OUTPUT_INSUFFICIENT_SIZE:
-            mCompletionWithoutSyncFence = Completion::OUTPUT_INSUFFICIENT_SIZE;
+            mCompletion = Completion::OUTPUT_INSUFFICIENT_SIZE;
             break;
         default:
-            mCompletionWithoutSyncFence = Completion::OTHER_ERROR;
+            mCompletion = Completion::OTHER_ERROR;
             break;
     }
-    mFinishedWithoutSyncFence = true;
-    return status;
+    {
+        std::lock_guard<std::mutex> lock(mStateWriteMutex);
+        CHECK(mState != State::PREPARATION)
+                << "ExecutionBuilder::finishComputation is called in the preparation state";
+        CHECK(mState != State::COMPLETED) << "ExecutionBuilder::finishComputation is called twice";
+        mState = State::COMPLETED;
+    }
+    return result;
 }
 
 std::string toString(StepExecutor::UpdateOutputShapes updateOutputShapes) {

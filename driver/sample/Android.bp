@@ -153,7 +153,6 @@ cc_library_shared {
         "SampleDriverSL.cpp",
     ],
     shared_libs: [
-        "libandroid",
         "liblog",
         "libnativewindow",
     ],

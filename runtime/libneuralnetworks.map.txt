@@ -78,6 +78,7 @@ LIBNEURALNETWORKS {
     ANeuralNetworksExecution_setMeasureTiming; # introduced=Q
     ANeuralNetworksExecution_setOutput;
     ANeuralNetworksExecution_setOutputFromMemory;
+    ANeuralNetworksExecution_setReusable; # introduced=31
     ANeuralNetworksExecution_startCompute;
     ANeuralNetworksExecution_startComputeWithDependencies; # introduced=30
     ANeuralNetworksExecution_getOutputOperandDimensions; # introduced=Q

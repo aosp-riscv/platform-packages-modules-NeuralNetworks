@@ -42,7 +42,7 @@
 #include <hidlmemory/mapping.h>
 #include <sys/mman.h>
 #else
-#include <android/sharedmem.h>
+#include "DynamicCLDeps.h"
 #endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
 namespace android::nn {
@@ -164,12 +164,13 @@ GeneralResult<Mapping> mapAshmem(const Memory& memory) {
 GeneralResult<SharedMemory> allocateSharedMemory(size_t size) {
     CHECK_GT(size, 0u);
 
-    auto fd = base::unique_fd(ASharedMemory_create(nullptr, size));
+    const CompatibilityLayerMemory& memory = loadCompatibilityLayerMemory();
+    auto fd = base::unique_fd(memory.create(nullptr, size));
     if (!fd.ok()) {
         return NN_ERROR() << "ASharedMemory_create failed";
     }
 
-    const size_t readSize = ASharedMemory_getSize(fd.get());
+    const size_t readSize = memory.getSize(fd.get());
     CHECK_GE(readSize, size);
 
     constexpr int prot = PROT_READ | PROT_WRITE;

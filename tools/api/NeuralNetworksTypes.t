@@ -503,6 +503,11 @@ typedef struct ANeuralNetworksCompilation ANeuralNetworksCompilation;
  *    <li>Associate output buffers or memory regions to the model outputs with
  *        {@link ANeuralNetworksExecution_setOutput} or
  *        {@link ANeuralNetworksExecution_setOutputFromMemory}.</li>
+ *    <li>Optionally, configure the execution with
+ *        {@link ANeuralNetworksExecution_setLoopTimeout},
+ *        {@link ANeuralNetworksExecution_setMeasureTiming},
+ *        {@link ANeuralNetworksExecution_setReusable}, or
+ *        {@link ANeuralNetworksExecution_setTimeout}.
  *    <li>Apply the model with one of the following:</li><ul>
  *        <li>Asynchronously with {@link ANeuralNetworksExecution_startCompute}
  *            or with {@link ANeuralNetworksExecution_startComputeWithDependencies},
@@ -511,6 +516,8 @@ typedef struct ANeuralNetworksCompilation ANeuralNetworksCompilation;
  *        <li>Synchronously with {@link ANeuralNetworksExecution_compute}.</li>
  *        <li>Synchronously as part of an execution burst with
  *            {@link ANeuralNetworksExecution_burstCompute}.</li></ul>
+ *        If the execution has been marked as reusable, then you can
+ *        apply the model more than once.
  *    <li>Destroy the execution with
  *        {@link ANeuralNetworksExecution_free}.</li></ul></p>
  *
@@ -519,11 +526,16 @@ typedef struct ANeuralNetworksCompilation ANeuralNetworksCompilation;
  * memory region, or with an operand value in a memory object
  * ({@link ANeuralNetworksModel_setOperandValueFromMemory}).</p>
  *
- * <p>An execution cannot be modified once
- * {@link ANeuralNetworksExecution_burstCompute},
- * {@link ANeuralNetworksExecution_compute},
- * {@link ANeuralNetworksExecution_startCompute} or
- * {@link ANeuralNetworksExecution_startComputeWithDependencies} has been called on it.</p>
+ * <p>An execution is in the preparation state after it is created by
+ * {@link ANeuralNetworksExecution_create}. An execution may only be modified in the preparation
+ * state. Scheduling a computation by calling {@link ANeuralNetworksExecution_burstCompute},
+ * {@link ANeuralNetworksExecution_compute}, {@link ANeuralNetworksExecution_startCompute},
+ * or {@link ANeuralNetworksExecution_startComputeWithDependencies} will change the state of
+ * the execution object to the computation state. When the computation completes, the state of
+ * the execution object will change from the computation state to the completed state.
+ * The computation is completed when {@link ANeuralNetworksExecution_compute},
+ * {@link ANeuralNetworksExecution_burstCompute}, or {@link ANeuralNetworksEvent_wait}
+ * has returned.</p>
  *
  * <p>An execution can be applied to a model with
  * {@link ANeuralNetworksExecution_burstCompute},
@@ -531,6 +543,11 @@ typedef struct ANeuralNetworksCompilation ANeuralNetworksCompilation;
  * {@link ANeuralNetworksExecution_startCompute} or
  * {@link ANeuralNetworksExecution_startComputeWithDependencies} only once. Create new
  * executions to do new evaluations of the model.</p>
+ *
+ * <p>Starting at NNAPI feature level 5, the application may call
+ * {@link ANeuralNetworksExecution_setReusable} to set an execution to be reusable for multiple
+ * computations. The application may schedule and evaluate a computation again from the completed
+ * state of a reusable execution. The execution cannot be modified between computations.</p>
  *
  * <p>It is the application's responsibility to make sure that only one thread
  * modifies an execution at a given time. It is however safe for more than one
@@ -546,13 +563,15 @@ typedef struct ANeuralNetworksCompilation ANeuralNetworksCompilation;
  * <p>It is also the application's responsibility to ensure that there are no other
  * uses of the execution after calling {@link ANeuralNetworksExecution_free}.</p>
  *
- * <p>Multiple executions can be scheduled and evaluated concurrently, either by
- * means of {@link ANeuralNetworksExecution_compute} or
- * {@link ANeuralNetworksExecution_burstCompute} (which are synchronous) in
- * different threads, or by means of
+ * <p>It is the application's responsibility to ensure that there are no concurrent computations
+ * scheduled and evaluated on the same execution, either by means of
+ * {@link ANeuralNetworksExecution_compute} or
+ * {@link ANeuralNetworksExecution_burstCompute} (which are synchronous)
+ * in different threads, or by means of
  * {@link ANeuralNetworksExecution_startCompute} or
  * {@link ANeuralNetworksExecution_startComputeWithDependencies} (which are asynchronous).
- * (Concurrent uses of {@link ANeuralNetworksExecution_burstCompute} must be on
+ * It is however safe to schedule and evaluate multiple computations on different executions
+ * concurrently. (Concurrent uses of {@link ANeuralNetworksExecution_burstCompute} must be on
  * different burst objects.) The runtime makes no guarantee on the ordering of
  * completion of executions. If it's important to the application, the
  * application should enforce the ordering by ensuring that one execution

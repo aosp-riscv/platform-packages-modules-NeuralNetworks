@@ -79,6 +79,8 @@ class ExecutionBuilder {
 
     int enableInputAndOutputPadding(bool enable);
 
+    int setReusable(bool reusable);
+
     int computeFenced(const std::vector<int>& wait_for, uint64_t timeoutDurationAfterFence,
                       int* sync_fence);
 
@@ -108,14 +110,19 @@ class ExecutionBuilder {
         return getSourceModel(sourceOperandIndex.first)->getOperand(sourceOperandIndex.second);
     }
 
-    ErrorStatus finishWithoutSyncFence(ErrorStatus error,
-                                       const std::vector<OutputShape>& outputShapes);
+    // This method will be called at the end of all computation paths to change the state
+    // of the execution object and update output shapes / memories.
+    int finishComputation(int result, const std::vector<OutputShape>& outputShapes);
+    ErrorStatus finishComputation(ErrorStatus error, const std::vector<OutputShape>& outputShapes) {
+        const int result = finishComputation(convertErrorStatusToResultCode(error), outputShapes);
+        return convertResultCodeToErrorStatus(result);
+    }
 
     const ExecuteFencedInfoCallback& getExecuteFencedInfoCallback() {
         return mFencedExecutionCallback;
     }
 
-    bool inFlight() const { return mStarted && !isFinished(); }
+    bool inFlight() const { return mState == State::COMPUTATION; }
 
     const ModelArgumentInfo& getInputInfo(uint32_t index) const { return mInputs[index]; }
     const ModelArgumentInfo& getOutputInfo(uint32_t index) const { return mOutputs[index]; }
@@ -178,25 +185,31 @@ class ExecutionBuilder {
     // Amount of time to complete or abort a loop.
     uint64_t mLoopTimeoutDuration = operation_while::kTimeoutNsDefault;
 
-    // Properties cannot be set once the execution has started.
-    std::atomic_bool mStarted = false;
+    // The state of the execution.
+    // Properties can only been set when the execution is in the state State::PREPARATION.
+    // Timing and output shapes can only be queried when the execution is in the state
+    // State::COMPLETED.
+    enum class State { PREPARATION, COMPUTATION, COMPLETED };
+    std::atomic<State> mState = State::PREPARATION;
+    bool computationStarted() const { return mState != State::PREPARATION; }
+    bool completed() const { return mState == State::COMPLETED; }
 
-    // Timing and output shapes can only be queried after the execution is
-    // finished.  This field only becomes true if !hasSyncFence().
-    // See isFinished().
-    std::atomic_bool mFinishedWithoutSyncFence = false;
+    // Mutex to guard mState. Note that we only guard mState writes to reduce the number
+    // lock/unlock constructing an execution. We provide no thread-safety guarantee to the
+    // ANeuralNetworksExecution object.
+    std::mutex mStateWriteMutex;
 
-    bool isFinished() const;
+    // Return false if the execution is in a bad state for starting computation.
+    // Otherwise, return true and set the state to State::COMPUTATION.
+    bool checkAndSetComputationState(const char* name);
 
-    // With what error status has execution completed?  This field only takes on
-    // a meaningful value if !hasSyncFence().
-    // See completedWith().
+    // With what error status has execution completed?
     enum class Completion { NO_ERROR, OUTPUT_INSUFFICIENT_SIZE, OTHER_ERROR };
-    Completion mCompletionWithoutSyncFence = Completion::OTHER_ERROR;
-
-    // With what error status has execution completed?  Must only be called if
-    // isFinished().
-    Completion completedWith() const;
+    Completion mCompletion = Completion::OTHER_ERROR;
+    Completion completedWith() const {
+        CHECK(mState == State::COMPLETED);
+        return mCompletion;
+    }
 
     // The sync fence fd that is created in the computeFenced call, if any.
     // (Sometimes no sync fence fd will be created.)
@@ -216,6 +229,9 @@ class ExecutionBuilder {
     // enableInputAndOutputPadding may only be called before any call of
     // set{Input,Output}[FromMemory]
     bool mHasCalledSetInputOutput = false;
+
+    // Can compute APIs be invoked multiple times on the execution object?
+    bool mReusable = false;
 };
 
 // class StepExecutor is used to execute a single "step" in a

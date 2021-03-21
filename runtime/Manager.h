@@ -19,6 +19,7 @@
 
 #include <LegacyUtils.h>
 #include <android-base/macros.h>
+#include <nnapi/IBurst.h>
 #include <nnapi/IDevice.h>
 #include <nnapi/IPreparedModel.h>
 
@@ -38,7 +39,6 @@ namespace nn {
 
 // Forward declaration
 class Device;
-class ExecutionBurstController;
 class MetaModel;
 class ModelArgumentInfo;
 
@@ -57,9 +57,8 @@ class RuntimePreparedModel {
     virtual std::tuple<int, std::vector<OutputShape>, Timing> execute(
             const std::vector<ModelArgumentInfo>& inputs,
             const std::vector<ModelArgumentInfo>& outputs,
-            const std::vector<const RuntimeMemory*>& memories,
-            const std::shared_ptr<ExecutionBurstController>& burstController, MeasureTiming measure,
-            const OptionalTimePoint& deadline,
+            const std::vector<const RuntimeMemory*>& memories, const SharedBurst& burstController,
+            MeasureTiming measure, const OptionalTimePoint& deadline,
             const OptionalDuration& loopTimeoutDuration) const = 0;
 
     // Perform fenced computation with given input/output argument info and memory pools.
@@ -73,8 +72,10 @@ class RuntimePreparedModel {
             const OptionalDuration& loopTimeoutDuration,
             const OptionalDuration& timeoutDurationAfterFence) const = 0;
 
-    virtual std::shared_ptr<ExecutionBurstController> configureExecutionBurst(
-            bool preferPowerOverLatency) const = 0;
+    virtual GeneralResult<SharedBurst> configureExecutionBurst() const = 0;
+
+    // Returns a pair of {alignment, padding}.
+    virtual std::pair<uint32_t, uint32_t> getMemoryPreference() const = 0;
 };
 
 using ModelFactory = std::function<Model()>;

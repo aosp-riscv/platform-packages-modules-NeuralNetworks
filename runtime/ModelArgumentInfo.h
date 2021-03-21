@@ -39,10 +39,11 @@ class ModelArgumentInfo {
 
     static std::pair<int, ModelArgumentInfo> createFromPointer(
             const Operand& operand, const ANeuralNetworksOperandType* type,
-            void* data /* nullptr means HAS_NO_VALUE */, uint32_t length);
+            void* data /* nullptr means HAS_NO_VALUE */, uint32_t length,
+            bool paddingEnabled = true);
     static std::pair<int, ModelArgumentInfo> createFromMemory(
             const Operand& operand, const ANeuralNetworksOperandType* type, uint32_t poolIndex,
-            uint32_t offset, uint32_t length);
+            uint32_t offset, uint32_t length, bool paddingEnabled = true);
 
     enum State { POINTER, MEMORY, HAS_NO_VALUE, UNSPECIFIED };
 
@@ -78,6 +79,11 @@ class ModelArgumentInfo {
         return mLocationAndLength.length;
     }
 
+    uint32_t padding() const {
+        CHECK(mState == POINTER || mState == MEMORY);
+        return mLocationAndLength.padding;
+    }
+
     const DataLocation& locationAndLength() const {
         CHECK_EQ(mState, MEMORY);
         return mLocationAndLength;
@@ -87,6 +93,12 @@ class ModelArgumentInfo {
         return mLocationAndLength;
     }
 
+    // Restore updatable properties to creation-time values.
+    void reset() {
+        mDimensions = mInitialDimensions;
+        mIsSufficient = true;
+    }
+
    private:
     int updateDimensionInfo(const Operand& operand, const ANeuralNetworksOperandType* newType);
 
@@ -94,16 +106,26 @@ class ModelArgumentInfo {
     // has no value, or has not been specified.
     // If POINTER then:
     //   mLocationAndLength.length is valid.
-    //   mDimensions is valid.
     //   mBuffer is valid.
     // If MEMORY then:
     //   mLocationAndLength.{poolIndex, offset, length} is valid.
+    // In both MEMORY and POINTER cases:
+    //   mInitialDimensions is valid.
     //   mDimensions is valid.
-    State mState = UNSPECIFIED;            // fixed at creation
-    void* mBuffer = nullptr;               // fixed at creation
-    DataLocation mLocationAndLength;       // can be updated after creation
-    std::vector<uint32_t> mDimensions;     // can be updated after creation
-    bool mIsSufficient = true;             // can be updated after creation
+    //   mIsSufficient is valid.
+
+    // Properties that are fixed at creation.
+    State mState = UNSPECIFIED;
+    void* mBuffer = nullptr;
+    std::vector<uint32_t> mInitialDimensions;
+    // TODO(b/183021356): This field is logically fixed at creation, but actually updated in
+    // StepExecutor::mapInputOrOutput when constructing StepExecutor ModelArgumentInfos from
+    // ExecutionBuilder ModelArgumentInfos. We should find a way to avoid this update.
+    DataLocation mLocationAndLength;
+
+    // Properties that are updatable after creation.
+    std::vector<uint32_t> mDimensions;
+    bool mIsSufficient = true;
 };
 
 // Convert ModelArgumentInfo to HIDL Request::Argument. For pointer arguments, use the location

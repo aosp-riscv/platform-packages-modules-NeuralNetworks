@@ -19,6 +19,7 @@
 
 #include <ControlFlow.h>
 #include <CpuExecutor.h>
+#include <nnapi/IBurst.h>
 #include <nnapi/IPreparedModel.h>
 #include <nnapi/Validation.h>
 
@@ -42,7 +43,6 @@ class BurstBuilder;
 class CompilationBuilder;
 class Device;
 class DynamicTemporaries;
-class ExecutionBurstController;
 class ExecutionPlan;
 class ExecutionStep;
 class ModelBuilder;
@@ -54,7 +54,7 @@ class ExecutionBuilder {
     friend class StepExecutor;
 
    public:
-    ExecutionBuilder(const CompilationBuilder* compilation);
+    explicit ExecutionBuilder(const CompilationBuilder* compilation);
 
     int setInput(uint32_t index, const ANeuralNetworksOperandType* type, const void* buffer,
                  size_t length);
@@ -76,6 +76,10 @@ class ExecutionBuilder {
     int setLoopTimeout(uint64_t duration);
 
     uint64_t getLoopTimeoutDuration() const { return mLoopTimeoutDuration; }
+
+    int enableInputAndOutputPadding(bool enable);
+
+    int setReusable(bool reusable);
 
     int computeFenced(const std::vector<int>& wait_for, uint64_t timeoutDurationAfterFence,
                       int* sync_fence);
@@ -106,14 +110,19 @@ class ExecutionBuilder {
         return getSourceModel(sourceOperandIndex.first)->getOperand(sourceOperandIndex.second);
     }
 
-    ErrorStatus finishWithoutSyncFence(ErrorStatus error,
-                                       const std::vector<OutputShape>& outputShapes);
+    // This method will be called at the end of all computation paths to change the state
+    // of the execution object and update output shapes / memories.
+    int finishComputation(int result, const std::vector<OutputShape>& outputShapes);
+    ErrorStatus finishComputation(ErrorStatus error, const std::vector<OutputShape>& outputShapes) {
+        const int result = finishComputation(convertErrorStatusToResultCode(error), outputShapes);
+        return convertResultCodeToErrorStatus(result);
+    }
 
     const ExecuteFencedInfoCallback& getExecuteFencedInfoCallback() {
         return mFencedExecutionCallback;
     }
 
-    bool inFlight() const { return mStarted && !isFinished(); }
+    bool inFlight() const { return mState == State::COMPUTATION; }
 
     const ModelArgumentInfo& getInputInfo(uint32_t index) const { return mInputs[index]; }
     const ModelArgumentInfo& getOutputInfo(uint32_t index) const { return mOutputs[index]; }
@@ -176,25 +185,31 @@ class ExecutionBuilder {
     // Amount of time to complete or abort a loop.
     uint64_t mLoopTimeoutDuration = operation_while::kTimeoutNsDefault;
 
-    // Properties cannot be set once the execution has started.
-    std::atomic_bool mStarted = false;
+    // The state of the execution.
+    // Properties can only been set when the execution is in the state State::PREPARATION.
+    // Timing and output shapes can only be queried when the execution is in the state
+    // State::COMPLETED.
+    enum class State { PREPARATION, COMPUTATION, COMPLETED };
+    std::atomic<State> mState = State::PREPARATION;
+    bool computationStarted() const { return mState != State::PREPARATION; }
+    bool completed() const { return mState == State::COMPLETED; }
 
-    // Timing and output shapes can only be queried after the execution is
-    // finished.  This field only becomes true if !hasSyncFence().
-    // See isFinished().
-    std::atomic_bool mFinishedWithoutSyncFence = false;
+    // Mutex to guard mState. Note that we only guard mState writes to reduce the number
+    // lock/unlock constructing an execution. We provide no thread-safety guarantee to the
+    // ANeuralNetworksExecution object.
+    std::mutex mStateWriteMutex;
 
-    bool isFinished() const;
+    // Return false if the execution is in a bad state for starting computation.
+    // Otherwise, return true and set the state to State::COMPUTATION.
+    bool checkAndSetComputationState(const char* name);
 
-    // With what error status has execution completed?  This field only takes on
-    // a meaningful value if !hasSyncFence().
-    // See completedWith().
+    // With what error status has execution completed?
     enum class Completion { NO_ERROR, OUTPUT_INSUFFICIENT_SIZE, OTHER_ERROR };
-    Completion mCompletionWithoutSyncFence = Completion::OTHER_ERROR;
-
-    // With what error status has execution completed?  Must only be called if
-    // isFinished().
-    Completion completedWith() const;
+    Completion mCompletion = Completion::OTHER_ERROR;
+    Completion completedWith() const {
+        CHECK(mState == State::COMPLETED);
+        return mCompletion;
+    }
 
     // The sync fence fd that is created in the computeFenced call, if any.
     // (Sometimes no sync fence fd will be created.)
@@ -207,6 +222,16 @@ class ExecutionBuilder {
     // launch of execution on the driver fails, then this callback will be
     // nullptr.
     ExecuteFencedInfoCallback mFencedExecutionCallback;
+
+    // Whether set{Input,Output}[FromMemory] can accept padded length or not.
+    bool mInputAndOutputPaddingEnabled = false;
+
+    // enableInputAndOutputPadding may only be called before any call of
+    // set{Input,Output}[FromMemory]
+    bool mHasCalledSetInputOutput = false;
+
+    // Can compute APIs be invoked multiple times on the execution object?
+    bool mReusable = false;
 };
 
 // class StepExecutor is used to execute a single "step" in a
@@ -297,8 +322,7 @@ class StepExecutor {
 
     // Executes using the (driver, preparedModel) specified at construction time.
     std::tuple<int, std::vector<OutputShape>, Timing> compute(
-            const OptionalTimePoint& deadline,
-            const std::shared_ptr<ExecutionBurstController>& burstController = nullptr);
+            const OptionalTimePoint& deadline, const SharedBurst& burstController = nullptr);
 
     // Re-compiles and executes using the CPU, regardless of the (driver,
     // preparedModel) specified at construction time.
@@ -336,7 +360,7 @@ class StepExecutor {
 
     std::tuple<int, std::vector<OutputShape>, Timing> computeWithMemories(
             const OptionalTimePoint& deadline, const std::vector<const RuntimeMemory*>& memories,
-            const std::shared_ptr<ExecutionBurstController>& burstController = nullptr);
+            const SharedBurst& burstController = nullptr);
 
     // describes the full (possibly multiple-"step") execution
     ExecutionBuilder* mExecutionBuilder;

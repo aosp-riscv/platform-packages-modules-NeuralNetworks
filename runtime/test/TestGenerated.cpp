@@ -82,6 +82,7 @@ class GeneratedTests : public GeneratedTestBase {
     bool mExpectFailure = false;
     bool mTestQuantizationCoupling = false;
     bool mTestDeviceMemory = false;
+    bool mTestReusableExecution = true;
     Execution::ComputeMode mComputeMode = Execution::getComputeMode();
 };
 
@@ -104,7 +105,13 @@ class GeneratedValidationTests : public GeneratedTests {
 
 class QuantizationCouplingTest : public GeneratedTests {
    protected:
-    QuantizationCouplingTest() { mTestQuantizationCoupling = true; }
+    QuantizationCouplingTest() {
+        mTestQuantizationCoupling = true;
+        // QuantizationCouplingTest is intended for verifying if a driver supports ASYMM quant8, it
+        // must support SYMM quant8. All the models in QuantizationCouplingTest will also be
+        // executed in other test suites, so there is no need to test reusable execution again.
+        mTestReusableExecution = false;
+    }
 };
 
 class DeviceMemoryTest : public GeneratedTests {
@@ -139,16 +146,6 @@ std::optional<Compilation> GeneratedTests::compileModel(const Model& model) {
     }
 }
 
-static void computeWithPtrs(const TestModel& testModel, Execution* execution,
-                            Execution::ComputeMode computeMode, Result* result,
-                            std::vector<TestBuffer>* outputs) {
-    {
-        NNTRACE_APP(NNTRACE_PHASE_INPUTS_AND_OUTPUTS, "computeWithPtrs example");
-        createRequest(testModel, execution, outputs);
-    }
-    *result = execution->compute(computeMode);
-}
-
 static ANeuralNetworksMemory* createDeviceMemoryForInput(const Compilation& compilation,
                                                          uint32_t index) {
     ANeuralNetworksMemoryDesc* desc = nullptr;
@@ -175,52 +172,53 @@ static ANeuralNetworksMemory* createDeviceMemoryForOutput(const Compilation& com
     return memory;
 }
 
-// Set result = Result::NO_ERROR and outputs = {} if the test should be skipped.
-static void computeWithDeviceMemories(const Compilation& compilation, const TestModel& testModel,
-                                      Execution* execution, Execution::ComputeMode computeMode,
-                                      Result* result, std::vector<TestBuffer>* outputs) {
+static void createRequestWithDeviceMemories(const Compilation& compilation,
+                                            const TestModel& testModel, Execution* execution,
+                                            std::vector<Memory>* inputMemories,
+                                            std::vector<Memory>* outputMemories) {
     ASSERT_NE(execution, nullptr);
-    ASSERT_NE(result, nullptr);
-    ASSERT_NE(outputs, nullptr);
-    outputs->clear();
-    std::vector<Memory> inputMemories, outputMemories;
+    ASSERT_NE(inputMemories, nullptr);
+    ASSERT_NE(outputMemories, nullptr);
 
-    {
-        NNTRACE_APP(NNTRACE_PHASE_INPUTS_AND_OUTPUTS, "computeWithDeviceMemories example");
-        // Model inputs.
-        for (uint32_t i = 0; i < testModel.main.inputIndexes.size(); i++) {
-            SCOPED_TRACE("Input index: " + std::to_string(i));
-            const auto& operand = testModel.main.operands[testModel.main.inputIndexes[i]];
-            // Omitted input.
-            if (operand.data.size() == 0) {
-                ASSERT_EQ(Result::NO_ERROR, execution->setInput(i, nullptr, 0));
-                continue;
-            }
-
-            // Create device memory.
-            ANeuralNetworksMemory* memory = createDeviceMemoryForInput(compilation, i);
-            ASSERT_NE(memory, nullptr);
-            auto& wrapperMemory = inputMemories.emplace_back(memory);
-
-            // Copy data from TestBuffer to device memory.
-            auto ashmem = TestAshmem::createFrom(operand.data);
-            ASSERT_NE(ashmem, nullptr);
-            ASSERT_EQ(ANeuralNetworksMemory_copy(ashmem->get()->get(), memory),
-                      ANEURALNETWORKS_NO_ERROR);
-            ASSERT_EQ(Result::NO_ERROR, execution->setInputFromMemory(i, &wrapperMemory, 0, 0));
+    // Model inputs.
+    for (uint32_t i = 0; i < testModel.main.inputIndexes.size(); i++) {
+        SCOPED_TRACE("Input index: " + std::to_string(i));
+        const auto& operand = testModel.main.operands[testModel.main.inputIndexes[i]];
+        // Omitted input.
+        if (operand.data.size() == 0) {
+            ASSERT_EQ(Result::NO_ERROR, execution->setInput(i, nullptr, 0));
+            continue;
         }
 
-        // Model outputs.
-        for (uint32_t i = 0; i < testModel.main.outputIndexes.size(); i++) {
-            SCOPED_TRACE("Output index: " + std::to_string(i));
-            ANeuralNetworksMemory* memory = createDeviceMemoryForOutput(compilation, i);
-            ASSERT_NE(memory, nullptr);
-            auto& wrapperMemory = outputMemories.emplace_back(memory);
-            ASSERT_EQ(Result::NO_ERROR, execution->setOutputFromMemory(i, &wrapperMemory, 0, 0));
-        }
+        // Create device memory.
+        ANeuralNetworksMemory* memory = createDeviceMemoryForInput(compilation, i);
+        ASSERT_NE(memory, nullptr);
+        auto& wrapperMemory = inputMemories->emplace_back(memory);
+
+        // Copy data from TestBuffer to device memory.
+        auto ashmem = TestAshmem::createFrom(operand.data);
+        ASSERT_NE(ashmem, nullptr);
+        ASSERT_EQ(ANeuralNetworksMemory_copy(ashmem->get()->get(), memory),
+                  ANEURALNETWORKS_NO_ERROR);
+        ASSERT_EQ(Result::NO_ERROR, execution->setInputFromMemory(i, &wrapperMemory, 0, 0));
     }
 
-    *result = execution->compute(computeMode);
+    // Model outputs.
+    for (uint32_t i = 0; i < testModel.main.outputIndexes.size(); i++) {
+        SCOPED_TRACE("Output index: " + std::to_string(i));
+        ANeuralNetworksMemory* memory = createDeviceMemoryForOutput(compilation, i);
+        ASSERT_NE(memory, nullptr);
+        auto& wrapperMemory = outputMemories->emplace_back(memory);
+        ASSERT_EQ(Result::NO_ERROR, execution->setOutputFromMemory(i, &wrapperMemory, 0, 0));
+    }
+}
+
+static void copyResultsFromDeviceMemories(const TestModel& testModel,
+                                          const std::vector<Memory>& outputMemories,
+                                          std::vector<TestBuffer>* outputs) {
+    ASSERT_NE(outputs, nullptr);
+    ASSERT_EQ(testModel.main.outputIndexes.size(), outputMemories.size());
+    outputs->clear();
 
     // Copy out output results.
     for (uint32_t i = 0; i < testModel.main.outputIndexes.size(); i++) {
@@ -243,40 +241,79 @@ void GeneratedTests::executeWithCompilation(const Compilation& compilation,
     NNTRACE_APP(NNTRACE_PHASE_EXECUTION, "executeWithCompilation example");
 
     Execution execution(&compilation);
-    Result result;
+    execution.setReusable(mTestReusableExecution);
     std::vector<TestBuffer> outputs;
+    std::vector<Memory> inputMemories, outputMemories;
 
     if (mTestDeviceMemory) {
-        computeWithDeviceMemories(compilation, testModel, &execution, mComputeMode, &result,
-                                  &outputs);
+        createRequestWithDeviceMemories(compilation, testModel, &execution, &inputMemories,
+                                        &outputMemories);
     } else {
-        computeWithPtrs(testModel, &execution, mComputeMode, &result, &outputs);
+        createRequest(testModel, &execution, &outputs);
     }
 
-    if (result == Result::NO_ERROR && outputs.empty()) {
-        return;
-    }
+    const auto computeAndCheckResults = [this, &testModel, &execution, &outputs, &outputMemories] {
+        Result result = execution.compute(mComputeMode);
+        if (mTestDeviceMemory) {
+            copyResultsFromDeviceMemories(testModel, outputMemories, &outputs);
+        }
 
-    {
-        NNTRACE_APP(NNTRACE_PHASE_RESULTS, "executeWithCompilation example");
-        if (mExpectFailure) {
-            ASSERT_NE(result, Result::NO_ERROR);
+        if (result == Result::NO_ERROR && outputs.empty()) {
             return;
-        } else {
-            ASSERT_EQ(result, Result::NO_ERROR);
         }
 
-        // Check output dimensions.
-        for (uint32_t i = 0; i < testModel.main.outputIndexes.size(); i++) {
-            SCOPED_TRACE("Output index: " + std::to_string(i));
-            const auto& output = testModel.main.operands[testModel.main.outputIndexes[i]];
-            if (output.isIgnored) continue;
-            std::vector<uint32_t> actualDimensions;
-            ASSERT_EQ(Result::NO_ERROR, execution.getOutputOperandDimensions(i, &actualDimensions));
-            ASSERT_EQ(output.dimensions, actualDimensions);
-        }
+        {
+            NNTRACE_APP(NNTRACE_PHASE_RESULTS, "executeWithCompilation example");
+            if (mExpectFailure) {
+                ASSERT_NE(result, Result::NO_ERROR);
+                return;
+            } else {
+                ASSERT_EQ(result, Result::NO_ERROR);
+            }
 
-        checkResults(testModel, outputs);
+            // Check output dimensions.
+            for (uint32_t i = 0; i < testModel.main.outputIndexes.size(); i++) {
+                SCOPED_TRACE("Output index: " + std::to_string(i));
+                const auto& output = testModel.main.operands[testModel.main.outputIndexes[i]];
+                if (output.isIgnored) continue;
+                std::vector<uint32_t> actualDimensions;
+                ASSERT_EQ(Result::NO_ERROR,
+                          execution.getOutputOperandDimensions(i, &actualDimensions));
+                ASSERT_EQ(output.dimensions, actualDimensions);
+            }
+
+            checkResults(testModel, outputs);
+        }
+    };
+
+    computeAndCheckResults();
+    if (mTestReusableExecution) {
+        computeAndCheckResults();
+    }
+}
+
+static bool isPowerOfTwo(uint32_t x) {
+    return x > 0 && ((x & (x - 1)) == 0);
+}
+
+static void validateCompilationMemoryPreferences(const Compilation& compilation,
+                                                 const TestModel& testModel) {
+    for (uint32_t i = 0; i < testModel.main.inputIndexes.size(); i++) {
+        SCOPED_TRACE("Input index: " + std::to_string(i));
+        uint32_t alignment = 0, padding = 0;
+        ASSERT_EQ(compilation.getPreferredMemoryAlignmentForInput(i, &alignment), Result::NO_ERROR);
+        ASSERT_EQ(compilation.getPreferredMemoryPaddingForInput(i, &padding), Result::NO_ERROR);
+        EXPECT_TRUE(isPowerOfTwo(alignment)) << "alignment: " << alignment;
+        EXPECT_TRUE(isPowerOfTwo(padding)) << "padding: " << padding;
+    }
+    for (uint32_t i = 0; i < testModel.main.outputIndexes.size(); i++) {
+        SCOPED_TRACE("Output index: " + std::to_string(i));
+        uint32_t alignment = 0, padding = 0;
+        ASSERT_EQ(compilation.getPreferredMemoryAlignmentForOutput(i, &alignment),
+                  Result::NO_ERROR);
+        ASSERT_EQ(compilation.getPreferredMemoryPaddingForOutput(i, &padding), Result::NO_ERROR);
+        EXPECT_TRUE(isPowerOfTwo(alignment)) << "alignment: " << alignment;
+        EXPECT_TRUE(isPowerOfTwo(padding)) << "padding: " << padding;
     }
 }
 
@@ -285,6 +322,7 @@ void GeneratedTests::executeOnce(const Model& model, const TestModel& testModel)
     std::optional<Compilation> compilation = compileModel(model);
     // Early return if compilation fails. The compilation result code is checked in compileModel.
     if (!compilation) return;
+    validateCompilationMemoryPreferences(compilation.value(), testModel);
     executeWithCompilation(compilation.value(), testModel);
 }
 

@@ -39,6 +39,7 @@
 #include "Event.h"
 #include "ExecutionBuilder.h"
 #include "ExecutionCallback.h"
+#include "FeatureLevel.h"
 #include "Manager.h"
 #include "Memory.h"
 #include "ModelBuilder.h"
@@ -608,6 +609,13 @@ static_assert(ANEURALNETWORKS_PRIORITY_MEDIUM == 100,
 static_assert(ANEURALNETWORKS_PRIORITY_HIGH == 110, "ANEURALNETWORKS_PRIORITY_HIGH has changed");
 static_assert(ANEURALNETWORKS_PRIORITY_DEFAULT == ANEURALNETWORKS_PRIORITY_MEDIUM,
               "ANEURALNETWORKS_PRIORITY_DEFAULT has changed");
+
+// Asserts for feature levels
+static_assert(ANEURALNETWORKS_FEATURE_LEVEL_1 == 27, "ANEURALNETWORKS_FEATURE_LEVEL_1 has changed");
+static_assert(ANEURALNETWORKS_FEATURE_LEVEL_2 == 28, "ANEURALNETWORKS_FEATURE_LEVEL_2 has changed");
+static_assert(ANEURALNETWORKS_FEATURE_LEVEL_3 == 29, "ANEURALNETWORKS_FEATURE_LEVEL_3 has changed");
+static_assert(ANEURALNETWORKS_FEATURE_LEVEL_4 == 30, "ANEURALNETWORKS_FEATURE_LEVEL_4 has changed");
+static_assert(ANEURALNETWORKS_FEATURE_LEVEL_5 == 31, "ANEURALNETWORKS_FEATURE_LEVEL_5 has changed");
 
 int ANeuralNetworks_getDeviceCount(uint32_t* numDevices) {
     if (numDevices == nullptr) {
@@ -1373,8 +1381,7 @@ int ANeuralNetworksEvent_wait(ANeuralNetworksEvent* event) {
     }
 
     IEvent* e = reinterpret_cast<IEvent*>(event);
-    e->wait();
-    return convertErrorStatusToResultCode(e->getStatus());
+    return convertErrorStatusToResultCode(e->wait());
 }
 
 void ANeuralNetworksEvent_free(ANeuralNetworksEvent* event) {
@@ -1473,7 +1480,8 @@ int ANeuralNetworksEvent_createFromSyncFenceFd(int syncFenceFd, ANeuralNetworksE
         *event = nullptr;
         return ANEURALNETWORKS_BAD_DATA;
     }
-    std::unique_ptr<SyncFenceEvent> e = std::make_unique<SyncFenceEvent>(syncFenceFd, nullptr);
+    std::unique_ptr<SyncFenceEvent> e =
+            std::make_unique<SyncFenceEvent>(syncFenceFd, nullptr, nullptr);
     *event = reinterpret_cast<ANeuralNetworksEvent*>(e.release());
     return ANEURALNETWORKS_NO_ERROR;
 }
@@ -1551,12 +1559,92 @@ int ANeuralNetworksExecution_startComputeWithDependencies(
 
     int syncFenceToSignal = -1;
     int n = r->computeFenced(waitForList, duration, &syncFenceToSignal);
-    std::unique_ptr<SyncFenceEvent> e =
-            std::make_unique<SyncFenceEvent>(syncFenceToSignal, r->getExecuteFencedInfoCallback());
+    std::unique_ptr<SyncFenceEvent> e = std::make_unique<SyncFenceEvent>(
+            syncFenceToSignal, r->getExecuteFencedInfoCallback(),
+            // TODO(miaowang): support dynamic output shape only with memory domain.
+            // For now just return empty output shapes.
+            [r](ErrorStatus status) { return r->finishComputation(status, {}); });
     if (n != ANEURALNETWORKS_NO_ERROR) {
         *event = nullptr;
     } else {
         *event = reinterpret_cast<ANeuralNetworksEvent*>(e.release());
     }
     return n;
+}
+
+int64_t ANeuralNetworks_getRuntimeFeatureLevel() {
+    return kCurrentNNAPIRuntimeFeatureLevel;
+}
+
+int ANeuralNetworksExecution_enableInputAndOutputPadding(ANeuralNetworksExecution* execution,
+                                                         bool enable) {
+    NNTRACE_RT(NNTRACE_PHASE_EXECUTION, "ANeuralNetworksExecution_enableInputAndOutputPadding");
+    if (!execution) {
+        LOG(ERROR) << "ANeuralNetworksExecution_enableInputAndOutputPadding passed a nullptr";
+        return ANEURALNETWORKS_UNEXPECTED_NULL;
+    }
+    ExecutionBuilder* r = reinterpret_cast<ExecutionBuilder*>(execution);
+    return r->enableInputAndOutputPadding(enable);
+}
+
+int ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput(
+        const ANeuralNetworksCompilation* compilation, uint32_t index, uint32_t* alignment) {
+    NNTRACE_RT(NNTRACE_PHASE_COMPILATION,
+               "ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput");
+    if (!compilation || !alignment) {
+        LOG(ERROR) << "ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput passed a "
+                      "nullptr";
+        return ANEURALNETWORKS_UNEXPECTED_NULL;
+    }
+    const CompilationBuilder* c = reinterpret_cast<const CompilationBuilder*>(compilation);
+    return c->getPreferredMemoryAlignmentForInput(index, alignment);
+}
+
+int ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput(
+        const ANeuralNetworksCompilation* compilation, uint32_t index, uint32_t* padding) {
+    NNTRACE_RT(NNTRACE_PHASE_COMPILATION,
+               "ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput");
+    if (!compilation || !padding) {
+        LOG(ERROR) << "ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput passed a "
+                      "nullptr";
+        return ANEURALNETWORKS_UNEXPECTED_NULL;
+    }
+    const CompilationBuilder* c = reinterpret_cast<const CompilationBuilder*>(compilation);
+    return c->getPreferredMemoryPaddingForInput(index, padding);
+}
+
+int ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput(
+        const ANeuralNetworksCompilation* compilation, uint32_t index, uint32_t* alignment) {
+    NNTRACE_RT(NNTRACE_PHASE_COMPILATION,
+               "ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput");
+    if (!compilation || !alignment) {
+        LOG(ERROR) << "ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput passed a "
+                      "nullptr";
+        return ANEURALNETWORKS_UNEXPECTED_NULL;
+    }
+    const CompilationBuilder* c = reinterpret_cast<const CompilationBuilder*>(compilation);
+    return c->getPreferredMemoryAlignmentForOutput(index, alignment);
+}
+
+int ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput(
+        const ANeuralNetworksCompilation* compilation, uint32_t index, uint32_t* padding) {
+    NNTRACE_RT(NNTRACE_PHASE_COMPILATION,
+               "ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput");
+    if (!compilation || !padding) {
+        LOG(ERROR) << "ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput passed a "
+                      "nullptr";
+        return ANEURALNETWORKS_UNEXPECTED_NULL;
+    }
+    const CompilationBuilder* c = reinterpret_cast<const CompilationBuilder*>(compilation);
+    return c->getPreferredMemoryPaddingForOutput(index, padding);
+}
+
+int ANeuralNetworksExecution_setReusable(ANeuralNetworksExecution* execution, bool reusable) {
+    NNTRACE_RT(NNTRACE_PHASE_EXECUTION, "ANeuralNetworksExecution_setReusable");
+    if (!execution) {
+        LOG(ERROR) << "ANeuralNetworksExecution_setReusable passed a nullptr";
+        return ANEURALNETWORKS_UNEXPECTED_NULL;
+    }
+    ExecutionBuilder* r = reinterpret_cast<ExecutionBuilder*>(execution);
+    return r->setReusable(reusable);
 }

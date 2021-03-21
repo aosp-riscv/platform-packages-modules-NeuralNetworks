@@ -184,9 +184,8 @@ void SVDF::EvalFloat32(const float* inputData, const float* inputStateData, cons
     // Clear scratch (the matmul is accumulative).
     float scratch[batch_size * num_filters];
     std::fill_n(scratch, batch_size * num_filters, 0.0f);
-    tflite::tensor_utils::MatrixBatchVectorMultiplyAccumulate(weightsFeatureData, num_filters,
-                                                              input_size, inputData, batch_size,
-                                                              scratch, /*result_stride=*/1);
+    tflite::tensor_utils::MatrixBatchVectorMultiplyAccumulate(
+            weightsFeatureData, num_filters, input_size, inputData, batch_size, scratch);
 
     // Copy the latest activation from scratch into activation_state:
     // The last, i.e. (memory_size-1)th entry for each batch, and filter.
@@ -200,31 +199,20 @@ void SVDF::EvalFloat32(const float* inputData, const float* inputStateData, cons
         float* state_out_ptr_batch = outputStateData + b * memory_size * num_filters;
         float* scratch_ptr_batch = scratch + b * num_filters;
         tflite::tensor_utils::BatchVectorBatchVectorDotProduct(
-                weightsTimeData, state_out_ptr_batch, memory_size, num_filters, scratch_ptr_batch,
-                /*result_stride=*/1);
-    }
-
-    // Initialize output with bias if provided.
-    if (!IsNullInput(bias_)) {
-        tflite::tensor_utils::VectorBatchVectorAssign(biasData, num_units, batch_size, outputData);
-    } else {
-        std::fill_n(outputData, batch_size * num_units, 0.0f);
+                weightsTimeData, state_out_ptr_batch, memory_size, num_filters, scratch_ptr_batch);
     }
 
     // Reduction sum
-    for (int b = 0; b < batch_size; b++) {
-        float* output_ptr_batch = outputData + b * num_units;
-        float* scratch_ptr_batch = scratch + b * num_filters;
-        tflite::tensor_utils::ReductionSumVector(scratch_ptr_batch, output_ptr_batch, num_units,
-                                                 rank);
+    tflite::tensor_utils::ReductionSumVector(scratch, outputData, batch_size * num_units, rank);
+
+    // Add bias if provided.
+    if (!IsNullInput(bias_)) {
+        tflite::tensor_utils::VectorBatchVectorAdd(biasData, num_units, batch_size, outputData);
     }
 
     // Apply activation.
-    for (int b = 0; b < batch_size; b++) {
-        float* output_ptr_batch = outputData + b * num_units;
-        tflite::tensor_utils::ApplyActivationToVector(output_ptr_batch, num_units,
-                                                      params_.activation_, output_ptr_batch);
-    }
+    tflite::tensor_utils::ApplyActivationToVector(outputData, batch_size * num_units,
+                                                  params_.activation_, outputData);
     // Finished ApplyTimeWeightsBiasAndActivation
 
     // Right shift the state.

@@ -18,8 +18,9 @@
 
 #include "CompilationBuilder.h"
 
-#include <ExecutionBurstController.h>
 #include <LegacyUtils.h>
+#include <nnapi/IBurst.h>
+#include <nnapi/Types.h>
 
 #include <algorithm>
 #include <limits>
@@ -188,6 +189,117 @@ int CompilationBuilder::forTest_failPartitioning(int fail) {
     return ANEURALNETWORKS_NO_ERROR;
 }
 
+int CompilationBuilder::getPreferredMemoryAlignmentForInput(uint32_t index,
+                                                            uint32_t* alignment) const {
+    CHECK(alignment != nullptr);
+    if (!mFinished) {
+        LOG(ERROR) << "ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput passed an "
+                      "unfinished compilation";
+        return ANEURALNETWORKS_BAD_STATE;
+    }
+    if (!mPlan.isValid()) {
+        LOG(ERROR) << "ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput passed an "
+                      "invalid compilation";
+        return ANEURALNETWORKS_BAD_STATE;
+    }
+    if (index >= mModel->inputCount()) {
+        LOG(ERROR) << "ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput passed an "
+                      "invalid input index "
+                   << index;
+        return ANEURALNETWORKS_BAD_DATA;
+    }
+    uint32_t value = kMinMemoryAlignment;
+    mPlan.forEachStepRoleOfInput(
+            index, [&value](const RuntimePreparedModel* preparedModel, IOType, uint32_t) {
+                value = std::max(value, preparedModel->getMemoryPreference().first);
+            });
+    *alignment = value;
+    return ANEURALNETWORKS_NO_ERROR;
+}
+
+int CompilationBuilder::getPreferredMemoryPaddingForInput(uint32_t index, uint32_t* padding) const {
+    CHECK(padding != nullptr);
+    if (!mFinished) {
+        LOG(ERROR) << "ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput passed an "
+                      "unfinished compilation";
+        return ANEURALNETWORKS_BAD_STATE;
+    }
+    if (!mPlan.isValid()) {
+        LOG(ERROR) << "ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput passed an "
+                      "invalid compilation";
+        return ANEURALNETWORKS_BAD_STATE;
+    }
+    if (index >= mModel->inputCount()) {
+        LOG(ERROR) << "ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput passed an "
+                      "invalid input index "
+                   << index;
+        return ANEURALNETWORKS_BAD_DATA;
+    }
+    uint32_t value = kMinMemoryPadding;
+    mPlan.forEachStepRoleOfInput(
+            index, [&value](const RuntimePreparedModel* preparedModel, IOType, uint32_t) {
+                value = std::max(value, preparedModel->getMemoryPreference().second);
+            });
+    *padding = value;
+    return ANEURALNETWORKS_NO_ERROR;
+}
+
+int CompilationBuilder::getPreferredMemoryAlignmentForOutput(uint32_t index,
+                                                             uint32_t* alignment) const {
+    CHECK(alignment != nullptr);
+    if (!mFinished) {
+        LOG(ERROR) << "ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput passed an "
+                      "unfinished compilation";
+        return ANEURALNETWORKS_BAD_STATE;
+    }
+    if (!mPlan.isValid()) {
+        LOG(ERROR) << "ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput passed an "
+                      "invalid compilation";
+        return ANEURALNETWORKS_BAD_STATE;
+    }
+    if (index >= mModel->outputCount()) {
+        LOG(ERROR) << "ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput passed an "
+                      "invalid output index "
+                   << index;
+        return ANEURALNETWORKS_BAD_DATA;
+    }
+    uint32_t value = kMinMemoryAlignment;
+    mPlan.forEachStepRoleOfOutput(
+            index, [&value](const RuntimePreparedModel* preparedModel, IOType, uint32_t) {
+                value = std::max(value, preparedModel->getMemoryPreference().first);
+            });
+    *alignment = value;
+    return ANEURALNETWORKS_NO_ERROR;
+}
+
+int CompilationBuilder::getPreferredMemoryPaddingForOutput(uint32_t index,
+                                                           uint32_t* padding) const {
+    CHECK(padding != nullptr);
+    if (!mFinished) {
+        LOG(ERROR) << "ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput passed an "
+                      "unfinished compilation";
+        return ANEURALNETWORKS_BAD_STATE;
+    }
+    if (!mPlan.isValid()) {
+        LOG(ERROR) << "ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput passed an "
+                      "invalid compilation";
+        return ANEURALNETWORKS_BAD_STATE;
+    }
+    if (index >= mModel->outputCount()) {
+        LOG(ERROR) << "ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput passed an "
+                      "invalid output index "
+                   << index;
+        return ANEURALNETWORKS_BAD_DATA;
+    }
+    uint32_t value = kMinMemoryPadding;
+    mPlan.forEachStepRoleOfOutput(
+            index, [&value](const RuntimePreparedModel* preparedModel, IOType, uint32_t) {
+                value = std::max(value, preparedModel->getMemoryPreference().second);
+            });
+    *padding = value;
+    return ANEURALNETWORKS_NO_ERROR;
+}
+
 int CompilationBuilder::createExecution(ExecutionBuilder** execution) {
     if (!mFinished) {
         LOG(ERROR) << "ANeuralNetworksExecution_create passed an unfinished compilation";
@@ -214,8 +326,7 @@ int CompilationBuilder::createBurst(BurstBuilder** burst) {
         *burst = nullptr;
         return ANEURALNETWORKS_BAD_STATE;
     }
-    std::vector<std::shared_ptr<ExecutionBurstController>> burstControllers =
-            mPlan.makeBursts(mPreference);
+    std::vector<SharedBurst> burstControllers = mPlan.makeBursts();
     *burst = new (std::nothrow) BurstBuilder(this, std::move(burstControllers));
     return (*burst ? ANEURALNETWORKS_NO_ERROR : ANEURALNETWORKS_OUT_OF_MEMORY);
 }

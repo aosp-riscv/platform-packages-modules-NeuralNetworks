@@ -52,6 +52,10 @@ constexpr uint32_t kByteSizeOfCacheToken = 32;
 constexpr uint32_t kMaxNumberOfCacheFiles = 32;
 constexpr uint8_t kExtensionTypeBits = 16;
 constexpr uint8_t kExtensionPrefixBits = 16;
+constexpr uint32_t kDefaultRequestMemoryAlignment = 64;
+constexpr uint32_t kDefaultRequestMemoryPadding = 64;
+constexpr uint32_t kMinMemoryAlignment = alignof(std::max_align_t);
+constexpr uint32_t kMinMemoryPadding = 1;
 
 // Aliases
 
@@ -205,6 +209,7 @@ struct DataLocation {
     uint32_t poolIndex = 0;
     uint32_t offset = 0;
     uint32_t length = 0;
+    uint32_t padding = 0;
 };
 
 struct Operand {

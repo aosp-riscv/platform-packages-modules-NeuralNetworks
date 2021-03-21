@@ -19,10 +19,10 @@
 #include "Memory.h"
 
 #include <CpuExecutor.h>
-#include <ExecutionBurstController.h>
 #include <LegacyUtils.h>
 #include <android-base/scopeguard.h>
 #include <android/hardware_buffer.h>
+#include <nnapi/IBurst.h>
 #include <nnapi/SharedMemory.h>
 #include <nnapi/TypeUtils.h>
 #include <nnapi/Types.h>
@@ -192,16 +192,6 @@ RuntimeMemory::RuntimeMemory(SharedMemory memory, std::unique_ptr<MemoryValidato
 
 RuntimeMemory::RuntimeMemory(SharedBuffer buffer) : kBuffer(std::move(buffer)) {}
 
-RuntimeMemory::~RuntimeMemory() {
-#ifndef NN_NO_BURST
-    for (const auto& [ptr, weakBurst] : mUsedBy) {
-        if (const std::shared_ptr<ExecutionBurstController> burst = weakBurst.lock()) {
-            burst->freeMemory(getKey());
-        }
-    }
-#endif  // NN_NO_BURST
-}
-
 Request::MemoryPool RuntimeMemory::getMemoryPool() const {
     if (kBuffer != nullptr) {
         return kBuffer->getToken();
@@ -218,13 +208,11 @@ std::optional<RunTimePoolInfo> RuntimeMemory::getRunTimePoolInfo() const {
     return mCachedRunTimePoolInfo;
 }
 
-intptr_t RuntimeMemory::getKey() const {
-    return reinterpret_cast<intptr_t>(this);
-}
-
-void RuntimeMemory::usedBy(const std::shared_ptr<ExecutionBurstController>& burst) const {
-    std::lock_guard<std::mutex> guard(mMutex);
-    mUsedBy.emplace(burst.get(), burst);
+void RuntimeMemory::hold(const IBurst::OptionalCacheHold& cacheHold) const {
+    if (cacheHold != nullptr) {
+        std::lock_guard<std::mutex> guard(mMutex);
+        mHold.insert(cacheHold);
+    }
 }
 
 static int copyHidlMemories(const std::optional<RunTimePoolInfo>& src,
@@ -469,7 +457,7 @@ int MemoryBuilder::finish() {
         mAllocator = nullptr;
     }
     mSupportsAhwb = std::all_of(devices.begin(), devices.end(), [](const auto* device) {
-        return device->getFeatureLevel() >= kHalVersionV1_3ToApi.android;
+        return device->getFeatureLevel() >= kHalVersionV1_3ToApi.featureLevel;
     });
     mShouldFallback = std::none_of(mRoles.begin(), mRoles.end(), [](const auto& role) {
         const auto* cb = std::get<const CompilationBuilder*>(role);

@@ -19,13 +19,14 @@
 #include "Manager.h"
 
 #include <CpuExecutor.h>
-#include <ExecutionBurstController.h>
 #include <LegacyUtils.h>
 #include <MetaModel.h>
 #include <Tracing.h>
+#include <nnapi/IBurst.h>
 #include <nnapi/IDevice.h>
 #include <nnapi/IPreparedModel.h>
 #include <nnapi/SharedMemory.h>
+#include <nnapi/Types.h>
 #include <nnapi/Validation.h>
 
 #include <algorithm>
@@ -37,6 +38,7 @@
 #include <vector>
 
 #include "ExecutionCallback.h"
+#include "FeatureLevel.h"
 #include "Memory.h"
 #include "ModelArgumentInfo.h"
 #include "TypeManager.h"
@@ -50,12 +52,6 @@
 #include "AppInfoFetcher.h"
 #endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
-#ifndef NN_NO_BURST
-#include <HalInterfaces.h>
-#include <LegacyHalUtils.h>
-#include <android-base/properties.h>
-#endif  // NN_NO_BURST
-
 namespace android {
 namespace nn {
 
@@ -67,7 +63,7 @@ class DriverDevice : public Device {
     static std::shared_ptr<DriverDevice> create(SharedDevice device);
 
     // Prefer using DriverDevice::create
-    DriverDevice(SharedDevice device);
+    explicit DriverDevice(SharedDevice device);
 
     const std::string& getName() const override { return kInterface->getName(); }
     const std::string& getVersionString() const override { return kInterface->getVersionString(); }
@@ -132,24 +128,6 @@ class DriverDevice : public Device {
 #endif  // NN_DEBUGGABLE
 };
 
-#ifndef NN_NO_BURST
-// This is the amount of time the ExecutionBurstController should spend polling
-// the FMQ to see if it has data available before it should fall back to
-// waiting on the futex.
-static std::chrono::microseconds getPollingTimeWindow() {
-    constexpr int32_t defaultPollingTimeWindow = 50;
-#ifdef NN_DEBUGGABLE
-    constexpr int32_t minPollingTimeWindow = 0;
-    const int32_t selectedPollingTimeWindow =
-            base::GetIntProperty("debug.nn.burst-conrtoller-polling-window",
-                                 defaultPollingTimeWindow, minPollingTimeWindow);
-    return std::chrono::microseconds{selectedPollingTimeWindow};
-#else
-    return std::chrono::microseconds{defaultPollingTimeWindow};
-#endif  // NN_DEBUGGABLE
-}
-#endif  // NN_NO_BURST
-
 // A RuntimePreparedModel with underlying IPreparedModel instance return by actual driver.
 class DriverPreparedModel : public RuntimePreparedModel {
    public:
@@ -164,9 +142,8 @@ class DriverPreparedModel : public RuntimePreparedModel {
     std::tuple<int, std::vector<OutputShape>, Timing> execute(
             const std::vector<ModelArgumentInfo>& inputs,
             const std::vector<ModelArgumentInfo>& outputs,
-            const std::vector<const RuntimeMemory*>& memories,
-            const std::shared_ptr<ExecutionBurstController>& burstController, MeasureTiming measure,
-            const OptionalTimePoint& deadline,
+            const std::vector<const RuntimeMemory*>& memories, const SharedBurst& burstController,
+            MeasureTiming measure, const OptionalTimePoint& deadline,
             const OptionalDuration& loopTimeoutDuration) const override;
 
     std::tuple<int, int, ExecuteFencedInfoCallback, Timing> executeFenced(
@@ -177,26 +154,18 @@ class DriverPreparedModel : public RuntimePreparedModel {
             const OptionalDuration& loopTimeoutDuration,
             const OptionalDuration& timeoutDurationAfterFence) const override;
 
-    std::shared_ptr<ExecutionBurstController> configureExecutionBurst(
-            bool preferPowerOverLatency) const override {
-#ifndef NN_NO_BURST
-        std::any resource = mPreparedModel->getUnderlyingResource();
-        sp<V1_2::IPreparedModel> preparedModel;
-        if (auto* preparedModelV1_3 = std::any_cast<sp<V1_3::IPreparedModel>>(&resource)) {
-            preparedModel = *preparedModelV1_3;
-        } else if (auto* preparedModelV1_2 = std::any_cast<sp<V1_2::IPreparedModel>>(&resource)) {
-            preparedModel = *preparedModelV1_2;
+    GeneralResult<SharedBurst> configureExecutionBurst() const override {
+        return mPreparedModel->configureExecutionBurst();
+    }
+
+    std::pair<uint32_t, uint32_t> getMemoryPreference() const override {
+        if (mDevice->getFeatureLevel() >= __ANDROID_API_S__) {
+            return {kDefaultRequestMemoryAlignment, kDefaultRequestMemoryPadding};
         } else {
-            return nullptr;
+            // We are not able to pass memory padding information to HIDL drivers, so return the
+            // minimum padding.
+            return {kDefaultRequestMemoryAlignment, kMinMemoryPadding};
         }
-        const auto pollingTimeWindow =
-                (preferPowerOverLatency ? std::chrono::microseconds{0} : getPollingTimeWindow());
-        return ExecutionBurstController::create(preparedModel, pollingTimeWindow);
-#else
-        (void)preferPowerOverLatency;
-        LOG(ERROR) << "DriverPreparedModel::configureExecutionBurst: built without burst support";
-        return nullptr;
-#endif  // NN_NO_BURST
     }
 
    private:
@@ -227,17 +196,20 @@ int64_t DriverDevice::getFeatureLevel() const {
     Version featureLevel = kInterface->getFeatureLevel();
     switch (featureLevel) {
         case Version::ANDROID_OC_MR1:
-            return __ANDROID_API_O_MR1__;
+            return ANEURALNETWORKS_FEATURE_LEVEL_1;
         case Version::ANDROID_P:
-            return __ANDROID_API_P__;
+            return ANEURALNETWORKS_FEATURE_LEVEL_2;
         case Version::ANDROID_Q:
-            return __ANDROID_API_Q__;
+            return ANEURALNETWORKS_FEATURE_LEVEL_3;
         case Version::ANDROID_R:
-            return __ANDROID_API_R__;
-        default:
-            LOG(FATAL) << "Unsupported driver feature level: " << featureLevel;
-            return -1;
-    };
+            return ANEURALNETWORKS_FEATURE_LEVEL_4;
+        case Version::ANDROID_S:
+            return ANEURALNETWORKS_FEATURE_LEVEL_5;
+        case Version::CURRENT_RUNTIME:
+            break;
+    }
+    LOG(FATAL) << "Unsupported driver feature level: " << featureLevel;
+    return -1;
 }
 
 GeneralResult<std::vector<bool>> DriverDevice::getSupportedOperationsImpl(
@@ -404,7 +376,7 @@ std::pair<int, std::shared_ptr<RuntimePreparedModel>> DriverDevice::prepareModel
         const std::optional<CacheToken>& maybeToken) const {
     // Attempt to compile from cache if token is present.
     if (maybeToken.has_value()) {
-        const auto result = prepareModelFromCacheInternal(deadline, cacheDir, *maybeToken);
+        auto result = prepareModelFromCacheInternal(deadline, cacheDir, *maybeToken);
         if (result.has_value()) {
             return {ANEURALNETWORKS_NO_ERROR,
                     std::make_shared<DriverPreparedModel>(this, std::move(result).value())};
@@ -512,9 +484,9 @@ allocatePointerArgumentsToPool(const std::vector<ModelArgumentInfo>& args,
 // execution.
 std::tuple<int, std::vector<OutputShape>, Timing> DriverPreparedModel::execute(
         const std::vector<ModelArgumentInfo>& inputs, const std::vector<ModelArgumentInfo>& outputs,
-        const std::vector<const RuntimeMemory*>& memories,
-        const std::shared_ptr<ExecutionBurstController>& burstController, MeasureTiming measure,
-        const OptionalTimePoint& deadline, const OptionalDuration& loopTimeoutDuration) const {
+        const std::vector<const RuntimeMemory*>& memories, const SharedBurst& burstController,
+        MeasureTiming measure, const OptionalTimePoint& deadline,
+        const OptionalDuration& loopTimeoutDuration) const {
     NNTRACE_RT(NNTRACE_PHASE_INPUTS_AND_OUTPUTS, "DriverPreparedModel::execute");
 
     // Make a copy of the memory tracker as we will append memory pools for pointer arguments.
@@ -558,53 +530,41 @@ std::tuple<int, std::vector<OutputShape>, Timing> DriverPreparedModel::execute(
     NNTRACE_FULL_SWITCH(NNTRACE_LAYER_IPC, NNTRACE_PHASE_EXECUTION,
                         "DriverPreparedModel::execute::execute");
 
+    ExecutionResult<std::pair<std::vector<OutputShape>, Timing>> result;
+
+    // compute using burst if present, otherwise compute from IPreparedModel
+    const bool burstCompute = (burstController != nullptr);
+    if (burstCompute) {
+        for (const RuntimeMemory* memory : localMemories) {
+            const auto pool = memory->getMemoryPool();
+            if (const auto* maybeMemory = std::get_if<SharedMemory>(&pool)) {
+                auto cacheHold = burstController->cacheMemory(*maybeMemory);
+                memory->hold(cacheHold);
+            }
+        }
+
+        VLOG(EXECUTION) << "Before burstController->execute() " << SHOW_IF_DEBUG(request);
+
+        result = burstController->execute(request, measure);
+    } else {
+        result = mPreparedModel->execute(request, measure, deadline, loopTimeoutDuration);
+    }
+
     int n = ANEURALNETWORKS_OP_FAILED;
     std::vector<OutputShape> outputShapes;
     Timing timing;
 
-    // compute using burst if present
-    const bool burstCompute = (burstController != nullptr);
-    bool burstFallback = true;
-#ifndef NN_NO_BURST
-    if (burstCompute) {
-        const bool compliant = compliantWithV1_2(convertToV1_3(request));
-        if (compliant) {
-            V1_0::Request request12 = convertToV1_2(convertToV1_3(request));
-            std::vector<intptr_t> memoryIds;
-            memoryIds.reserve(localMemories.size());
-            for (const RuntimeMemory* memory : localMemories) {
-                memory->usedBy(burstController);
-                memoryIds.push_back(memory->getKey());
-            }
-
-            VLOG(EXECUTION) << "Before ExecutionBurstController->compute() "
-                            << SHOW_IF_DEBUG(toString(request12));
-            std::vector<V1_2::OutputShape> halOutputShapes;
-            V1_2::Timing halTiming;
-            std::tie(n, halOutputShapes, halTiming, burstFallback) =
-                    burstController->compute(request12, convertToV1_2(measure), memoryIds);
-            outputShapes = uncheckedConvert(halOutputShapes);
-            timing = uncheckedConvert(halTiming);
-        }
-    }
-#else
-    CHECK(!burstCompute) << "built without burst";
-#endif  // NN_NO_BURST
-
-    // compute from IPreparedModel if either:
-    // (1) burst was not supplied, or
-    // (2) the burst execution failed and requested a fallback execution
-    if (!burstCompute || burstFallback) {
-        auto result = mPreparedModel->execute(request, measure, deadline, loopTimeoutDuration);
-        if (result.ok()) {
-            n = ANEURALNETWORKS_NO_ERROR;
-            std::tie(outputShapes, timing) = std::move(result).value();
-        } else {
-            LOG(ERROR) << "IPreparedModel::execute() error: " << result.error().message;
-            n = convertErrorStatusToResultCode(result.error().code);
-            if (result.error().code == ErrorStatus::OUTPUT_INSUFFICIENT_SIZE) {
-                outputShapes = result.error().outputShapes;
-            }
+    if (result.ok()) {
+        n = ANEURALNETWORKS_NO_ERROR;
+        std::tie(outputShapes, timing) = std::move(result).value();
+    } else {
+        auto [message, code, returnedOutputShapes] = std::move(result).error();
+        VLOG(EXECUTION) << "**Execution failed** (ResultCode = " << n << ")";
+        LOG(ERROR) << (burstCompute ? "IBurst" : "IPreparedModel")
+                   << "::execute(...) error: " << message;
+        n = convertErrorStatusToResultCode(code);
+        if (code == ErrorStatus::OUTPUT_INSUFFICIENT_SIZE) {
+            outputShapes = std::move(returnedOutputShapes);
         }
     }
 
@@ -693,7 +653,7 @@ std::tuple<int, int, ExecuteFencedInfoCallback, Timing> DriverPreparedModel::exe
     SyncFence syncFence = SyncFence::createAsSignaled();
     ExecuteFencedInfoCallback executeFencedInfoCallback = nullptr;
     Timing timing = {};
-    if (mDevice->getFeatureLevel() >= kHalVersionV1_3ToApi.android) {
+    if (mDevice->getFeatureLevel() >= kHalVersionV1_3ToApi.featureLevel) {
         auto result = mPreparedModel->executeFenced(request, waitForHandles, measure, deadline,
                                                     loopTimeoutDuration, timeoutDurationAfterFence);
         if (!result.ok()) {
@@ -800,7 +760,7 @@ class CpuDevice : public Device {
 
    private:
     CpuDevice() = default;
-    const int64_t kFeatureLevel = __ANDROID_API__;
+    const int64_t kFeatureLevel = kCurrentNNAPIRuntimeFeatureLevel;
     const std::string kName = "nnapi-reference";
 #ifndef NN_COMPATIBILITY_LIBRARY_BUILD
     const std::string kVersionString = build::GetBuildNumber();
@@ -827,15 +787,11 @@ class CpuPreparedModel : public RuntimePreparedModel {
     std::tuple<int, std::vector<OutputShape>, Timing> execute(
             const std::vector<ModelArgumentInfo>& inputs,
             const std::vector<ModelArgumentInfo>& outputs,
-            const std::vector<const RuntimeMemory*>& memories,
-            const std::shared_ptr<ExecutionBurstController>& burstController, MeasureTiming measure,
-            const OptionalTimePoint& deadline,
+            const std::vector<const RuntimeMemory*>& memories, const SharedBurst& burstController,
+            MeasureTiming measure, const OptionalTimePoint& deadline,
             const OptionalDuration& loopTimeoutDuration) const override;
 
-    std::shared_ptr<ExecutionBurstController> configureExecutionBurst(
-            bool /*preferPowerOverLatency*/) const override {
-        return nullptr;
-    }
+    GeneralResult<SharedBurst> configureExecutionBurst() const override { return nullptr; }
 
     std::tuple<int, int, ExecuteFencedInfoCallback, Timing> executeFenced(
             const std::vector<ModelArgumentInfo>& inputs,
@@ -845,11 +801,19 @@ class CpuPreparedModel : public RuntimePreparedModel {
             const OptionalDuration& loopTimeoutDuration,
             const OptionalDuration& timeoutDurationAfterFence) const override;
 
+    std::pair<uint32_t, uint32_t> getMemoryPreference() const override {
+        return {kPreferredAlignment, kPreferredPadding};
+    }
+
     // Prefer to use CpuPreparedModel::create.
     CpuPreparedModel(Model model, std::vector<RunTimePoolInfo> poolInfos)
         : mModel(std::move(model)), mModelPoolInfos(std::move(poolInfos)) {}
 
    private:
+    // TFLite kernels prefers 64 bytes for padding and alignment.
+    static constexpr uint32_t kPreferredAlignment = 64;
+    static constexpr uint32_t kPreferredPadding = 64;
+
     const Model mModel;
     const std::vector<RunTimePoolInfo> mModelPoolInfos;
 };
@@ -974,8 +938,7 @@ std::tuple<int, int, ExecuteFencedInfoCallback, Timing> CpuPreparedModel::execut
 // Will choose between sync/async execution according to DeviceManager::mSyncExecCpu.
 std::tuple<int, std::vector<OutputShape>, Timing> CpuPreparedModel::execute(
         const std::vector<ModelArgumentInfo>& inputs, const std::vector<ModelArgumentInfo>& outputs,
-        const std::vector<const RuntimeMemory*>& memories,
-        const std::shared_ptr<ExecutionBurstController>& /*burstController*/,
+        const std::vector<const RuntimeMemory*>& memories, const SharedBurst& /*burstController*/,
         MeasureTiming /*measure*/, const OptionalTimePoint& deadline,
         const OptionalDuration& loopTimeoutDuration) const {
     if (hasDeadlinePassed(deadline)) {
@@ -1000,7 +963,8 @@ std::tuple<int, std::vector<OutputShape>, Timing> CpuPreparedModel::execute(
                         ptrArgsLocations.push_back(
                                 {.poolIndex = static_cast<uint32_t>(requestPoolInfos.size()),
                                  .offset = 0,
-                                 .length = argumentInfo.length()});
+                                 .length = argumentInfo.length(),
+                                 .padding = argumentInfo.padding()});
                         requestPoolInfos.emplace_back(RunTimePoolInfo::createFromExistingBuffer(
                                 static_cast<uint8_t*>(argumentInfo.buffer())));
                     }

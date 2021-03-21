@@ -72,7 +72,9 @@ class IDevice {
     /**
      * Returns the feature level of a driver.
      *
-     * @return featureLevel The API level of the most advanced feature this driver implements.
+     * @return featureLevel The Version of the NNAPI specification this driver implements.
+     *                      See {@link ANeuralNetworks_getFeatureLevel} and {@link FeatureLevelCode}
+     *                      for NNAPI specification versioning information.
      */
     virtual Version getFeatureLevel() const = 0;
 

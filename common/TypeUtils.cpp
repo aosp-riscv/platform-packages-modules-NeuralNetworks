@@ -41,10 +41,6 @@ constexpr std::underlying_type_t<Type> underlyingType(Type object) {
     return static_cast<std::underlying_type_t<Type>>(object);
 }
 
-uint16_t getExtensionPrefix(uint32_t type) {
-    return static_cast<uint16_t>(type >> kExtensionTypeBits);
-}
-
 template <typename Type>
 std::ostream& operator<<(std::ostream& os, const std::vector<Type>& vec) {
     constexpr size_t kMaxVectorPrint = 20;
@@ -674,7 +670,7 @@ std::ostream& operator<<(std::ostream& os, const DataLocation& location) {
     os << "DataLocation{.pointer=";
     printPointer(location.pointer);
     return os << ", .poolIndex=" << location.poolIndex << ", .offset=" << location.offset
-              << ", .length=" << location.length << "}";
+              << ", .length=" << location.length << ", .padding=" << location.padding << "}";
 }
 
 std::ostream& operator<<(std::ostream& os,
@@ -944,7 +940,8 @@ bool operator!=(const Operand::SymmPerChannelQuantParams& a,
 
 static bool operator==(const DataLocation& a, const DataLocation& b) {
     constexpr auto toTuple = [](const DataLocation& location) {
-        return std::tie(location.pointer, location.poolIndex, location.offset, location.length);
+        return std::tie(location.pointer, location.poolIndex, location.offset, location.length,
+                        location.padding);
     };
     return toTuple(a) == toTuple(b);
 }

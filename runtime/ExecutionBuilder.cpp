@@ -514,7 +514,7 @@ int ExecutionBuilder::getOutputOperandRank(uint32_t index, uint32_t* rank) {
 }
 
 bool ExecutionBuilder::checkAndSetComputationState(const char* name) {
-    std::lock_guard<std::mutex> lock(mStateWriteMutex);
+    std::lock_guard<std::mutex> lock(mStateMutex);
     if (!mReusable && mState == State::COMPLETED) {
         LOG(ERROR) << "ANeuralNetworksExecution_" << name
                    << " called on a non-reusable execution that has already completed";
@@ -1111,7 +1111,7 @@ int ExecutionBuilder::finishComputation(int result, const std::vector<OutputShap
             break;
     }
     {
-        std::lock_guard<std::mutex> lock(mStateWriteMutex);
+        std::lock_guard<std::mutex> lock(mStateMutex);
         CHECK(mState != State::PREPARATION)
                 << "ExecutionBuilder::finishComputation is called in the preparation state";
         CHECK(mState != State::COMPLETED) << "ExecutionBuilder::finishComputation is called twice";

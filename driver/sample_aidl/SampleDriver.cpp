@@ -20,6 +20,7 @@
 
 #include <android-base/logging.h>
 #include <android-base/properties.h>
+#include <android-base/scopeguard.h>
 #include <android/binder_auto_utils.h>
 #include <android/binder_interface_utils.h>
 #include <android/binder_manager.h>
@@ -588,6 +589,50 @@ ndk::ScopedAStatus SamplePreparedModel::executeFenced(
     executionResult->callback = ndk::SharedRefBase::make<SampleFencedExecutionCallback>(
             timingSinceLaunch, timingAfterFence, executionStatus);
     executionResult->syncFence = ndk::ScopedFileDescriptor();
+    return ndk::ScopedAStatus::ok();
+}
+
+ndk::ScopedAStatus SamplePreparedModel::configureExecutionBurst(
+        std::shared_ptr<aidl_hal::IBurst>* burst) {
+    std::shared_ptr<SamplePreparedModel> self = this->template ref<SamplePreparedModel>();
+    *burst = ndk::SharedRefBase::make<SampleBurst>(std::move(self));
+    return ndk::ScopedAStatus::ok();
+}
+
+SampleBurst::SampleBurst(std::shared_ptr<SamplePreparedModel> preparedModel)
+    : kPreparedModel(std::move(preparedModel)) {
+    CHECK(kPreparedModel != nullptr);
+}
+
+ndk::ScopedAStatus SampleBurst::executeSynchronously(
+        const aidl_hal::Request& request, const std::vector<int64_t>& memoryIdentifierTokens,
+        bool measureTiming, int64_t deadline, int64_t loopTimeoutDuration,
+        aidl_hal::ExecutionResult* executionResult) {
+    if (request.pools.size() != memoryIdentifierTokens.size()) {
+        return toAStatus(aidl_hal::ErrorStatus::INVALID_ARGUMENT,
+                         "request.pools.size() != memoryIdentifierTokens.size()");
+    }
+    if (!std::all_of(memoryIdentifierTokens.begin(), memoryIdentifierTokens.end(),
+                     [](int64_t token) { return token >= -1; })) {
+        return toAStatus(aidl_hal::ErrorStatus::INVALID_ARGUMENT, "Invalid memoryIdentifierTokens");
+    }
+
+    // Ensure at most one execution is in flight at a time.
+    const bool executionAlreadyInFlight = mExecutionInFlight.test_and_set();
+    if (executionAlreadyInFlight) {
+        return toAStatus(aidl_hal::ErrorStatus::GENERAL_FAILURE,
+                         "Burst object supports at most one execution at a time");
+    }
+    const auto guard = base::make_scope_guard([this] { mExecutionInFlight.clear(); });
+
+    return kPreparedModel->executeSynchronously(request, measureTiming, deadline,
+                                                loopTimeoutDuration, executionResult);
+}
+
+ndk::ScopedAStatus SampleBurst::releaseMemoryResource(int64_t memoryIdentifierToken) {
+    if (memoryIdentifierToken < -1) {
+        return toAStatus(aidl_hal::ErrorStatus::INVALID_ARGUMENT, "Invalid memoryIdentifierToken");
+    }
     return ndk::ScopedAStatus::ok();
 }
 

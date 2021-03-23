@@ -19,11 +19,11 @@
 
 #include <ControlFlow.h>
 #include <CpuExecutor.h>
+#include <android-base/thread_annotations.h>
 #include <nnapi/IBurst.h>
 #include <nnapi/IPreparedModel.h>
 #include <nnapi/Validation.h>
 
-#include <atomic>
 #include <memory>
 #include <string>
 #include <tuple>
@@ -122,7 +122,10 @@ class ExecutionBuilder {
         return mFencedExecutionCallback;
     }
 
-    bool inFlight() const { return mState == State::COMPUTATION; }
+    bool inFlight() const {
+        std::lock_guard<std::mutex> lock(mStateMutex);
+        return mState == State::COMPUTATION;
+    }
 
     const ModelArgumentInfo& getInputInfo(uint32_t index) const { return mInputs[index]; }
     const ModelArgumentInfo& getOutputInfo(uint32_t index) const { return mOutputs[index]; }
@@ -190,14 +193,19 @@ class ExecutionBuilder {
     // Timing and output shapes can only be queried when the execution is in the state
     // State::COMPLETED.
     enum class State { PREPARATION, COMPUTATION, COMPLETED };
-    std::atomic<State> mState = State::PREPARATION;
-    bool computationStarted() const { return mState != State::PREPARATION; }
-    bool completed() const { return mState == State::COMPLETED; }
+    State mState GUARDED_BY(mStateMutex) = State::PREPARATION;
+    bool computationStarted() const {
+        std::lock_guard<std::mutex> lock(mStateMutex);
+        return mState != State::PREPARATION;
+    }
+    bool completed() const {
+        std::lock_guard<std::mutex> lock(mStateMutex);
+        return mState == State::COMPLETED;
+    }
 
-    // Mutex to guard mState. Note that we only guard mState writes to reduce the number
-    // lock/unlock constructing an execution. We provide no thread-safety guarantee to the
-    // ANeuralNetworksExecution object.
-    std::mutex mStateWriteMutex;
+    // Mutex to guard mState. Note that this not strictly needed because we provide
+    // no thread-safety guarantee to the ANeuralNetworksExecution object.
+    mutable std::mutex mStateMutex;
 
     // Return false if the execution is in a bad state for starting computation.
     // Otherwise, return true and set the state to State::COMPUTATION.
@@ -207,7 +215,7 @@ class ExecutionBuilder {
     enum class Completion { NO_ERROR, OUTPUT_INSUFFICIENT_SIZE, OTHER_ERROR };
     Completion mCompletion = Completion::OTHER_ERROR;
     Completion completedWith() const {
-        CHECK(mState == State::COMPLETED);
+        CHECK(completed());
         return mCompletion;
     }
 

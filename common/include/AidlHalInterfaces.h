@@ -18,6 +18,7 @@
 #define ANDROID_FRAMEWORKS_ML_NN_COMMON_AIDL_HAL_INTERFACES_H
 
 #include <aidl/android/hardware/neuralnetworks/BnBuffer.h>
+#include <aidl/android/hardware/neuralnetworks/BnBurst.h>
 #include <aidl/android/hardware/neuralnetworks/BnDevice.h>
 #include <aidl/android/hardware/neuralnetworks/BnFencedExecutionCallback.h>
 #include <aidl/android/hardware/neuralnetworks/BnPreparedModel.h>

@@ -9,12 +9,13 @@
 %define DeclareOperation_1.2 ANEURALNETWORKS_%{1} = %{2}
 %define DeclareOperation_1.3 ANEURALNETWORKS_%{1} = %{2}
 %define FusedActivationFunc FuseCode
+%define DeclareFusedActivationFunc ANEURALNETWORKS_FUSED_%{1} = %{2}
+%define DeclareExecutionPreference ANEURALNETWORKS_PREFER_%{1} = %{2}
+%define DeclareDeviceType ANEURALNETWORKS_DEVICE_%{1} = %{2}
 %define OperandType OperandCode
 %define OperandTypeLinkPfx ANEURALNETWORKS_
 %define OperationTypeLinkPfx ANEURALNETWORKS_
 %define runtime_or_driver runtime
-%define model_or_subgraph model
-%define MODEL_or_SUBGRAPH MODEL
 %define NNAPILevel3 NNAPI feature level 3
 %define NNAPILevel4 NNAPI feature level 4
 %define BeforeNNAPILevel3For Before NNAPI feature level 3, for
@@ -56,12 +57,13 @@
 %define ANN
 %define Ann
 %define FusedActivationFunc FusedActivationFunc
+%define DeclareFusedActivationFunc %{1} = %{2}
+%define DeclareExecutionPreference %{1} = %{2}
+%define DeclareDeviceType %{1} = %{2}
 %define OperandType OperandType
 %define OperandTypeLinkPfx OperandType::
 %define OperationTypeLinkPfx OperationType::
 %define runtime_or_driver driver
-%define model_or_subgraph subgraph
-%define MODEL_or_SUBGRAPH SUBGRAPH
 %define NNAPILevel3 HAL version 1.2
 %define NNAPILevel4 HAL version 1.3
 %define NDK_if_specified
@@ -140,6 +142,30 @@
 %/kind
 %kind hal_1.0 hal_1.1 hal_1.2
 %define AndQuant8Signed
+%/kind
+
+%kind ndk hal_1.0 hal_1.1 hal_1.2
+%define model_or_subgraph model
+%define MODEL_or_SUBGRAPH MODEL
+%define the_model_or_a_subgraph the model
+%/kind
+
+%kind hal_1.3+
+%define model_or_subgraph subgraph
+%define MODEL_or_SUBGRAPH SUBGRAPH
+%define the_model_or_a_subgraph a subgraph
+%/kind
+
+%kind ndk
+%define enum typedef enum
+%define ndk_enum_name  %{1}
+%define DeclarePriority ANEURALNETWORKS_PRIORITY_%{1} = %{2}
+%/kind
+
+%kind hal*
+%define enum enum %{1} : %{2}
+%define ndk_enum_name
+%define DeclarePriority %{1}
 %/kind
 
 %section OEMDeprecationAndOperandTypeRangeMaxComment
@@ -6405,6 +6431,1072 @@
 
 %section Operation_1.3_MAX
     FUNDAMENTAL_MAX = 101,
+%/section
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% Misc HAL types
+
+%section OperandLifeTime
+/**
+ * How an operand is used.
+ */
+%{enum OperandLifeTime int32_t} {
+    /**
+     * The operand is internal to the model. It's created by an operation and
+     * consumed by other operations. It must be an output operand of
+     * exactly one operation.
+     */
+    TEMPORARY_VARIABLE,
+
+    /**
+     * The operand is an input of %{the_model_or_a_subgraph}. It must not be an output
+     * operand of any operation.
+     *
+     * An operand can't be both input and output of a %{model_or_subgraph}.
+     */
+%kind hal_1.0
+    MODEL_INPUT,
+%else
+    SUBGRAPH_INPUT,
+%/kind
+
+    /**
+     * The operand is an output of %{the_model_or_a_subgraph}. It must be an output
+     * operand of exactly one operation.
+     *
+     * An operand can't be both input and output of a %{model_or_subgraph}.
+     */
+%kind hal_1.0
+    MODEL_OUTPUT,
+%else
+    SUBGRAPH_OUTPUT,
+%/kind
+
+    /**
+     * The operand is a constant found in Model.operandValues. It must
+     * not be an output operand of any operation.
+     */
+    CONSTANT_COPY,
+
+    /**
+     * The operand is a constant that was specified via a Memory
+     * object. It must not be an output operand of any operation.
+     */
+    CONSTANT_REFERENCE,
+
+    /**
+     * The operand does not have a value. This is valid only for optional
+     * arguments of operations.
+     */
+    NO_VALUE,
+%kind hal_1.3+
+
+    /**
+     * The operand is a reference to a subgraph. It must be an input to one
+     * or more {@link OperationType::IF} or {@link OperationType::WHILE}
+     * operations.
+     */
+    SUBGRAPH,
+%/kind
+};
+%/section
+
+%section DeviceStatus
+/**
+ * Status of a device.
+ */
+%{enum DeviceStatus int32_t} {
+    AVAILABLE,
+    BUSY,
+    OFFLINE,
+    UNKNOWN,
+};
+%/section
+
+%section PerformanceInfo
+/**
+ * Performance information for the reference workload.
+ *
+ * Used by a driver to report its performance characteristics.
+ */
+struct PerformanceInfo {
+    /**
+     * Ratio of the time taken by the driver to execute the
+     * workload compared to the time the CPU would take for the
+     * same workload. A lower number is better.
+     */
+    float execTime;
+
+    /**
+     * Ratio of the energy used by the driver compared to what
+     * the CPU would use for doing the same workload. A lower number
+     * is better.
+     */
+    float powerUsage;
+};
+%/section
+
+%section OutputShape
+/**
+ * Describes the shape information of an output operand after execution.
+ */
+struct OutputShape {
+    /**
+     * Dimensions of the operand.
+     */
+    vec<uint32_t> dimensions;
+
+    /**
+     * Whether the provided buffer size is sufficient for the output.
+     */
+    bool isSufficient;
+};
+%/section
+
+%section MeasureTiming
+/**
+ * Specifies whether or not to measure timing information during execution.
+ */
+%{enum MeasureTiming int32_t} {
+    NO = 0,
+    YES = 1,
+};
+%/section
+
+%section ExecutionPreference
+/**
+ * Execution preferences.
+%insert AVAIL1Short
+ */
+%{enum ExecutionPreference int32_t} {
+    /**
+     * Prefer executing in a way that minimizes battery drain.
+     * This is desirable for compilations that will be executed often.
+     */
+    %{DeclareExecutionPreference LOW_POWER 0},
+    /**
+     * Prefer returning a single answer as fast as possible, even if this causes
+     * more power consumption.
+     */
+    %{DeclareExecutionPreference FAST_SINGLE_ANSWER 1},
+    /**
+     * Prefer maximizing the throughput of successive frames, for example when
+     * processing successive frames coming from the camera.
+     */
+    %{DeclareExecutionPreference SUSTAINED_SPEED 2},
+}%{ndk_enum_name PreferenceCode};
+%/section
+
+%section DeviceType
+/**
+ * Device types.
+ *
+ * The type of NNAPI device.
+ */
+%{enum DeviceType int32_t} {
+%kind hal*
+    // Leaving 0 unused as it means unknown type in NDK NNAPI. There is no
+    // HAL equivalent of unknown type and a 1.2 HAL implementation must belong
+    // to one of the categories below.
+%else
+    /** The device type cannot be provided. */
+    %{DeclareDeviceType UNKNOWN 0},
+%/kind
+    /** The device does not fall into any category below. */
+    %{DeclareDeviceType OTHER 1},
+    /** The device runs NNAPI models on single or multi-core CPU. */
+    %{DeclareDeviceType CPU 2},
+    /** The device can run NNAPI models and also accelerate graphics APIs such
+     * as OpenGL ES and Vulkan. */
+    %{DeclareDeviceType GPU 3},
+    /** Dedicated accelerator for Machine Learning workloads. */
+    %{DeclareDeviceType ACCELERATOR 4},
+}%{ndk_enum_name DeviceTypeCode};
+%/section
+
+%% NOTE: This is different from the NDK PriorityCode.
+%section Priority
+/**
+%kind ndk
+ * Relative execution priority.
+ *
+ * Available since NNAPI feature level 4.
+%else
+ * Priority given to a prepared model for execution.
+%/kind
+ */
+%{enum Priority int32_t} {
+    %{DeclarePriority LOW 90},
+    %{DeclarePriority MEDIUM 100},
+    %{DeclarePriority HIGH 110},
+%kind ndk
+    %{DeclarePriority DEFAULT ANEURALNETWORKS_PRIORITY_MEDIUM},
+%/kind
+}%{ndk_enum_name PriorityCode};
+%/section
+
+%section Timing
+/**
+%kind hal_1.2
+
+%/kind
+ * Timing information measured during execution. Each time is a duration from
+ * the beginning of some task to the end of that task, including time when that
+ * task is not active (for example, preempted by some other task, or
+ * waiting for some resource to become available).
+ *
+%kind hal*
+ * Times are measured in microseconds.
+ * When a time is not available, it must be reported as UINT64_MAX.
+%else
+ * Times are measured in nanoseconds.
+%/kind
+ */
+struct Timing {
+    /** Execution time on device (not driver, which runs on host processor). */
+    uint64_t timeOnDevice;
+    /** Execution time in driver (including time on device). */
+    uint64_t timeInDriver;
+};
+%/section
+
+%section Capabilities_float_quant_performance
+    /**
+     * Driver performance when operating on float32 data.
+     */
+    PerformanceInfo float32Performance;
+
+    /**
+     * Driver performance when operating on asymmetric 8-bit quantized data.
+     */
+    PerformanceInfo quantized8Performance;
+%/section
+
+%section Capabilities_relaxedPerformance
+    /**
+     * Driver performance when operating on float32 data but performing
+     * calculations with range and/or precision as low as that of the IEEE
+     * 754 16-bit floating-point format.
+     */
+%kind hal_1.1
+    PerformanceInfo relaxedFloat32toFloat16Performance;
+%else
+    PerformanceInfo relaxedFloat32toFloat16PerformanceScalar;
+    PerformanceInfo relaxedFloat32toFloat16PerformanceTensor;
+%/kind
+%/section
+
+%section Capabilities_operandPerformance
+    /**
+     * Performance by operand type. Must be sorted by OperandType.
+%kind hal_1.2
+     * If a particular OperandType is not present in operandPerformance,
+     * its performance is treated as { .execTime = FLT_MAX, .powerUsage = FLT_MAX }.
+%else
+     *
+     * If a particular {@link OperandType} is not present in operandPerformance,
+     * its performance is treated as
+     * { .execTime = FLT_MAX, .powerUsage = FLT_MAX }.
+     *
+     * Performance does not apply to {@link OperandType::SUBGRAPH}, and a driver
+     * must not report operand performance for {@link OperandType::SUBGRAPH}.
+%/kind
+     */
+    vec<OperandPerformance> operandPerformance;
+%/section
+
+%section Capabilities_if_while_performance
+    /**
+     * Performance of an {@link OperationType::IF} operation is the sum of
+     * {@link Capabilities::ifPerformance} and the mean of performance for the
+     * two branch subgraphs, where performance for a subgraph is the sum of the
+     * performance of all operations within the subgraph.
+     */
+    PerformanceInfo ifPerformance;
+
+    /**
+     * Performance of a {@link OperationType::WHILE} operation is the sum of
+     * {@link Capabilities::whilePerformance}, performance for the condition
+     * subgraph and performance for the body subgraph, where performance for a
+     * subgraph is the sum of the performance of all operations within the
+     * subgraph.
+     */
+    PerformanceInfo whilePerformance;
+%/section
+
+%section OperandPerformance
+/**
+ * Driver performance when operating on a particular data type.
+ * In the case of float32 data, this is used when the calculations
+ * are not relaxed.
+ */
+struct OperandPerformance {
+    OperandType type;
+    PerformanceInfo info;
+};
+%/section
+
+%section Capabilities
+/**
+ * The capabilities of a driver.
+%kind hal_1.2
+ *
+ * Performance of an operation comes from the type of its first operand.
+ * This represents performance for non extension operand types.
+%/kind
+%kind hal_1.3+
+ *
+ * This represents performance of non-extension operations.
+ *
+ * Performance of an operation other than {@link OperationType::IF} and
+ * {@link OperationType::WHILE} comes from the type of its first operand.
+%/kind
+ */
+struct Capabilities {
+%kind hal_1.0
+%insert Capabilities_float_quant_performance
+%/kind
+%kind hal_1.1
+%insert Capabilities_float_quant_performance
+
+%insert Capabilities_relaxedPerformance
+%/kind
+%kind hal_1.2
+%insert Capabilities_relaxedPerformance
+
+%insert-indented 4 OperandPerformance
+
+%insert Capabilities_operandPerformance
+%/kind
+%kind hal_1.3
+%insert Capabilities_relaxedPerformance
+
+%insert-indented 4 OperandPerformance
+
+%insert Capabilities_operandPerformance
+
+%insert Capabilities_if_while_performance
+%/kind
+};
+%/section
+
+%section DataLocation
+/**
+ * Describes the location of a data object.
+ */
+struct DataLocation {
+    /**
+     * The index of the memory pool where this location is found.
+     */
+    uint32_t poolIndex;
+
+    /**
+     * Offset in bytes from the start of the pool.
+     */
+    uint32_t offset;
+
+    /**
+     * The length of the data in bytes.
+     */
+    uint32_t length;
+};
+%/section
+
+%section Extension_name
+    /**
+     * The extension name.
+     *
+     * The name must consist of lowercase latin letters, numbers, periods, and
+     * underscore signs. The name must contain at least one period.
+     *
+     * The name must start with the reverse domain name of the vendor.
+     *
+     * Example: com.google.test_extension
+     */
+    string name;
+%/section
+
+%section Extension
+/**
+ * Information about an extension.
+ */
+struct Extension {
+%kind hal*
+%insert Extension_name
+
+%/kind
+    /**
+     * Information about an extension operand type.
+     */
+    struct OperandTypeInformation {
+        /**
+         * The extension operand type.
+         */
+        uint16_t type;
+
+        /**
+         * Indicates whether the extension operand type represents a tensor or
+         * a scalar.
+         */
+        bool isTensor;
+
+        /**
+         * The byte size of the operand (if scalar) or of a single element (if
+         * tensor).
+         */
+        uint32_t byteSize;
+    };
+
+    /**
+     * Information about operand types defined by the extension.
+     */
+    vec<OperandTypeInformation> operandTypes;
+};
+%/section
+
+%section Operation
+/**
+ * Describes one operation of the model's graph.
+ */
+struct Operation {
+    /**
+     * The operation type.
+%kind hal_1.2+
+     *
+     * Besides the values listed in {@link OperationType}, any value above
+     * {@link OperationTypeRange::BASE_MAX} is possible and should be interpreted
+     * as an extension type according to {@link Model::extensionNameToPrefix}.
+%/kind
+     */
+    OperationType type;
+
+    /**
+     * Describes the table that contains the indexes of the inputs of the
+     * operation. The offset is the index in the operandIndexes table.
+     */
+    vec<uint32_t> inputs;
+
+    /**
+     * Describes the table that contains the indexes of the outputs of the
+     * operation. The offset is the index in the operandIndexes table.
+     */
+    vec<uint32_t> outputs;
+};
+%/section
+
+%section FusedActivationFunc
+/**
+ * Fused activation function types.
+%insert AVAIL1Short
+ */
+%{enum FusedActivationFunc int32_t} {
+    /** NO fused activation function. */
+    %{DeclareFusedActivationFunc NONE 0},
+    /** Fused ReLU activation function. */
+    %{DeclareFusedActivationFunc RELU 1},
+    /** Fused ReLU1 activation function. */
+    %{DeclareFusedActivationFunc RELU1 2},
+    /** Fused ReLU6 activation function. */
+    %{DeclareFusedActivationFunc RELU6 3},
+}%{ndk_enum_name FuseCode};
+%/section
+
+%section ExtraParams_Comment
+/**
+ * Additional parameters specific to a particular operand type.
+ */
+%/section
+
+%section ExtraParams_none_Comment
+/**
+ * No additional parameters.
+ */
+%/section
+
+%section ExtraParams_channelQuant_Comment
+/**
+ * Symmetric per-channel quantization parameters.
+ *
+ * Only applicable to operands of type %{ANN}TENSOR_QUANT8_SYMM_PER_CHANNEL.
+ */
+%/section
+
+%section ExtraParams_extension_Comment
+/**
+ * Extension operand parameters.
+ *
+ * The framework treats this as an opaque data blob.
+ * The format is up to individual extensions.
+ */
+%/section
+
+%section SymmPerChannelQuantParams_Comment
+/**
+ * Parameters for %{ANN}TENSOR_QUANT8_SYMM_PER_CHANNEL operand.
+ */
+%/section
+
+%section SymmPerChannelQuantParams
+%insert SymmPerChannelQuantParams_Comment
+struct SymmPerChannelQuantParams {
+    /** Array of scaling values for each channel. Each value must be greater than zero. */
+    vec<float> scales;
+    /** Index of the channel dimension */
+    uint32_t channelDim;
+};
+%/section
+
+%section Operand
+/**
+ * Describes one operand of the model's graph.
+ */
+struct Operand {
+    /**
+%kind hal_1.2+
+     * The data type.
+     *
+     * Besides the values listed in {@link OperandType}, any value above
+     * {@link OperandTypeRange::BASE_MAX} is possible and should be interpreted
+     * as an extension type according to {@link Model::extensionNameToPrefix}.
+%/kind
+%kind hal_1.0
+     * Data type of the operand.
+%/kind
+     */
+    OperandType type;
+
+    /**
+     * Dimensions of the operand.
+     *
+     * For a scalar operand, dimensions.size() must be 0.
+%kind hal_1.0
+     *
+     * For a tensor operand, dimensions.size() must be at least 1;
+     * however, any of the dimensions may be unspecified.
+%/kind
+     *
+     * A tensor operand with all dimensions specified has "fully
+     * specified" dimensions. Whenever possible (i.e., whenever the
+     * dimensions are known at model construction time), a tensor
+     * operand should have (but is not required to have) fully
+     * specified dimensions, in order to enable the best possible
+     * performance.
+     *
+     * If a tensor operand's dimensions are not fully specified, the
+     * dimensions of the operand are deduced from the operand
+     * dimensions and values of the operation for which that operand
+%kind hal_1.0 hal_1.1 hal_1.2
+     * is an output.
+%else
+     * is an output or from the corresponding {@link OperationType::IF} or
+     * {@link OperationType::WHILE} operation input operand dimensions in the
+     * case of referenced subgraph input operands.
+%/kind
+     *
+     * In the following situations, a tensor operand's dimensions must
+     * be fully specified:
+     *
+     *     . The operand has lifetime CONSTANT_COPY or
+     *       CONSTANT_REFERENCE.
+     *
+%kind hal_1.0
+     *     . The operand has lifetime MODEL_INPUT or MODEL_OUTPUT. Fully
+     *       specified dimensions must either be present in the
+%/kind
+%kind hal_1.2
+     *     . The operand has lifetime MODEL_INPUT. Fully
+     *       specified dimensions must either be present in the
+%/kind
+%kind hal_1.3+
+     *     . The operand has lifetime SUBGRAPH_INPUT and belongs to the main
+     *       subgraph. Fully specified dimensions must either be present in the
+%/kind
+     *       Operand or they must be provided in the corresponding
+     *       RequestArgument.
+%kind hal_1.0
+     *       EXCEPTION: If the input or output is optional and omitted
+%else
+     *       EXCEPTION: If the input is optional and omitted
+%/kind
+     *       (by setting the hasNoValue field of the corresponding
+     *       RequestArgument to true) then it need not have fully
+     *       specified dimensions.
+     *
+     * A tensor operand with some number of unspecified dimensions is
+     * represented by setting each unspecified dimension to 0.
+%kind hal_1.2+
+     *
+     * A tensor operand with unspecified rank is represented by providing
+     * an empty dimensions vector.
+%/kind
+     */
+    vec<uint32_t> dimensions;
+%kind hal*
+
+    /**
+     * The number of times this operand appears as an operation input.
+     *
+     * (For example, if this operand appears once in one operation's
+     * input list, and three times in another operation's input list,
+     * then numberOfConsumers = 4.)
+     */
+    uint32_t numberOfConsumers;
+%/kind
+
+    /**
+     * Quantized scale of the operand.
+     *
+%kind hal_1.0
+     * Only applicable if the operand is of type TENSOR_QUANT8_ASYMM or
+     * TENSOR_INT32.
+%else
+     * Must be 0 when not applicable to an operand type.
+     *
+     * See {@link OperandType}.
+%/kind
+     */
+    float scale;
+
+    /**
+     * Quantized zero-point offset of the operand.
+     *
+%kind hal_1.0
+     * Only applicable if the operand is of type TENSOR_QUANT8_ASYMM.
+%else
+     * Must be 0 when not applicable to an operand type.
+     *
+     * See {@link OperandType}.
+%/kind
+     */
+    int32_t zeroPoint;
+
+    /**
+     * How the operand is used.
+     */
+    OperandLifeTime lifetime;
+
+    /**
+     * Where to find the data for this operand.
+%kind hal_1.0 hal_1.1 hal_1.2
+     * If the lifetime is TEMPORARY_VARIABLE, MODEL_INPUT, MODEL_OUTPUT, or
+     * NO_VALUE:
+%else
+     * If the lifetime is TEMPORARY_VARIABLE, SUBGRAPH_INPUT, SUBGRAPH_OUTPUT,
+     * or NO_VALUE:
+%/kind
+     * - All the fields must be 0.
+     * If the lifetime is CONSTANT_COPY:
+     * - location.poolIndex is 0.
+     * - location.offset is the offset in bytes into Model.operandValues.
+     * - location.length is set.
+     * If the lifetime is CONSTANT_REFERENCE:
+     * - location.poolIndex is set.
+     * - location.offset is the offset in bytes into the specified pool.
+     * - location.length is set.
+%kind hal_1.3+
+     * If the lifetime is SUBGRAPH:
+     * - location.poolIndex is 0.
+     * - location.offset is the index of the referenced subgraph in
+     *   {@link Model::referenced}.
+     * - location.length is 0.
+%/kind
+     */
+    DataLocation location;
+%kind hal_1.2
+
+%insert-indented 4 ExtraParams_Comment
+    safe_union ExtraParams {
+%insert-indented 8 ExtraParams_none_Comment
+        Monostate none;
+
+%insert-indented 8 ExtraParams_channelQuant_Comment
+        SymmPerChannelQuantParams channelQuant;
+
+%insert-indented 8 ExtraParams_extension_Comment
+        vec<uint8_t> extension;
+    } extraParams;
+%/kind
+%kind hal_1.3
+
+%insert-indented 4 ExtraParams_Comment
+    @1.2::Operand.ExtraParams extraParams;
+%/kind
+};
+%/section
+
+%section Model_1.0
+    /**
+     * A byte buffer containing operand data that were copied into the model.
+     *
+     * An operand's value must be located here if and only if Operand::lifetime
+     * equals OperandLifeTime::CONSTANT_COPY.
+     */
+    vec<uint8_t> operandValues;
+
+    /**
+     * A collection of shared memory pools containing operand values.
+     *
+     * An operand's value must be located here if and only if Operand::lifetime
+     * equals OperandLifeTime::CONSTANT_REFERENCE.
+     */
+    vec<memory> pools;
+%/section
+
+%section Model_1.1
+    /**
+     * 'true' indicates TENSOR_FLOAT32 may be calculated with range and/or
+     * precision as low as that of the IEEE 754 16-bit floating-point format.
+     * 'false' indicates TENSOR_FLOAT32 must be calculated using at least the
+     * range and precision of the IEEE 754 32-bit floating-point format.
+     */
+    bool relaxComputationFloat32toFloat16;
+%/section
+
+%section Model_1.2
+    /**
+     * The mapping between extension names and prefixes of operand and
+     * operation type values.
+     *
+%kind hal*
+     * An operand or operation whose numeric type value is above
+     * {@link OperandTypeRange::BASE_MAX} or
+     * {@link OperationTypeRange::BASE_MAX} respectively should be interpreted
+%/kind
+     * as an extension operand. The low
+%kind hal_1.2
+     * {@link Model::ExtensionTypeEncoding::LOW_BITS_TYPE} bits of the value
+     * correspond to the type ID within the extension and the high
+     * {@link Model::ExtensionTypeEncoding::HIGH_BITS_PREFIX} bits encode
+%/kind
+%kind hal_1.3
+     * {@link @1.2::Model::ExtensionTypeEncoding::LOW_BITS_TYPE} bits of the
+     * value correspond to the type ID within the extension and the high
+     * {@link @1.2::Model::ExtensionTypeEncoding::HIGH_BITS_PREFIX} bits encode
+%/kind
+     * the "prefix", which maps uniquely to the extension name.
+     *
+     * For example, if a model contains an operation whose value is
+     * 0xAAAABBBB and extensionNameToPrefix contains an entry with
+     * prefix=0xAAAA and name="vendor.test.test_extension", then
+     * the operation should be interpreted as the operation 0xBBBB
+     * of the extension named vendor.test.test_extension.
+     *
+     * This is a one-to-one correspondence. That is, there must be at most one
+     * prefix corresponding to each extension name and at most one extension
+     * name corresponding to each prefix.
+     */
+%kind hal_1.3
+    vec<@1.2::Model.ExtensionNameAndPrefix> extensionNameToPrefix;
+%else
+    vec<ExtensionNameAndPrefix> extensionNameToPrefix;
+%/kind
+%/section
+
+%section Model_1.3_main_and_referenced_subgraphs
+    /**
+     * The top-level subgraph.
+     */
+    Subgraph main;
+
+    /**
+     * Referenced subgraphs.
+     *
+     * Each subgraph is referenced by the main subgraph or at least one other
+     * referenced subgraph.
+     *
+     * There must be no reference cycles.
+     */
+    vec<Subgraph> referenced;
+%/section
+
+%section Subgraph_fields
+    /**
+     * All operands included in the %{model_or_subgraph}.
+     */
+    vec<Operand> operands;
+
+    /**
+     * All operations included in the %{model_or_subgraph}.
+     *
+     * The operations are sorted into execution order. Every operand
+     * with lifetime %{MODEL_or_SUBGRAPH}_OUTPUT or TEMPORARY_VARIABLE must be
+     * written before it is read.
+     */
+    vec<Operation> operations;
+
+    /**
+     * Input indexes of the %{model_or_subgraph}. There must be at least one.
+     *
+     * Each value corresponds to the index of the operand in "operands".
+     */
+    vec<uint32_t> inputIndexes;
+
+    /**
+     * Output indexes of the %{model_or_subgraph}. There must be at least one.
+     *
+     * Each value corresponds to the index of the operand in "operands".
+     */
+    vec<uint32_t> outputIndexes;
+%/section
+
+%section Subgraph
+/**
+ * An excerpt of the execution graph.
+ */
+struct Subgraph {
+%insert Subgraph_fields
+};
+%/section
+
+%section ExtensionNameAndPrefix
+/**
+ * A correspondence between an extension name and a prefix of operand and
+ * operation type values.
+ */
+struct ExtensionNameAndPrefix {
+    /**
+     * The extension name.
+     *
+     * See {@link Extension::name} for the format specification.
+     */
+    string name;
+
+    /**
+     * The unique extension identifier within the model.
+     *
+     * See {@link Model::extensionNameToPrefix}.
+     */
+    uint16_t prefix;
+};
+%/section
+
+%section Model
+/**
+ * A Neural Network Model.
+ *
+ * This includes not only the execution graph, but also constant data such as
+ * weights or scalars added at construction time. The only information that
+%kind hal_1.0
+ * might not be known is the shape of the input tensors.
+%else
+ * may not be known is the shape of the input tensors.
+%/kind
+ */
+struct Model {
+%kind hal_1.0
+%insert Subgraph_fields
+
+%insert Model_1.0
+%/kind
+%kind hal_1.1
+%insert Subgraph_fields
+
+%insert Model_1.0
+
+%insert Model_1.1
+%/kind
+%kind hal_1.2
+%insert Subgraph_fields
+
+%insert Model_1.0
+
+%insert Model_1.1
+
+%insert Model_1.2
+
+%insert-indented 4 ExtensionNameAndPrefix
+
+    /**
+     * Numeric values of extension operand and operation types have the
+     * following structure:
+     * - 16 high bits represent the "prefix", which corresponds uniquely to the
+     *   extension name.
+     * - 16 low bits represent the type ID within the extension.
+     */
+    enum ExtensionTypeEncoding : uint8_t {
+        HIGH_BITS_PREFIX = 16,
+        LOW_BITS_TYPE = 16,
+    };
+%/kind
+%kind hal_1.3
+%insert Model_1.3_main_and_referenced_subgraphs
+
+%insert Model_1.0
+
+%insert Model_1.1
+
+%insert Model_1.2
+%/kind
+};
+%/section
+
+%section BufferDesc
+/**
+ * A buffer descriptor. Describes the properties of a buffer.
+ */
+struct BufferDesc {
+    /**
+     * Dimensions of the buffer. May have unknown dimensions or rank. A buffer with some number
+     * of unspecified dimensions is represented by setting each unspecified dimension to 0. A
+     * buffer with unspecified rank is represented by providing an empty dimensions vector.
+     */
+    vec<uint32_t> dimensions;
+};
+%/section
+
+%section BufferRole
+/**
+ * Describes a role of an input or output to a prepared model.
+ */
+struct BufferRole {
+    /**
+     * The index of the IPreparedModel within the "preparedModel" argument passed in
+     * IDevice::allocate.
+     */
+    uint32_t modelIndex;
+
+    /**
+     * The index of the input or output operand.
+     */
+    uint32_t ioIndex;
+
+    /**
+     * A floating-point value within the range (0.0, 1.0]. Describes how likely the
+     * buffer is to be used in the specified role. This is provided as a hint to
+     * optimize the case when multiple roles prefer different buffer locations or data
+     * layouts.
+     */
+    float frequency;
+};
+%/section
+
+%section Request_inputs_and_outputs
+    /**
+     * Input data and information to be used in the execution of a prepared
+     * model.
+     *
+%kind hal_1.0 hal_1.1 hal_1.2
+     * The index of the input corresponds to the index in Model.inputIndexes.
+     *   E.g., input[i] corresponds to Model.inputIndexes[i].
+%else
+     * The index of the input corresponds to the index in Model.main.inputIndexes.
+     *   E.g., input[i] corresponds to Model.main.inputIndexes[i].
+%/kind
+     */
+    vec<RequestArgument> inputs;
+
+    /**
+     * Output data and information to be used in the execution of a prepared
+     * model.
+     *
+%kind hal_1.0 hal_1.1 hal_1.2
+     * The index of the output corresponds to the index in Model.outputIndexes.
+     *   E.g., output[i] corresponds to Model.outputIndexes[i].
+%else
+     * The index of the output corresponds to the index in Model.main.outputIndexes.
+     *   E.g., output[i] corresponds to Model.main.outputIndexes[i].
+%/kind
+     */
+    vec<RequestArgument> outputs;
+%/section
+
+%section Request_pools
+    /**
+%kind hal_1.0
+     * A collection of shared memory pools containing operand data for both the
+%else
+     * A collection of memory pools containing operand data for both the
+%/kind
+     * inputs and the outputs to a model.
+     */
+%kind hal_1.0
+    vec<memory> pools;
+%else
+    vec<MemoryPool> pools;
+%/kind
+%/section
+
+%section Request_MemoryPool_Comment
+/**
+ * A memory pool.
+ */
+%/section
+
+%section RequestArgument
+/**
+ * Metadata information specifying the location of the input or output data and
+ * any updates to the input or output operand.
+ */
+struct RequestArgument {
+%kind hal_1.0
+    /**
+     * If true, the argument does not have a value. This can be used for
+     * operations that take optional arguments. If true, the fields of location
+     * are set to 0 and the dimensions vector is left empty.
+     */
+    bool hasNoValue;
+%/kind
+
+    /**
+     * The location within one of the memory pools passed in the Request.
+     */
+    DataLocation location;
+
+    /**
+     * Updated dimension information.
+     *
+     * If dimensions.size() > 0, dimension information was provided
+     * along with the argument. This can be the case for models that
+     * accept inputs of varying size. This can't change the rank, just
+     * the value of the dimensions that were unspecified in the
+     * model. If dimensions.size() > 0, then all dimensions must be
+     * specified here; and any dimension that was specified in the
+     * model must have the same value here.
+     *
+     * If the dimensions in the model are not fully specified, then
+     * they must be fully specified here, unless hasNoValue is set to
+     * true. If the dimensions in the model are fully specified, then
+     * either dimensions.size() may be 0, or the dimensions in the
+     * model must be identical to the dimensions here.
+     */
+    vec<uint32_t> dimensions;
+};
+%/section
+
+%section Request
+/**
+ * Inputs to be sent to and outputs to be retrieved from a prepared model.
+ *
+ * A Request serves two primary tasks:
+ * 1) Provides the input and output data to be used when executing the model.
+ * 2) Specifies any updates to the input operand metadata that were left
+ *    unspecified at model preparation time.
+ *
+ * An output must not overlap with any other output, with an input, or
+ * with an operand of lifetime CONSTANT_REFERENCE.
+ */
+struct Request {
+%insert Request_inputs_and_outputs
+%kind hal_1.3
+
+%insert-indented 4 Request_MemoryPool_Comment
+    safe_union MemoryPool {
+        /**
+         * Specifies a client-managed shared memory pool.
+         */
+        memory hidlMemory;
+
+        /**
+         * Specifies a driver-managed buffer. It is the token returned from IDevice::allocate,
+         * and is specific to the IDevice object.
+         */
+        uint32_t token;
+    };
+%/kind
+
+%insert Request_pools
+};
 %/section
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

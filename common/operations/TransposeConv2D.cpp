@@ -25,11 +25,11 @@
 #include "OperationResolver.h"
 #include "Tracing.h"
 
-#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
+#ifdef NN_INCLUDE_CPU_IMPLEMENTATION
 #include <tensorflow/lite/kernels/internal/common.h>
 
 #include "CpuOperationUtils.h"
-#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
+#endif  // NN_INCLUDE_CPU_IMPLEMENTATION
 
 namespace android {
 namespace nn {
@@ -107,7 +107,7 @@ struct TransposeConv2dParam {
     }
 };
 
-#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
+#ifdef NN_INCLUDE_CPU_IMPLEMENTATION
 #define ANDROID_NN_TRANSPOSE_CONV_PARAMETERS                                    \
     uint32_t numBatches = getSizeOfDimension(inputShape, 0);                    \
     uint32_t inputHeight = getSizeOfDimension(inputShape, 1);                   \
@@ -434,7 +434,7 @@ bool transposeConvQuant8PerChannel(const T* inputData, const Shape& inputShape,
 }
 
 #undef ANDROID_NN_TRANSPOSE_CONV_PARAMETERS
-#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
+#endif  // NN_INCLUDE_CPU_IMPLEMENTATION
 
 }  // namespace
 
@@ -484,7 +484,7 @@ Result<Version> validate(const IOperationValidationContext* context) {
     return minSupportedVersion;
 }
 
-#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
+#ifdef NN_INCLUDE_CPU_IMPLEMENTATION
 bool prepare(IOperationExecutionContext* context) {
     Shape input = context->getInputShape(kInputTensor);
     Shape filter = context->getInputShape(kFilterTensor);
@@ -626,7 +626,7 @@ bool execute(IOperationExecutionContext* context) {
             NN_RET_CHECK_FAIL() << "Unsupported tensor type for operation " << kOperationName;
     }
 }
-#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
+#endif  // NN_INCLUDE_CPU_IMPLEMENTATION
 
 }  // namespace transpose_conv_2d
 

@@ -25,7 +25,7 @@
 #include "CpuExecutor.h"
 #include "Tracing.h"
 
-#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
+#ifdef NN_INCLUDE_CPU_IMPLEMENTATION
 #include <tensorflow/lite/kernels/internal/tensor_utils.h>
 
 #include <unsupported/Eigen/CXX11/Tensor>
@@ -34,7 +34,7 @@
 #include "guarded_philox_random.h"
 #include "philox_random.h"
 #include "simple_philox.h"
-#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
+#endif  // NN_INCLUDE_CPU_IMPLEMENTATION
 
 namespace android {
 namespace nn {

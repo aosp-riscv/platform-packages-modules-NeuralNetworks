@@ -5661,7 +5661,6 @@ typedef enum {
 /**
  * Fused activation function types.
  *
- *
  * Available since NNAPI feature level 1.
  */
 typedef enum {

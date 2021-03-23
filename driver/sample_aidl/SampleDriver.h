@@ -124,6 +124,7 @@ class SamplePreparedModel : public aidl_hal::BnPreparedModel {
                                      bool measureTiming, int64_t deadline,
                                      int64_t loopTimeoutDuration, int64_t duration,
                                      aidl_hal::FencedExecutionResult* executionResult) override;
+    ndk::ScopedAStatus configureExecutionBurst(std::shared_ptr<aidl_hal::IBurst>* burst) override;
     const aidl_hal::Model* getModel() const { return &mModel; }
 
    protected:
@@ -155,6 +156,23 @@ class SampleFencedExecutionCallback : public aidl_hal::BnFencedExecutionCallback
     const aidl_hal::Timing kTimingSinceLaunch;
     const aidl_hal::Timing kTimingAfterFence;
     const aidl_hal::ErrorStatus kErrorStatus;
+};
+
+class SampleBurst : public aidl_hal::BnBurst {
+   public:
+    // Precondition: preparedModel != nullptr
+    explicit SampleBurst(std::shared_ptr<SamplePreparedModel> preparedModel);
+
+    ndk::ScopedAStatus executeSynchronously(const aidl_hal::Request& request,
+                                            const std::vector<int64_t>& memoryIdentifierTokens,
+                                            bool measureTiming, int64_t deadline,
+                                            int64_t loopTimeoutDuration,
+                                            aidl_hal::ExecutionResult* executionResult) override;
+    ndk::ScopedAStatus releaseMemoryResource(int64_t memoryIdentifierToken) override;
+
+   protected:
+    std::atomic_flag mExecutionInFlight = ATOMIC_FLAG_INIT;
+    const std::shared_ptr<SamplePreparedModel> kPreparedModel;
 };
 
 }  // namespace sample_driver

@@ -78,22 +78,7 @@ typedef enum {
 %insert Operation_1.3
 } OperationCode;
 
-/**
- * Fused activation function types.
- *
- *
- * Available since NNAPI feature level 1.
- */
-typedef enum {
-    /** NO fused activation function. */
-    ANEURALNETWORKS_FUSED_NONE = 0,
-    /** Fused ReLU activation function. */
-    ANEURALNETWORKS_FUSED_RELU = 1,
-    /** Fused ReLU1 activation function. */
-    ANEURALNETWORKS_FUSED_RELU1 = 2,
-    /** Fused ReLU6 activation function. */
-    ANEURALNETWORKS_FUSED_RELU6 = 3,
-} FuseCode;
+%insert FusedActivationFunc
 
 /**
  * Implicit padding algorithms.
@@ -130,47 +115,9 @@ typedef enum {
     ANEURALNETWORKS_PADDING_VALID = 2,
 } PaddingCode;
 
-/**
- * Execution preferences.
- *
- * Available since NNAPI feature level 1.
- */
-typedef enum {
-    /**
-     * Prefer executing in a way that minimizes battery drain.
-     * This is desirable for compilations that will be executed often.
-     */
-    ANEURALNETWORKS_PREFER_LOW_POWER = 0,
-    /**
-     * Prefer returning a single answer as fast as possible, even if this causes
-     * more power consumption.
-     */
-    ANEURALNETWORKS_PREFER_FAST_SINGLE_ANSWER = 1,
-    /**
-     * Prefer maximizing the throughput of successive frames, for example when
-     * processing successive frames coming from the camera.
-     */
-    ANEURALNETWORKS_PREFER_SUSTAINED_SPEED = 2,
-} PreferenceCode;
+%insert ExecutionPreference
 
-/**
- * Device types.
- *
- * The type of NNAPI device.
- */
-typedef enum {
-    /** The device type cannot be provided. */
-    ANEURALNETWORKS_DEVICE_UNKNOWN = 0,
-    /** The device does not fall into any category below. */
-    ANEURALNETWORKS_DEVICE_OTHER = 1,
-    /** The device runs NNAPI models on single or multi-core CPU. */
-    ANEURALNETWORKS_DEVICE_CPU = 2,
-    /** The device can run NNAPI models and also accelerate graphics APIs such
-     * as OpenGL ES and Vulkan. */
-    ANEURALNETWORKS_DEVICE_GPU = 3,
-    /** Dedicated accelerator for Machine Learning workloads. */
-    ANEURALNETWORKS_DEVICE_ACCELERATOR = 4,
-} DeviceTypeCode;
+%insert DeviceType
 
 /**
  * NNAPI feature levels.
@@ -358,17 +305,7 @@ typedef enum {
     ANEURALNETWORKS_FENCED_DURATION_IN_DRIVER = 3,
 } DurationCode;
 
-/**
- * Relative execution priority.
- *
- * Available since NNAPI feature level 4.
- */
-typedef enum {
-    ANEURALNETWORKS_PRIORITY_LOW = 90,
-    ANEURALNETWORKS_PRIORITY_MEDIUM = 100,
-    ANEURALNETWORKS_PRIORITY_HIGH = 110,
-    ANEURALNETWORKS_PRIORITY_DEFAULT = ANEURALNETWORKS_PRIORITY_MEDIUM,
-} PriorityCode;
+%insert Priority
 
 /**
  * ANeuralNetworksMemory is an opaque type that represents memory.
@@ -586,9 +523,7 @@ typedef struct ANeuralNetworksCompilation ANeuralNetworksCompilation;
  */
 typedef struct ANeuralNetworksExecution ANeuralNetworksExecution;
 
-/**
- * Parameters for ANEURALNETWORKS_TENSOR_QUANT8_SYMM_PER_CHANNEL operand.
- */
+%insert SymmPerChannelQuantParams_Comment
 typedef struct ANeuralNetworksSymmPerChannelQuantParams {
     /* The index of the channel dimension. */
     uint32_t channelDim;

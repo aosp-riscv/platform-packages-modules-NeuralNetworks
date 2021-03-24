@@ -24,9 +24,9 @@
 #include "OperationsUtils.h"
 #include "Tracing.h"
 
-#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
+#ifdef NN_INCLUDE_CPU_IMPLEMENTATION
 #include <tensorflow/lite/kernels/internal/optimized/legacy_optimized_ops.h>
-#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
+#endif  // NN_INCLUDE_CPU_IMPLEMENTATION
 
 namespace android {
 namespace nn {
@@ -41,7 +41,7 @@ constexpr uint32_t kAlphaTensor = 1;
 constexpr uint32_t kNumOutputs = 1;
 constexpr uint32_t kOutputTensor = 0;
 
-#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
+#ifdef NN_INCLUDE_CPU_IMPLEMENTATION
 template <typename T>
 inline bool eval(const std::function<T(const T&, const T&)>& func, const T* aData,
                  const Shape& aShape, const T* bData, const Shape& bShape, T* outputData,
@@ -97,7 +97,7 @@ bool evalQuant8(const T* aData, const Shape& aShape, const T* bData, const Shape
             },
             aData, aShape, bData, bShape, outputData, outputShape);
 }
-#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
+#endif  // NN_INCLUDE_CPU_IMPLEMENTATION
 
 Result<Version> validate(const IOperationValidationContext* context) {
     NN_RET_CHECK_EQ(context->getNumInputs(), kNumInputs);
@@ -117,7 +117,7 @@ Result<Version> validate(const IOperationValidationContext* context) {
     }
 }
 
-#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
+#ifdef NN_INCLUDE_CPU_IMPLEMENTATION
 bool prepare(IOperationExecutionContext* context) {
     Shape input = context->getInputShape(kInputTensor);
     Shape alpha = context->getInputShape(kAlphaTensor);
@@ -171,7 +171,7 @@ bool execute(IOperationExecutionContext* context) {
             NN_RET_CHECK_FAIL() << "Unsupported tensor type for operation " << kOperationName;
     }
 }
-#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
+#endif  // NN_INCLUDE_CPU_IMPLEMENTATION
 
 }  // namespace prelu
 

@@ -270,8 +270,8 @@ cc_defaults {
     ],
 }
 
-cc_library_static {
-    name: "libneuralnetworks_common_cl",
+cc_defaults {
+    name: "libneuralnetworks_common_cl_defaults",
     defaults: [
         "neuralnetworks_cl_defaults",
         "neuralnetworks_defaults",
@@ -313,6 +313,72 @@ cc_library_static {
         "-Wall",
         "-Werror",
         "-Wextra",
+        "-Wno-array-bounds",
+        "-Wno-extern-c-compat",
+        "-Wno-invalid-partial-specialization",
+        "-Wno-sign-compare",
+        "-Wno-unused-local-typedef",
+        "-Wno-unused-parameter",
+        "-Wno-unused-private-field",
+        "-Wno-unused-variable",
+    ],
+}
+
+cc_library_static {
+    name: "libneuralnetworks_common_cl",
+    defaults: ["libneuralnetworks_common_cl_defaults"],
+}
+
+cc_library_static {
+    name: "libneuralnetworks_common_cl_cpu",
+    defaults: ["libneuralnetworks_common_cl_defaults"],
+    sdk_version: "", // Override neuralnetworks_cl_defaults
+    min_sdk_version: "",
+    header_libs: [
+        "gemmlowp_headers",
+        "libeigen",
+        "libruy_headers",
+        "libtextclassifier_hash_headers",
+        "philox_random_headers",
+        "tensorflow_headers",
+    ],
+    whole_static_libs: [
+        "libarect",
+        "libtflite_kernel_utils",
+        "neuralnetworks_types_cl",
+        "philox_random",
+    ],
+    static_libs: [
+        "libcrypto_static",
+        "libtextclassifier_hash_static",
+    ],
+    srcs: [
+        "QuantUtils.cpp",
+        "operations/ArgMinMax.cpp",
+        "operations/BidirectionalSequenceLSTM.cpp",
+        "operations/Cast.cpp",
+        "operations/EmbeddingLookup.cpp",
+        "operations/ExpandDims.cpp",
+        "operations/GroupedConv2D.cpp",
+        "operations/HashtableLookup.cpp",
+        "operations/LSHProjection.cpp",
+        "operations/LSTM.cpp",
+        "operations/MaximumMinimum.cpp",
+        "operations/Multinomial.cpp",
+        "operations/Pow.cpp",
+        "operations/QuantizedLSTM.cpp",
+        "operations/RNN.cpp",
+        "operations/Reshape.cpp",
+        "operations/SVDF.cpp",
+        "operations/SimpleMath.cpp",
+        "operations/Split.cpp",
+        "operations/Tile.cpp",
+    ],
+    cflags: [
+        "-DNAMESPACE_FOR_HASH_FUNCTIONS=farmhash",
+        "-DNN_COMPATIBILITY_LIBRARY_BUILD",
+        "-DNN_INCLUDE_CPU_IMPLEMENTATION",
+        "-DTF_LITE_DISABLE_X86_NEON",
         "-Wno-array-bounds",
         "-Wno-extern-c-compat",
         "-Wno-invalid-partial-specialization",

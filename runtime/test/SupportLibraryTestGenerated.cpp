@@ -90,7 +90,7 @@ class GeneratedTests : public GeneratedTestBase {
     Execution::ComputeMode mComputeMode = Execution::getComputeMode();
 
     std::unique_ptr<const NnApiSupportLibrary> mNnApi =
-            LoadNnApiSupportLibrary(SUPPORT_LIBRARY_NAME.c_str());
+            loadNnApiSupportLibrary(SUPPORT_LIBRARY_NAME);
 };
 
 int GeneratedTests::mVndkVersion = __ANDROID_API_FUTURE__;

@@ -525,7 +525,7 @@ cc_test {
         "libgmock_ndk",
         "libgtest_ndk_c++",
         "libneuralnetworks_generated_test_harness",
-        "neuralnetworks_supportlibrary",
+        "neuralnetworks_supportlibrary_loader",
     ],
     whole_static_libs: [
         "neuralnetworks_generated_V1_0_example",
@@ -536,7 +536,6 @@ cc_test {
     ],
     include_dirs: [
         "packages/modules/NeuralNetworks/runtime/include/",
-        "packages/modules/NeuralNetworks/sl",
         "packages/modules/NeuralNetworks/tools/test_generator/test_harness/include",
     ],
     test_suites: ["general-tests"],

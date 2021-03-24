@@ -46,6 +46,10 @@
 #include "NeuralNetworksExtensions.h"
 #include "NeuralNetworksOEM.h"
 
+#ifdef NN_COMPATIBILITY_LIBRARY_BUILD
+#include "NeuralNetworksSupportLibraryImpl.h"
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
+
 using namespace android::nn;
 
 // Make sure the constants defined in the header files have not changed values.
@@ -1648,3 +1652,91 @@ int ANeuralNetworksExecution_setReusable(ANeuralNetworksExecution* execution, bo
     ExecutionBuilder* r = reinterpret_cast<ExecutionBuilder*>(execution);
     return r->setReusable(reusable);
 }
+
+#ifdef NN_COMPATIBILITY_LIBRARY_BUILD
+
+#define NNCL_FUNC(symbol) .symbol = symbol
+
+NnApiSLDriverImplFL5 slDriverImpl{
+        .base{.implFeatureLevel = ANEURALNETWORKS_FEATURE_LEVEL_5},
+        NNCL_FUNC(ANeuralNetworksBurst_create),
+        NNCL_FUNC(ANeuralNetworksBurst_free),
+        NNCL_FUNC(ANeuralNetworksCompilation_createForDevices),
+        NNCL_FUNC(ANeuralNetworksCompilation_finish),
+        NNCL_FUNC(ANeuralNetworksCompilation_free),
+        NNCL_FUNC(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput),
+        NNCL_FUNC(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput),
+        NNCL_FUNC(ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput),
+        NNCL_FUNC(ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput),
+        NNCL_FUNC(ANeuralNetworksCompilation_setCaching),
+        NNCL_FUNC(ANeuralNetworksCompilation_setPreference),
+        NNCL_FUNC(ANeuralNetworksCompilation_setPriority),
+        NNCL_FUNC(ANeuralNetworksCompilation_setTimeout),
+        NNCL_FUNC(ANeuralNetworksDevice_getExtensionSupport),
+        NNCL_FUNC(ANeuralNetworksDevice_getName),
+        NNCL_FUNC(ANeuralNetworksDevice_getType),
+        NNCL_FUNC(ANeuralNetworksDevice_getVersion),
+        NNCL_FUNC(ANeuralNetworksDevice_wait),
+        NNCL_FUNC(ANeuralNetworksEvent_createFromSyncFenceFd),
+        NNCL_FUNC(ANeuralNetworksEvent_free),
+        NNCL_FUNC(ANeuralNetworksEvent_getSyncFenceFd),
+        NNCL_FUNC(ANeuralNetworksEvent_wait),
+        NNCL_FUNC(ANeuralNetworksExecution_burstCompute),
+        NNCL_FUNC(ANeuralNetworksExecution_compute),
+        NNCL_FUNC(ANeuralNetworksExecution_create),
+        NNCL_FUNC(ANeuralNetworksExecution_enableInputAndOutputPadding),
+        NNCL_FUNC(ANeuralNetworksExecution_free),
+        NNCL_FUNC(ANeuralNetworksExecution_getDuration),
+        NNCL_FUNC(ANeuralNetworksExecution_getOutputOperandDimensions),
+        NNCL_FUNC(ANeuralNetworksExecution_getOutputOperandRank),
+        NNCL_FUNC(ANeuralNetworksExecution_setInput),
+        NNCL_FUNC(ANeuralNetworksExecution_setInputFromMemory),
+        NNCL_FUNC(ANeuralNetworksExecution_setLoopTimeout),
+        NNCL_FUNC(ANeuralNetworksExecution_setMeasureTiming),
+        NNCL_FUNC(ANeuralNetworksExecution_setOutput),
+        NNCL_FUNC(ANeuralNetworksExecution_setOutputFromMemory),
+        NNCL_FUNC(ANeuralNetworksExecution_setReusable),
+        NNCL_FUNC(ANeuralNetworksExecution_setTimeout),
+        NNCL_FUNC(ANeuralNetworksExecution_startComputeWithDependencies),
+        NNCL_FUNC(ANeuralNetworksMemoryDesc_addInputRole),
+        NNCL_FUNC(ANeuralNetworksMemoryDesc_addOutputRole),
+        NNCL_FUNC(ANeuralNetworksMemoryDesc_create),
+        NNCL_FUNC(ANeuralNetworksMemoryDesc_finish),
+        NNCL_FUNC(ANeuralNetworksMemoryDesc_free),
+        NNCL_FUNC(ANeuralNetworksMemoryDesc_setDimensions),
+        NNCL_FUNC(ANeuralNetworksMemory_copy),
+        NNCL_FUNC(ANeuralNetworksMemory_createFromAHardwareBuffer),
+        NNCL_FUNC(ANeuralNetworksMemory_createFromDesc),
+        NNCL_FUNC(ANeuralNetworksMemory_createFromFd),
+        NNCL_FUNC(ANeuralNetworksMemory_free),
+        NNCL_FUNC(ANeuralNetworksModel_addOperand),
+        NNCL_FUNC(ANeuralNetworksModel_addOperation),
+        NNCL_FUNC(ANeuralNetworksModel_create),
+        NNCL_FUNC(ANeuralNetworksModel_finish),
+        NNCL_FUNC(ANeuralNetworksModel_free),
+        NNCL_FUNC(ANeuralNetworksModel_getExtensionOperandType),
+        NNCL_FUNC(ANeuralNetworksModel_getExtensionOperationType),
+        NNCL_FUNC(ANeuralNetworksModel_getSupportedOperationsForDevices),
+        NNCL_FUNC(ANeuralNetworksModel_identifyInputsAndOutputs),
+        NNCL_FUNC(ANeuralNetworksModel_relaxComputationFloat32toFloat16),
+        NNCL_FUNC(ANeuralNetworksModel_setOperandExtensionData),
+        NNCL_FUNC(ANeuralNetworksModel_setOperandSymmPerChannelQuantParams),
+        NNCL_FUNC(ANeuralNetworksModel_setOperandValue),
+        NNCL_FUNC(ANeuralNetworksModel_setOperandValueFromMemory),
+        NNCL_FUNC(ANeuralNetworksModel_setOperandValueFromModel),
+        NNCL_FUNC(ANeuralNetworks_getDefaultLoopTimeout),
+        NNCL_FUNC(ANeuralNetworks_getDevice),
+        NNCL_FUNC(ANeuralNetworks_getDeviceCount),
+        NNCL_FUNC(ANeuralNetworks_getMaximumLoopTimeout),
+        NNCL_FUNC(ANeuralNetworks_getRuntimeFeatureLevel),
+};
+
+#undef NNCL_FUNC
+
+__BEGIN_DECLS
+NnApiSLDriverImpl* ANeuralNetworks_getSLDriverImpl() {
+    return reinterpret_cast<NnApiSLDriverImpl*>(&slDriverImpl);
+}
+__END_DECLS
+
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD

@@ -50,6 +50,15 @@
 
 #include "NeuralNetworksTypes.h"
 
+// This is required for building libneuralnetworks_cl,
+// the symbols have same names as in NDK, but
+// they are not bounded by API availability.
+#ifdef NN_COMPATIBILITY_LIBRARY_BUILD
+#define __NNAPI_INTRODUCED_IN(x)
+#else
+#define __NNAPI_INTRODUCED_IN(x) __INTRODUCED_IN(x)
+#endif
+
 __BEGIN_DECLS
 
 /**
@@ -72,7 +81,7 @@ __BEGIN_DECLS
  *
  * @return ANEURALNETWORKS_NO_ERROR if successful.
  */
-int ANeuralNetworksMemoryDesc_create(ANeuralNetworksMemoryDesc** desc) __INTRODUCED_IN(30);
+int ANeuralNetworksMemoryDesc_create(ANeuralNetworksMemoryDesc** desc) __NNAPI_INTRODUCED_IN(30);
 
 /**
  * Destroy a memory descriptor.
@@ -87,7 +96,7 @@ int ANeuralNetworksMemoryDesc_create(ANeuralNetworksMemoryDesc** desc) __INTRODU
  * @param desc The memory descriptor to be destroyed. Passing NULL is acceptable and
  *             results in no operation.
  */
-void ANeuralNetworksMemoryDesc_free(ANeuralNetworksMemoryDesc* desc) __INTRODUCED_IN(30);
+void ANeuralNetworksMemoryDesc_free(ANeuralNetworksMemoryDesc* desc) __NNAPI_INTRODUCED_IN(30);
 
 /**
  * Specify that a memory object will be playing the role of an input to an execution created from a
@@ -133,7 +142,8 @@ void ANeuralNetworksMemoryDesc_free(ANeuralNetworksMemoryDesc* desc) __INTRODUCE
  */
 int ANeuralNetworksMemoryDesc_addInputRole(ANeuralNetworksMemoryDesc* desc,
                                            const ANeuralNetworksCompilation* compilation,
-                                           uint32_t index, float frequency) __INTRODUCED_IN(30);
+                                           uint32_t index, float frequency)
+        __NNAPI_INTRODUCED_IN(30);
 
 /**
  * Specify that a memory object will be playing the role of an output to an execution created from a
@@ -179,7 +189,8 @@ int ANeuralNetworksMemoryDesc_addInputRole(ANeuralNetworksMemoryDesc* desc,
  */
 int ANeuralNetworksMemoryDesc_addOutputRole(ANeuralNetworksMemoryDesc* desc,
                                             const ANeuralNetworksCompilation* compilation,
-                                            uint32_t index, float frequency) __INTRODUCED_IN(30);
+                                            uint32_t index, float frequency)
+        __NNAPI_INTRODUCED_IN(30);
 
 /**
  * Set the dimensional information of the memory descriptor.
@@ -205,7 +216,7 @@ int ANeuralNetworksMemoryDesc_addOutputRole(ANeuralNetworksMemoryDesc* desc,
  * @return ANEURALNETWORKS_NO_ERROR if successful.
  */
 int ANeuralNetworksMemoryDesc_setDimensions(ANeuralNetworksMemoryDesc* desc, uint32_t rank,
-                                            const uint32_t* dimensions) __INTRODUCED_IN(30);
+                                            const uint32_t* dimensions) __NNAPI_INTRODUCED_IN(30);
 
 /**
  * Indicate that we have finished modifying a memory descriptor. Required before calling
@@ -221,7 +232,7 @@ int ANeuralNetworksMemoryDesc_setDimensions(ANeuralNetworksMemoryDesc* desc, uin
  *
  * @return ANEURALNETWORKS_NO_ERROR if successful.
  */
-int ANeuralNetworksMemoryDesc_finish(ANeuralNetworksMemoryDesc* desc) __INTRODUCED_IN(30);
+int ANeuralNetworksMemoryDesc_finish(ANeuralNetworksMemoryDesc* desc) __NNAPI_INTRODUCED_IN(30);
 
 /**
  * Creates a memory object from a memory descriptor.
@@ -277,7 +288,7 @@ int ANeuralNetworksMemoryDesc_finish(ANeuralNetworksMemoryDesc* desc) __INTRODUC
  *         roles.
  */
 int ANeuralNetworksMemory_createFromDesc(const ANeuralNetworksMemoryDesc* desc,
-                                         ANeuralNetworksMemory** memory) __INTRODUCED_IN(30);
+                                         ANeuralNetworksMemory** memory) __NNAPI_INTRODUCED_IN(30);
 
 /**
  * Copies data from one memory object to another.
@@ -316,7 +327,7 @@ int ANeuralNetworksMemory_createFromDesc(const ANeuralNetworksMemoryDesc* desc,
  * @return ANEURALNETWORKS_NO_ERROR if successful.
  */
 int ANeuralNetworksMemory_copy(const ANeuralNetworksMemory* src, const ANeuralNetworksMemory* dst)
-        __INTRODUCED_IN(30);
+        __NNAPI_INTRODUCED_IN(30);
 
 /**
  * Get the number of available devices.
@@ -327,7 +338,7 @@ int ANeuralNetworksMemory_copy(const ANeuralNetworksMemory* src, const ANeuralNe
  *
  * Available since NNAPI feature level 3.
  */
-int ANeuralNetworks_getDeviceCount(uint32_t* numDevices) __INTRODUCED_IN(29);
+int ANeuralNetworks_getDeviceCount(uint32_t* numDevices) __NNAPI_INTRODUCED_IN(29);
 
 /**
  * Get the representation of the specified device.
@@ -343,7 +354,7 @@ int ANeuralNetworks_getDeviceCount(uint32_t* numDevices) __INTRODUCED_IN(29);
  * Available since NNAPI feature level 3.
  */
 int ANeuralNetworks_getDevice(uint32_t devIndex, ANeuralNetworksDevice** device)
-        __INTRODUCED_IN(29);
+        __NNAPI_INTRODUCED_IN(29);
 
 /**
  * Get the name of the specified device.
@@ -363,7 +374,7 @@ int ANeuralNetworks_getDevice(uint32_t devIndex, ANeuralNetworksDevice** device)
  * Available since NNAPI feature level 3.
  */
 int ANeuralNetworksDevice_getName(const ANeuralNetworksDevice* device, const char** name)
-        __INTRODUCED_IN(29);
+        __NNAPI_INTRODUCED_IN(29);
 
 /**
  * Get the type of a given device.
@@ -382,7 +393,7 @@ int ANeuralNetworksDevice_getName(const ANeuralNetworksDevice* device, const cha
  * Available since NNAPI feature level 3.
  */
 int ANeuralNetworksDevice_getType(const ANeuralNetworksDevice* device, int32_t* type)
-        __INTRODUCED_IN(29);
+        __NNAPI_INTRODUCED_IN(29);
 
 /**
  * Get the version of the driver implementation of the specified device.
@@ -412,7 +423,7 @@ int ANeuralNetworksDevice_getType(const ANeuralNetworksDevice* device, int32_t* 
  * Available since NNAPI feature level 3.
  */
 int ANeuralNetworksDevice_getVersion(const ANeuralNetworksDevice* device, const char** version)
-        __INTRODUCED_IN(29);
+        __NNAPI_INTRODUCED_IN(29);
 
 /**
  * Get the NNAPI feature level of the specified NNAPI device.
@@ -439,7 +450,7 @@ int ANeuralNetworksDevice_getVersion(const ANeuralNetworksDevice* device, const 
  * Available since NNAPI feature level 3.
  */
 int ANeuralNetworksDevice_getFeatureLevel(const ANeuralNetworksDevice* device,
-                                          int64_t* featureLevel) __INTRODUCED_IN(29);
+                                          int64_t* featureLevel) __NNAPI_INTRODUCED_IN(29);
 
 /**
  * Wait until the device is in a live state.
@@ -455,7 +466,7 @@ int ANeuralNetworksDevice_getFeatureLevel(const ANeuralNetworksDevice* device,
  *
  * Available since NNAPI feature level 4.
  */
-int ANeuralNetworksDevice_wait(const ANeuralNetworksDevice* device) __INTRODUCED_IN(30);
+int ANeuralNetworksDevice_wait(const ANeuralNetworksDevice* device) __NNAPI_INTRODUCED_IN(30);
 
 /**
  * Get the supported operations for a specified set of devices. If multiple devices
@@ -476,7 +487,7 @@ int ANeuralNetworksDevice_wait(const ANeuralNetworksDevice* device) __INTRODUCED
  */
 int ANeuralNetworksModel_getSupportedOperationsForDevices(
         const ANeuralNetworksModel* model, const ANeuralNetworksDevice* const* devices,
-        uint32_t numDevices, bool* supportedOps) __INTRODUCED_IN(29);
+        uint32_t numDevices, bool* supportedOps) __NNAPI_INTRODUCED_IN(29);
 
 /**
  * Create a {@link ANeuralNetworksCompilation} to compile the given model for a specified set
@@ -509,7 +520,7 @@ int ANeuralNetworksCompilation_createForDevices(ANeuralNetworksModel* model,
                                                 const ANeuralNetworksDevice* const* devices,
                                                 uint32_t numDevices,
                                                 ANeuralNetworksCompilation** compilation)
-        __INTRODUCED_IN(29);
+        __NNAPI_INTRODUCED_IN(29);
 
 /**
  * Sets the compilation caching signature and the cache directory.
@@ -538,7 +549,7 @@ int ANeuralNetworksCompilation_createForDevices(ANeuralNetworksModel* model,
  */
 int ANeuralNetworksCompilation_setCaching(ANeuralNetworksCompilation* compilation,
                                           const char* cacheDir, const uint8_t* token)
-        __INTRODUCED_IN(29);
+        __NNAPI_INTRODUCED_IN(29);
 
 /**
  * Schedule synchronous evaluation of the execution.
@@ -579,7 +590,7 @@ int ANeuralNetworksCompilation_setCaching(ANeuralNetworksCompilation* compilatio
  *         ANEURALNETWORKS_UNMAPPABLE if the execution input or output memory cannot
  *         be properly mapped.
  */
-int ANeuralNetworksExecution_compute(ANeuralNetworksExecution* execution) __INTRODUCED_IN(29);
+int ANeuralNetworksExecution_compute(ANeuralNetworksExecution* execution) __NNAPI_INTRODUCED_IN(29);
 
 /**
  * Get the dimensional information of the specified output operand of the model of the
@@ -604,7 +615,7 @@ int ANeuralNetworksExecution_compute(ANeuralNetworksExecution* execution) __INTR
  */
 int ANeuralNetworksExecution_getOutputOperandRank(ANeuralNetworksExecution* execution,
                                                   int32_t index, uint32_t* rank)
-        __INTRODUCED_IN(29);
+        __NNAPI_INTRODUCED_IN(29);
 
 /**
  * Get the dimensional information of the specified output operand of the model of the
@@ -630,7 +641,7 @@ int ANeuralNetworksExecution_getOutputOperandRank(ANeuralNetworksExecution* exec
  */
 int ANeuralNetworksExecution_getOutputOperandDimensions(ANeuralNetworksExecution* execution,
                                                         int32_t index, uint32_t* dimensions)
-        __INTRODUCED_IN(29);
+        __NNAPI_INTRODUCED_IN(29);
 
 /**
  * Create a {@link ANeuralNetworksBurst} to apply the given compilation.
@@ -649,7 +660,7 @@ int ANeuralNetworksExecution_getOutputOperandDimensions(ANeuralNetworksExecution
  *         if the compilation is invalid.
  */
 int ANeuralNetworksBurst_create(ANeuralNetworksCompilation* compilation,
-                                ANeuralNetworksBurst** burst) __INTRODUCED_IN(29);
+                                ANeuralNetworksBurst** burst) __NNAPI_INTRODUCED_IN(29);
 
 /**
  * Destroys the burst object.
@@ -659,7 +670,7 @@ int ANeuralNetworksBurst_create(ANeuralNetworksCompilation* compilation,
  * @param burst The burst object to be destroyed. Passing NULL is acceptable and
  *              results in no operation.
  */
-void ANeuralNetworksBurst_free(ANeuralNetworksBurst* burst) __INTRODUCED_IN(29);
+void ANeuralNetworksBurst_free(ANeuralNetworksBurst* burst) __NNAPI_INTRODUCED_IN(29);
 
 /**
  * Schedule synchronous evaluation of the execution on a burst object.
@@ -706,7 +717,7 @@ void ANeuralNetworksBurst_free(ANeuralNetworksBurst* burst) __INTRODUCED_IN(29);
  * @return ANEURALNETWORKS_NO_ERROR if the execution completed normally.
  */
 int ANeuralNetworksExecution_burstCompute(ANeuralNetworksExecution* execution,
-                                          ANeuralNetworksBurst* burst) __INTRODUCED_IN(29);
+                                          ANeuralNetworksBurst* burst) __NNAPI_INTRODUCED_IN(29);
 
 /**
  * Creates a shared memory object from an AHardwareBuffer handle.
@@ -743,7 +754,7 @@ int ANeuralNetworksExecution_burstCompute(ANeuralNetworksExecution* execution,
  */
 int ANeuralNetworksMemory_createFromAHardwareBuffer(const AHardwareBuffer* ahwb,
                                                     ANeuralNetworksMemory** memory)
-        __INTRODUCED_IN(29);
+        __NNAPI_INTRODUCED_IN(29);
 
 /**
 
@@ -771,7 +782,7 @@ int ANeuralNetworksMemory_createFromAHardwareBuffer(const AHardwareBuffer* ahwb,
  * @return ANEURALNETWORKS_NO_ERROR if successful.
  */
 int ANeuralNetworksExecution_setMeasureTiming(ANeuralNetworksExecution* execution, bool measure)
-        __INTRODUCED_IN(29);
+        __NNAPI_INTRODUCED_IN(29);
 
 /**
  * Get the time spent in the latest computation evaluated on the specified
@@ -797,7 +808,7 @@ int ANeuralNetworksExecution_setMeasureTiming(ANeuralNetworksExecution* executio
  */
 int ANeuralNetworksExecution_getDuration(const ANeuralNetworksExecution* execution,
                                          int32_t durationCode, uint64_t* duration)
-        __INTRODUCED_IN(29);
+        __NNAPI_INTRODUCED_IN(29);
 
 /**
  * Creates a shared memory object from a file descriptor.
@@ -824,7 +835,7 @@ int ANeuralNetworksExecution_getDuration(const ANeuralNetworksExecution* executi
  * @return ANEURALNETWORKS_NO_ERROR if the request completed normally.
  */
 int ANeuralNetworksMemory_createFromFd(size_t size, int protect, int fd, size_t offset,
-                                       ANeuralNetworksMemory** memory) __INTRODUCED_IN(27);
+                                       ANeuralNetworksMemory** memory) __NNAPI_INTRODUCED_IN(27);
 
 /**
  * Delete a memory object.
@@ -838,7 +849,7 @@ int ANeuralNetworksMemory_createFromFd(size_t size, int protect, int fd, size_t 
  * @param memory The memory object to be freed. Passing NULL is acceptable and
  *               results in no operation.
  */
-void ANeuralNetworksMemory_free(ANeuralNetworksMemory* memory) __INTRODUCED_IN(27);
+void ANeuralNetworksMemory_free(ANeuralNetworksMemory* memory) __NNAPI_INTRODUCED_IN(27);
 
 /**
  * Create an empty {@link ANeuralNetworksModel}.
@@ -866,7 +877,7 @@ void ANeuralNetworksMemory_free(ANeuralNetworksMemory* memory) __INTRODUCED_IN(2
  *
  * @return ANEURALNETWORKS_NO_ERROR if successful.
  */
-int ANeuralNetworksModel_create(ANeuralNetworksModel** model) __INTRODUCED_IN(27);
+int ANeuralNetworksModel_create(ANeuralNetworksModel** model) __NNAPI_INTRODUCED_IN(27);
 
 /**
  * Destroy a model.
@@ -881,7 +892,7 @@ int ANeuralNetworksModel_create(ANeuralNetworksModel** model) __INTRODUCED_IN(27
  * @param model The model to be destroyed. Passing NULL is acceptable and
  *              results in no operation.
  */
-void ANeuralNetworksModel_free(ANeuralNetworksModel* model) __INTRODUCED_IN(27);
+void ANeuralNetworksModel_free(ANeuralNetworksModel* model) __NNAPI_INTRODUCED_IN(27);
 
 /**
  * Indicate that we have finished modifying a model. Required before
@@ -901,7 +912,7 @@ void ANeuralNetworksModel_free(ANeuralNetworksModel* model) __INTRODUCED_IN(27);
  *
  * @return ANEURALNETWORKS_NO_ERROR if successful.
  */
-int ANeuralNetworksModel_finish(ANeuralNetworksModel* model) __INTRODUCED_IN(27);
+int ANeuralNetworksModel_finish(ANeuralNetworksModel* model) __NNAPI_INTRODUCED_IN(27);
 
 /**
  * Add an operand to a model.
@@ -954,7 +965,8 @@ int ANeuralNetworksModel_finish(ANeuralNetworksModel* model) __INTRODUCED_IN(27)
  * @return ANEURALNETWORKS_NO_ERROR if successful.
  */
 int ANeuralNetworksModel_addOperand(ANeuralNetworksModel* model,
-                                    const ANeuralNetworksOperandType* type) __INTRODUCED_IN(27);
+                                    const ANeuralNetworksOperandType* type)
+        __NNAPI_INTRODUCED_IN(27);
 
 /**
  * Sets an operand to a constant value.
@@ -992,7 +1004,8 @@ int ANeuralNetworksModel_addOperand(ANeuralNetworksModel* model,
  * @return ANEURALNETWORKS_NO_ERROR if successful.
  */
 int ANeuralNetworksModel_setOperandValue(ANeuralNetworksModel* model, int32_t index,
-                                         const void* buffer, size_t length) __INTRODUCED_IN(27);
+                                         const void* buffer, size_t length)
+        __NNAPI_INTRODUCED_IN(27);
 
 /**
  * Sets an operand's per channel quantization parameters.
@@ -1015,7 +1028,7 @@ int ANeuralNetworksModel_setOperandValue(ANeuralNetworksModel* model, int32_t in
  */
 int ANeuralNetworksModel_setOperandSymmPerChannelQuantParams(
         ANeuralNetworksModel* model, int32_t index,
-        const ANeuralNetworksSymmPerChannelQuantParams* channelQuant) __INTRODUCED_IN(29);
+        const ANeuralNetworksSymmPerChannelQuantParams* channelQuant) __NNAPI_INTRODUCED_IN(29);
 
 /**
  * Sets an operand to a value stored in a memory object.
@@ -1059,7 +1072,7 @@ int ANeuralNetworksModel_setOperandSymmPerChannelQuantParams(
 int ANeuralNetworksModel_setOperandValueFromMemory(ANeuralNetworksModel* model, int32_t index,
                                                    const ANeuralNetworksMemory* memory,
                                                    size_t offset, size_t length)
-        __INTRODUCED_IN(27);
+        __NNAPI_INTRODUCED_IN(27);
 
 /**
  * Sets an operand to a value that is a reference to another NNAPI model.
@@ -1088,7 +1101,7 @@ int ANeuralNetworksModel_setOperandValueFromMemory(ANeuralNetworksModel* model, 
  */
 int ANeuralNetworksModel_setOperandValueFromModel(ANeuralNetworksModel* model, int32_t index,
                                                   const ANeuralNetworksModel* value)
-        __INTRODUCED_IN(30);
+        __NNAPI_INTRODUCED_IN(30);
 
 /**
  * Add an operation to a model.
@@ -1115,7 +1128,7 @@ int ANeuralNetworksModel_setOperandValueFromModel(ANeuralNetworksModel* model, i
 int ANeuralNetworksModel_addOperation(ANeuralNetworksModel* model,
                                       ANeuralNetworksOperationType type, uint32_t inputCount,
                                       const uint32_t* inputs, uint32_t outputCount,
-                                      const uint32_t* outputs) __INTRODUCED_IN(27);
+                                      const uint32_t* outputs) __NNAPI_INTRODUCED_IN(27);
 
 /**
  * Specifies which operands will be the model's inputs and
@@ -1143,7 +1156,8 @@ int ANeuralNetworksModel_addOperation(ANeuralNetworksModel* model,
  */
 int ANeuralNetworksModel_identifyInputsAndOutputs(ANeuralNetworksModel* model, uint32_t inputCount,
                                                   const uint32_t* inputs, uint32_t outputCount,
-                                                  const uint32_t* outputs) __INTRODUCED_IN(27);
+                                                  const uint32_t* outputs)
+        __NNAPI_INTRODUCED_IN(27);
 
 /**
  * Specifies whether {@link ANEURALNETWORKS_TENSOR_FLOAT32} is allowed to be
@@ -1171,7 +1185,7 @@ int ANeuralNetworksModel_identifyInputsAndOutputs(ANeuralNetworksModel* model, u
  * See {@link ANeuralNetworksModel} for information on multithreaded usage.
  */
 int ANeuralNetworksModel_relaxComputationFloat32toFloat16(ANeuralNetworksModel* model, bool allow)
-        __INTRODUCED_IN(28);
+        __NNAPI_INTRODUCED_IN(28);
 
 /**
  * Create a {@link ANeuralNetworksCompilation} to compile the given model.
@@ -1205,7 +1219,8 @@ int ANeuralNetworksModel_relaxComputationFloat32toFloat16(ANeuralNetworksModel* 
  *         if the model is invalid.
  */
 int ANeuralNetworksCompilation_create(ANeuralNetworksModel* model,
-                                      ANeuralNetworksCompilation** compilation) __INTRODUCED_IN(27);
+                                      ANeuralNetworksCompilation** compilation)
+        __NNAPI_INTRODUCED_IN(27);
 
 /**
  * Destroy a compilation.
@@ -1220,7 +1235,8 @@ int ANeuralNetworksCompilation_create(ANeuralNetworksModel* model,
  * @param compilation The compilation to be destroyed. Passing NULL is acceptable and
  *                    results in no operation.
  */
-void ANeuralNetworksCompilation_free(ANeuralNetworksCompilation* compilation) __INTRODUCED_IN(27);
+void ANeuralNetworksCompilation_free(ANeuralNetworksCompilation* compilation)
+        __NNAPI_INTRODUCED_IN(27);
 
 /**
  * Sets the execution preference.
@@ -1240,7 +1256,7 @@ void ANeuralNetworksCompilation_free(ANeuralNetworksCompilation* compilation) __
  * @return ANEURALNETWORKS_NO_ERROR if successful.
  */
 int ANeuralNetworksCompilation_setPreference(ANeuralNetworksCompilation* compilation,
-                                             int32_t preference) __INTRODUCED_IN(27);
+                                             int32_t preference) __NNAPI_INTRODUCED_IN(27);
 
 /**
  * Indicate that we have finished modifying a compilation. Required before
@@ -1265,7 +1281,8 @@ int ANeuralNetworksCompilation_setPreference(ANeuralNetworksCompilation* compila
  *
  * @return ANEURALNETWORKS_NO_ERROR if successful.
  */
-int ANeuralNetworksCompilation_finish(ANeuralNetworksCompilation* compilation) __INTRODUCED_IN(27);
+int ANeuralNetworksCompilation_finish(ANeuralNetworksCompilation* compilation)
+        __NNAPI_INTRODUCED_IN(27);
 
 /**
  * Set the execution priority.
@@ -1291,7 +1308,7 @@ int ANeuralNetworksCompilation_finish(ANeuralNetworksCompilation* compilation) _
  * @return ANEURALNETWORKS_NO_ERROR if successful.
  */
 int ANeuralNetworksCompilation_setPriority(ANeuralNetworksCompilation* compilation, int priority)
-        __INTRODUCED_IN(30);
+        __NNAPI_INTRODUCED_IN(30);
 
 /**
  * Set the maximum expected duration for compiling the model.
@@ -1334,7 +1351,7 @@ int ANeuralNetworksCompilation_setPriority(ANeuralNetworksCompilation* compilati
  * Available since NNAPI feature level 4.
  */
 int ANeuralNetworksCompilation_setTimeout(ANeuralNetworksCompilation* compilation,
-                                          uint64_t duration) __INTRODUCED_IN(30);
+                                          uint64_t duration) __NNAPI_INTRODUCED_IN(30);
 
 /**
  * Create a {@link ANeuralNetworksExecution} to apply the given compilation.
@@ -1357,7 +1374,7 @@ int ANeuralNetworksCompilation_setTimeout(ANeuralNetworksCompilation* compilatio
  *         if the compilation is invalid.
  */
 int ANeuralNetworksExecution_create(ANeuralNetworksCompilation* compilation,
-                                    ANeuralNetworksExecution** execution) __INTRODUCED_IN(27);
+                                    ANeuralNetworksExecution** execution) __NNAPI_INTRODUCED_IN(27);
 
 /**
  * Destroy an execution.
@@ -1380,7 +1397,7 @@ int ANeuralNetworksExecution_create(ANeuralNetworksCompilation* compilation,
  * @param execution The execution to be destroyed. Passing NULL is acceptable and
  *                  results in no operation.
  */
-void ANeuralNetworksExecution_free(ANeuralNetworksExecution* execution) __INTRODUCED_IN(27);
+void ANeuralNetworksExecution_free(ANeuralNetworksExecution* execution) __NNAPI_INTRODUCED_IN(27);
 
 /**
  * Associate a user buffer with an input of the model of the
@@ -1440,7 +1457,7 @@ void ANeuralNetworksExecution_free(ANeuralNetworksExecution* execution) __INTROD
  */
 int ANeuralNetworksExecution_setInput(ANeuralNetworksExecution* execution, int32_t index,
                                       const ANeuralNetworksOperandType* type, const void* buffer,
-                                      size_t length) __INTRODUCED_IN(27);
+                                      size_t length) __NNAPI_INTRODUCED_IN(27);
 
 /**
  * Associate a region of a memory object with an input of the model of the
@@ -1511,7 +1528,7 @@ int ANeuralNetworksExecution_setInput(ANeuralNetworksExecution* execution, int32
 int ANeuralNetworksExecution_setInputFromMemory(ANeuralNetworksExecution* execution, int32_t index,
                                                 const ANeuralNetworksOperandType* type,
                                                 const ANeuralNetworksMemory* memory, size_t offset,
-                                                size_t length) __INTRODUCED_IN(27);
+                                                size_t length) __NNAPI_INTRODUCED_IN(27);
 
 /**
  * Associate a user buffer with an output of the model of the
@@ -1575,7 +1592,7 @@ int ANeuralNetworksExecution_setInputFromMemory(ANeuralNetworksExecution* execut
  */
 int ANeuralNetworksExecution_setOutput(ANeuralNetworksExecution* execution, int32_t index,
                                        const ANeuralNetworksOperandType* type, void* buffer,
-                                       size_t length) __INTRODUCED_IN(27);
+                                       size_t length) __NNAPI_INTRODUCED_IN(27);
 
 /**
  * Associate a region of a memory object with an output of the model of the
@@ -1651,7 +1668,7 @@ int ANeuralNetworksExecution_setOutput(ANeuralNetworksExecution* execution, int3
 int ANeuralNetworksExecution_setOutputFromMemory(ANeuralNetworksExecution* execution, int32_t index,
                                                  const ANeuralNetworksOperandType* type,
                                                  const ANeuralNetworksMemory* memory, size_t offset,
-                                                 size_t length) __INTRODUCED_IN(27);
+                                                 size_t length) __NNAPI_INTRODUCED_IN(27);
 
 /**
  * Schedule asynchronous evaluation of the execution.
@@ -1706,7 +1723,7 @@ int ANeuralNetworksExecution_setOutputFromMemory(ANeuralNetworksExecution* execu
  * @return ANEURALNETWORKS_NO_ERROR if the evaluation is successfully scheduled.
  */
 int ANeuralNetworksExecution_startCompute(ANeuralNetworksExecution* execution,
-                                          ANeuralNetworksEvent** event) __INTRODUCED_IN(27);
+                                          ANeuralNetworksEvent** event) __NNAPI_INTRODUCED_IN(27);
 
 /**
  * Set the maximum expected duration of the specified execution.
@@ -1755,7 +1772,7 @@ int ANeuralNetworksExecution_startCompute(ANeuralNetworksExecution* execution,
  * Available since NNAPI feature level 4.
  */
 int ANeuralNetworksExecution_setTimeout(ANeuralNetworksExecution* execution, uint64_t duration)
-        __INTRODUCED_IN(30);
+        __NNAPI_INTRODUCED_IN(30);
 
 /**
  * Set the maximum duration of WHILE loops in the specified execution.
@@ -1786,7 +1803,7 @@ int ANeuralNetworksExecution_setTimeout(ANeuralNetworksExecution* execution, uin
  * Available since NNAPI feature level 4.
  */
 int ANeuralNetworksExecution_setLoopTimeout(ANeuralNetworksExecution* execution, uint64_t duration)
-        __INTRODUCED_IN(30);
+        __NNAPI_INTRODUCED_IN(30);
 
 /**
  * Get the default timeout value for WHILE loops.
@@ -1795,7 +1812,7 @@ int ANeuralNetworksExecution_setLoopTimeout(ANeuralNetworksExecution* execution,
  *
  * Available since NNAPI feature level 4.
  */
-uint64_t ANeuralNetworks_getDefaultLoopTimeout() __INTRODUCED_IN(30);
+uint64_t ANeuralNetworks_getDefaultLoopTimeout() __NNAPI_INTRODUCED_IN(30);
 
 /**
  * Get the maximum timeout value for WHILE loops.
@@ -1804,7 +1821,7 @@ uint64_t ANeuralNetworks_getDefaultLoopTimeout() __INTRODUCED_IN(30);
  *
  * Available since NNAPI feature level 4.
  */
-uint64_t ANeuralNetworks_getMaximumLoopTimeout() __INTRODUCED_IN(30);
+uint64_t ANeuralNetworks_getMaximumLoopTimeout() __NNAPI_INTRODUCED_IN(30);
 
 /**
  * Waits until the execution completes.
@@ -1831,7 +1848,7 @@ uint64_t ANeuralNetworks_getMaximumLoopTimeout() __INTRODUCED_IN(30);
  *         ANEURALNETWORKS_UNMAPPABLE if the execution input or output memory cannot
  *         be properly mapped.
  */
-int ANeuralNetworksEvent_wait(ANeuralNetworksEvent* event) __INTRODUCED_IN(27);
+int ANeuralNetworksEvent_wait(ANeuralNetworksEvent* event) __NNAPI_INTRODUCED_IN(27);
 
 /**
  * Destroys the event.
@@ -1843,7 +1860,7 @@ int ANeuralNetworksEvent_wait(ANeuralNetworksEvent* event) __INTRODUCED_IN(27);
  * @param event The event object to be destroyed. Passing NULL is acceptable and
  *              results in no operation.
  */
-void ANeuralNetworksEvent_free(ANeuralNetworksEvent* event) __INTRODUCED_IN(27);
+void ANeuralNetworksEvent_free(ANeuralNetworksEvent* event) __NNAPI_INTRODUCED_IN(27);
 
 /**
  * Create a {@link ANeuralNetworksEvent} from a sync_fence file descriptor.
@@ -1859,7 +1876,7 @@ void ANeuralNetworksEvent_free(ANeuralNetworksEvent* event) __INTRODUCED_IN(27);
  * Available since NNAPI feature level 4.
  */
 int ANeuralNetworksEvent_createFromSyncFenceFd(int sync_fence_fd, ANeuralNetworksEvent** event)
-        __INTRODUCED_IN(30);
+        __NNAPI_INTRODUCED_IN(30);
 
 /**
  * Get sync_fence file descriptor from the event.
@@ -1883,7 +1900,7 @@ int ANeuralNetworksEvent_createFromSyncFenceFd(int sync_fence_fd, ANeuralNetwork
  * Available since NNAPI feature level 4.
  */
 int ANeuralNetworksEvent_getSyncFenceFd(const ANeuralNetworksEvent* event, int* sync_fence_fd)
-        __INTRODUCED_IN(30);
+        __NNAPI_INTRODUCED_IN(30);
 
 /**
  * Schedule asynchronous evaluation of the execution with dependencies.
@@ -1964,7 +1981,7 @@ int ANeuralNetworksEvent_getSyncFenceFd(const ANeuralNetworksEvent* event, int* 
 int ANeuralNetworksExecution_startComputeWithDependencies(
         ANeuralNetworksExecution* execution, const ANeuralNetworksEvent* const* dependencies,
         uint32_t num_dependencies, uint64_t duration, ANeuralNetworksEvent** event)
-        __INTRODUCED_IN(30);
+        __NNAPI_INTRODUCED_IN(30);
 
 /**
  * Get the NNAPI runtime feature level.
@@ -2002,7 +2019,7 @@ int ANeuralNetworksExecution_startComputeWithDependencies(
  *
  * Available since NNAPI feature level 5.
  */
-int64_t ANeuralNetworks_getRuntimeFeatureLevel() __INTRODUCED_IN(31);
+int64_t ANeuralNetworks_getRuntimeFeatureLevel() __NNAPI_INTRODUCED_IN(31);
 
 /**
  * Specifies whether the {@link ANeuralNetworksExecution} is able to accept padded input and output
@@ -2039,7 +2056,7 @@ int64_t ANeuralNetworks_getRuntimeFeatureLevel() __INTRODUCED_IN(31);
  * Available since NNAPI feature level 5.
  */
 int ANeuralNetworksExecution_enableInputAndOutputPadding(ANeuralNetworksExecution* execution,
-                                                         bool enable) __INTRODUCED_IN(31);
+                                                         bool enable) __NNAPI_INTRODUCED_IN(31);
 
 /**
  * Get the preferred buffer and memory alignment of an input to an execution created from a
@@ -2071,7 +2088,7 @@ int ANeuralNetworksExecution_enableInputAndOutputPadding(ANeuralNetworksExecutio
  */
 int ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput(
         const ANeuralNetworksCompilation* compilation, uint32_t index, uint32_t* alignment)
-        __INTRODUCED_IN(31);
+        __NNAPI_INTRODUCED_IN(31);
 
 /**
  * Get the preferred buffer and memory end padding of an input to an execution created from a
@@ -2109,7 +2126,7 @@ int ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput(
  */
 int ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput(
         const ANeuralNetworksCompilation* compilation, uint32_t index, uint32_t* padding)
-        __INTRODUCED_IN(31);
+        __NNAPI_INTRODUCED_IN(31);
 
 /**
  * Get the preferred buffer and memory alignment of an output to an execution created from a
@@ -2141,7 +2158,7 @@ int ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput(
  */
 int ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput(
         const ANeuralNetworksCompilation* compilation, uint32_t index, uint32_t* alignment)
-        __INTRODUCED_IN(31);
+        __NNAPI_INTRODUCED_IN(31);
 
 /**
  * Get the preferred memory end padding of an output to an execution created from a particular
@@ -2179,7 +2196,7 @@ int ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput(
  */
 int ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput(
         const ANeuralNetworksCompilation* compilation, uint32_t index, uint32_t* padding)
-        __INTRODUCED_IN(31);
+        __NNAPI_INTRODUCED_IN(31);
 
 /**
  * Specifies whether the {@link ANeuralNetworksExecution} can be reused for multiple computations.
@@ -2206,10 +2223,12 @@ int ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput(
  * Available since NNAPI feature level 5.
  */
 int ANeuralNetworksExecution_setReusable(ANeuralNetworksExecution* execution, bool reusable)
-        __INTRODUCED_IN(31);
+        __NNAPI_INTRODUCED_IN(31);
 
 __END_DECLS
 
 #endif  // ANDROID_FRAMEWORKS_ML_NN_RUNTIME_NEURAL_NETWORKS_H
+
+#undef __NNAPI_INTRODUCED_IN
 
 /** @} */

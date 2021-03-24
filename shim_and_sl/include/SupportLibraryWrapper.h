@@ -40,6 +40,10 @@ namespace android {
 namespace nn {
 namespace sl_wrapper {
 
+using ::android::nn::wrapper::Duration;
+using ::android::nn::wrapper::OperandType;
+using ::android::nn::wrapper::Result;
+
 class Memory {
    public:
     // Takes ownership of a ANeuralNetworksMemory
@@ -55,8 +59,8 @@ class Memory {
     }
 
     // Create from a buffer, may take ownership.
-    Memory(const NnApiSupportLibrary* nnapi, AHardwareBuffer* buffer, bool own = false)
-        : mNnApi(nnapi), mOwnedAHB(own ? buffer : nullptr) {
+    Memory(const NnApiSupportLibrary* nnapi, AHardwareBuffer* buffer, bool ownAHWB = false)
+        : mNnApi(nnapi), mOwnedAHWB(ownAHWB ? buffer : nullptr) {
         mValid = mNnApi->ANeuralNetworksMemory_createFromAHardwareBuffer(buffer, &mMemory) ==
                  ANEURALNETWORKS_NO_ERROR;
     }
@@ -74,9 +78,8 @@ class Memory {
         if (mOwnedFd) {
             close(*mOwnedFd);
         }
-        if (mOwnedAHB) {
-            AHardwareBuffer_unlock(mOwnedAHB, nullptr);
-            AHardwareBuffer_release(mOwnedAHB);
+        if (mOwnedAHWB) {
+            AHardwareBuffer_release(mOwnedAHWB);
         }
     }
 
@@ -99,9 +102,11 @@ class Memory {
             mValid = other.mValid;
             mNnApi = other.mNnApi;
             mOwnedFd = other.mOwnedFd;
+            mOwnedAHWB = other.mOwnedAHWB;
             other.mMemory = nullptr;
             other.mValid = false;
             other.mOwnedFd.reset();
+            other.mOwnedAHWB = nullptr;
         }
         return *this;
     }
@@ -118,7 +123,7 @@ class Memory {
     ANeuralNetworksMemory* mMemory = nullptr;
     bool mValid = true;
     std::optional<int> mOwnedFd;
-    AHardwareBuffer* mOwnedAHB;
+    AHardwareBuffer* mOwnedAHWB = nullptr;
 };
 
 class Model {

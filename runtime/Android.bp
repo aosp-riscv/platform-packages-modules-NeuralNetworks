@@ -222,6 +222,7 @@ cc_library_static {
     ],
     header_libs: [
         "libneuralnetworks_headers_ndk",
+        "neuralnetworks_supportlibrary_types_ndk",
     ],
     export_header_lib_headers: [
         "libneuralnetworks_headers_ndk",

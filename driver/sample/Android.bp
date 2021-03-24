@@ -149,18 +149,18 @@ cc_library_static {
 cc_library_shared {
     name: "neuralnetworks_sample_sl_driver",
     defaults: ["neuralnetworks_defaults"],
-    srcs: [
-        "SampleDriverSL.cpp",
-    ],
+    srcs: ["SampleDriverSL.cpp"],
     shared_libs: [
+        "libbase",
+        "libcutils",
         "liblog",
         "libnativewindow",
     ],
     static_libs: [
         "libbase_ndk",
         "libcrypto_static",
-        "libcutils",
-        "libneuralnetworks_common_cl",
+        "libneuralnetworks_common_cl_cpu",
+        "libtflite_static",
         "neuralnetworks_canonical_sample_driver",
         "neuralnetworks_types_cl",
     ],

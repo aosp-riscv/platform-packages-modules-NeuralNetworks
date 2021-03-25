@@ -38,6 +38,8 @@
 
 #include <NeuralNetworksTypes.h>
 
+__BEGIN_DECLS
+
 /**
  * Base version of NnApiSLDriverImpl with version information.
  *
@@ -725,3 +727,5 @@ struct NnApiSLDriverImplFL5 {
      */
     void (*reserved_placeholder1)();
 };
+
+__END_DECLS

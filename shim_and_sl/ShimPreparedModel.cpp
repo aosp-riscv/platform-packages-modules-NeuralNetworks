@@ -42,7 +42,7 @@
 namespace aidl::android::hardware::neuralnetworks {
 
 ErrorStatus ShimPreparedModel::parseInputs(
-        const Request& request, bool measure, int32_t deadline, int32_t loopTimeoutDuration,
+        const Request& request, bool measure, int64_t deadline, int64_t loopTimeoutDuration,
         ::android::nn::sl_wrapper::Execution* execution,
         std::vector<std::shared_ptr<::android::nn::sl_wrapper::Memory>>* requestMemoryPools) {
     for (const auto& requestPool : request.pools) {
@@ -132,7 +132,10 @@ ErrorStatus ShimPreparedModel::parseInputs(
         if (timeoutDuration <= std::chrono::nanoseconds::zero()) {
             return ErrorStatus::MISSED_DEADLINE_TRANSIENT;
         } else {
-            execution->setTimeout(std::max<uint64_t>(1, timeoutDuration.count()));
+            auto result = execution->setTimeout(std::max<uint64_t>(1, timeoutDuration.count()));
+            if (result != Result::NO_ERROR) {
+                return convertResultToErrorStatus(result);
+            }
         }
     }
 
@@ -221,7 +224,9 @@ class ShimFencedExecutionCallback : public BnFencedExecutionCallback {
     std::vector<std::shared_ptr<::android::nn::sl_wrapper::Memory>> requestMemoryPools;
     auto errorStatus = parseInputs(request, measureTiming, deadline, loopTimeoutDuration,
                                    &execution, &requestMemoryPools);
-    SLW2SAS_RETURN_IF_ERROR(errorStatus);
+    if (errorStatus != ErrorStatus::NONE) {
+        return toAStatus(errorStatus);
+    }
 
     std::vector<const ANeuralNetworksEvent*> deps(waitFor.size());
     auto createResult = Result::NO_ERROR;
@@ -264,7 +269,9 @@ class ShimFencedExecutionCallback : public BnFencedExecutionCallback {
     std::vector<std::shared_ptr<::android::nn::sl_wrapper::Memory>> requestMemoryPools;
     auto errorStatus = parseInputs(request, measureTiming, deadline, loopTimeoutDuration,
                                    execution.get(), &requestMemoryPools);
-    SLW2SAS_RETURN_IF_ERROR(errorStatus);
+    if (errorStatus != ErrorStatus::NONE) {
+        return toAStatus(errorStatus);
+    }
 
     auto result = execution->compute();
     errorStatus = convertResultToErrorStatus(result);
@@ -294,7 +301,7 @@ class ShimFencedExecutionCallback : public BnFencedExecutionCallback {
 
     int64_t timeOnDevice = -1;
     int64_t timeInDriver = -1;
-    if (measureTiming) {
+    if (measureTiming && errorStatus == ErrorStatus::NONE) {
         uint64_t duration;
         constexpr int64_t int64cap = std::numeric_limits<int64_t>::max();
         // Special value used for "no measurements"

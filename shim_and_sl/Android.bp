@@ -14,6 +14,14 @@
  * limitations under the License.
  */
 
+cc_library_headers {
+    name: "neuralnetworks_supportlibrary_types_ndk",
+    export_include_dirs: ["public"],
+    sdk_version: "current",
+    vendor_available: true,
+    min_sdk_version: "29",
+}
+
 /** Version of the shim (Adapter between SL/Updatable Driver and sAIDL service)
  * intended to be used by a non-updatable (without an OTA) NNAPI vendor drivers
  * backed by a SL/Updatable Driver.
@@ -133,6 +141,7 @@ cc_library_static {
         "-Werror",
     ],
     apex_available: [
+        "//apex_available:platform",
         "com.android.neuralnetworks",
         "test_com.android.neuralnetworks",
     ],

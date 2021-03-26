@@ -156,6 +156,11 @@ cc_library_shared {
         "liblog",
         "libnativewindow",
     ],
+    // Change the soname, this library will be added as cc_prebuilt_library_shared
+    // with different name to android.hardware.neuralnetworks-shim-service-sample
+    ldflags: [
+        "-Wl,-soname,neuralnetworks_sample_sl_driver_prebuilt.so",
+    ],
     static_libs: [
         "libbase_ndk",
         "libcrypto_static",

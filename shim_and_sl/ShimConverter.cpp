@@ -45,7 +45,8 @@ ANeuralNetworksModel* convertSubgraphFromHAL(
         const std::vector<std::unique_ptr<::android::nn::sl_wrapper::Memory>>& memoryPools,
         const neuralnetworks::Model& model,
         std::vector<std::optional<::android::nn::sl_wrapper::Model>>* allModels,
-        size_t subgraphIndex, ErrorStatus* errorStatus) {
+        size_t subgraphIndex, const std::vector<uint8_t>& copiedOperandValues,
+        ErrorStatus* errorStatus) {
     *errorStatus = ErrorStatus::NONE;
     if ((*allModels)[subgraphIndex].has_value()) {
         return (*allModels)[subgraphIndex]->getHandle();
@@ -79,21 +80,18 @@ ANeuralNetworksModel* convertSubgraphFromHAL(
 
         switch (operand.lifetime) {
             case OperandLifeTime::CONSTANT_COPY: {
-                if (operand.location.length <= 128) {
+                if (operand.location.length <=
+                    ANEURALNETWORKS_MAX_SIZE_OF_IMMEDIATELY_COPIED_VALUES) {
                     resultModel.setOperandValue(
                             i, model.operandValues.data() + operand.location.offset,
                             operand.location.length);
                 } else {
-                    LOG(ERROR) << " NNAPI shim does not support CONSTANT_COPY operand with data "
-                               << "larger than 128 bytes (operand " << i << " has "
-                               << operand.location.length << "bytes )";
-                    // Return GENERAL_FAILURE, the model is valid, just not supported
-                    // To fix: One approach we could take is to duplicate the Model struct
-                    // (clone(model)), and store the cloned Model alongside the ANNModel object.
-                    // Then, the model.operandValues could be used without worrying about the
-                    // lifetime.
-                    *errorStatus = ErrorStatus::GENERAL_FAILURE;
-                    return nullptr;
+                    // If length is larger than 128 bytes, we are responsible for making sure
+                    // that value outlives the model. If this case exists, then we created
+                    // an internal copy, that is used here:
+                    resultModel.setOperandValue(
+                            i, copiedOperandValues.data() + operand.location.offset,
+                            operand.location.length);
                 }
                 break;
             }
@@ -105,9 +103,9 @@ ANeuralNetworksModel* convertSubgraphFromHAL(
             }
             case OperandLifeTime::SUBGRAPH: {
                 ErrorStatus otherErrorStatus = ErrorStatus::NONE;
-                auto subgraph =
-                        convertSubgraphFromHAL(nnapi, memoryPools, model, allModels,
-                                               operand.location.offset + 1, &otherErrorStatus);
+                auto subgraph = convertSubgraphFromHAL(nnapi, memoryPools, model, allModels,
+                                                       operand.location.offset + 1,
+                                                       copiedOperandValues, &otherErrorStatus);
                 if (subgraph) {
                     resultModel.setOperandValueFromModel(i, subgraph);
                 } else {
@@ -178,6 +176,25 @@ ANeuralNetworksModel* convertSubgraphFromHAL(
 
     (*allModels)[subgraphIndex] = std::move(resultModel);
     return (*allModels)[subgraphIndex]->getHandle();
+}
+
+// This is needed for CONSTANT_COPY operands > 128 bytes, we have to
+// store them in intenal buffer
+bool needsCopiedOperandValues(const neuralnetworks::Model& model) {
+    for (int sindex = 0; sindex < model.referenced.size() + 1; ++sindex) {
+        const auto& subgraph = sindex == 0 ? model.main : model.referenced[sindex - 1];
+        for (int i = 0; i < subgraph.operands.size(); ++i) {
+            const auto& operand = subgraph.operands[i];
+
+            if (operand.lifetime == OperandLifeTime::CONSTANT_COPY) {
+                if (operand.location.length >
+                    ANEURALNETWORKS_MAX_SIZE_OF_IMMEDIATELY_COPIED_VALUES) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
 }
 
 bool isValid(const Subgraph& subgraph) {
@@ -267,7 +284,10 @@ bool isValid(const neuralnetworks::Model& model) {
 
 std::optional<ShimConvertedModel> convertFromHAL(const NnApiSupportLibrary* nnapi,
                                                  const neuralnetworks::Model& model,
+                                                 std::vector<uint8_t>* copiedOperandValues,
                                                  ErrorStatus* errorStatus) {
+    CHECK(copiedOperandValues != nullptr);
+
     *errorStatus = ErrorStatus::NONE;
 
     // Using this pulls in OperationResolver and huge chunk of dependencies.
@@ -294,9 +314,13 @@ std::optional<ShimConvertedModel> convertFromHAL(const NnApiSupportLibrary* nnap
     std::vector<std::optional<::android::nn::sl_wrapper::Model>> allModels(model.referenced.size() +
                                                                            1);
 
+    if (needsCopiedOperandValues(model)) {
+        *copiedOperandValues = model.operandValues;
+    }
+
     for (size_t i = 0; i < allModels.size(); ++i) {
-        if (convertSubgraphFromHAL(nnapi, memoryPools, model, &allModels, i, errorStatus) ==
-            nullptr) {
+        if (convertSubgraphFromHAL(nnapi, memoryPools, model, &allModels, i, *copiedOperandValues,
+                                   errorStatus) == nullptr) {
             LOG(ERROR) << "Failed to convert HAL subgraphs into SL subgraphs, index: " << i;
             // Error status already set by convertSubgraphFromHAL
             return std::nullopt;
@@ -345,6 +369,7 @@ std::unique_ptr<::android::nn::sl_wrapper::Memory> convertFromHAL(
 
         auto memory = std::make_unique<::android::nn::sl_wrapper::Memory>(nnapi, size, prot, fd,
                                                                           offset, /*ownsFd=*/false);
+
         if (!memory->isValid()) {
             return nullptr;
         }
@@ -402,14 +427,14 @@ std::unique_ptr<::android::nn::sl_wrapper::Memory> convertFromHAL(
             }
         }
 
-        if (status == ::android::NO_ERROR) {
+        if (status != ::android::NO_ERROR) {
             LOG(ERROR) << "createFromHandle failed";
             return nullptr;
         }
 
         // Takes ownership of hardwareBuffer, handle gets closed
         auto memory = std::make_unique<::android::nn::sl_wrapper::Memory>(nnapi, hardwareBuffer,
-                                                                          /*ownAHB=*/true);
+                                                                          /*ownAHB=*/true, size);
 
         return memory;
     } else {

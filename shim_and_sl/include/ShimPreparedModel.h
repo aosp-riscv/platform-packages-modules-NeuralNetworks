@@ -34,12 +34,14 @@ class ShimPreparedModel : public BnPreparedModel {
                       std::shared_ptr<ShimBufferTracker> bufferTracker,
                       ::android::nn::sl_wrapper::Compilation compilation,
                       std::vector<::android::nn::sl_wrapper::Model> mainAndReferencedModels,
-                      std::vector<std::unique_ptr<::android::nn::sl_wrapper::Memory>> memoryPools)
+                      std::vector<std::unique_ptr<::android::nn::sl_wrapper::Memory>> memoryPools,
+                      std::vector<uint8_t> copiedOperandValues)
         : mNnapi(nnapi),
           mBufferTracker(bufferTracker),
           mCompilation(std::move(compilation)),
           mMainAndReferencedModels(std::move(mainAndReferencedModels)),
-          mMemoryPools(std::move(memoryPools)) {
+          mMemoryPools(std::move(memoryPools)),
+          mCopiedOperandValues(std::move(copiedOperandValues)) {
         CHECK(mMainAndReferencedModels.size() > 0);
     };
 
@@ -60,7 +62,7 @@ class ShimPreparedModel : public BnPreparedModel {
 
    private:
     ErrorStatus parseInputs(
-            const Request& request, bool measure, int32_t deadline, int32_t loopTimeoutDuration,
+            const Request& request, bool measure, int64_t deadline, int64_t loopTimeoutDuration,
             ::android::nn::sl_wrapper::Execution* execution,
             std::vector<std::shared_ptr<::android::nn::sl_wrapper::Memory>>* requestMemoryPools);
 
@@ -70,6 +72,7 @@ class ShimPreparedModel : public BnPreparedModel {
     ::android::nn::sl_wrapper::Compilation mCompilation;
     std::vector<::android::nn::sl_wrapper::Model> mMainAndReferencedModels;
     std::vector<std::unique_ptr<::android::nn::sl_wrapper::Memory>> mMemoryPools;
+    std::vector<uint8_t> mCopiedOperandValues;
 };
 
 }  // namespace aidl::android::hardware::neuralnetworks

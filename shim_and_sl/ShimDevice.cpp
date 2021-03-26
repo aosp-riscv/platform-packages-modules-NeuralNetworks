@@ -141,8 +141,7 @@ class ShimBuffer : public BnBuffer {
     bool tensorHasUnspecifiedDimensions(::android::nn::OperandType type,
                                         const ::android::nn::Dimensions& dimensions) {
         if (!::android::nn::isExtension(type)) {
-            if (!isNonExtensionScalar(type)) {
-                LOG(ERROR) << "A scalar type can never have unspecified dimensions";
+            if (isNonExtensionScalar(type)) {
                 return false;
             }
         }
@@ -151,6 +150,15 @@ class ShimBuffer : public BnBuffer {
     }
 
     bool validateDimensions(const ::android::nn::Dimensions& dimensions) {
+        if (isNonExtensionScalar(kType)) {
+            if (!dimensions.empty()) {
+                LOG(ERROR) << "ShimBuffer::validateDimensions -- invalid dimensions for scalar "
+                              "operand";
+                return false;
+            }
+            return true;
+        }
+
         if (dimensions.empty()) {
             if (tensorHasUnspecifiedDimensions(kType, kInitialDimensions)) {
                 LOG(ERROR) << "ShimBuffer::validateDimensions -- the initial dimensions are not "
@@ -178,27 +186,69 @@ class ShimBuffer : public BnBuffer {
     ndk::ScopedAStatus copyFrom(const aidl::android::hardware::neuralnetworks::Memory& src,
                                 const std::vector<int32_t>& dimensions) override {
         auto memory = convertFromHAL(mNnApi, src);
+
         if (!memory) {
             LOG(ERROR) << "Failed to convert HAL Memory to SL memory";
             return toAStatus(ErrorStatus::INVALID_ARGUMENT);
         }
-        if (!isValidDimension(dimensions) ||
-            !validateDimensions(::android::nn::toUnsigned(dimensions).value())) {
+        const auto unsignedDimensions = ::android::nn::toUnsigned(dimensions);
+        if (!unsignedDimensions.has_value()) {
+            return toAStatus(aidl_hal::ErrorStatus::INVALID_ARGUMENT,
+                             unsignedDimensions.error().message);
+        }
+
+        if (!validateDimensions(unsignedDimensions.value())) {
             LOG(ERROR) << "Invalid dimensions";
+            return toAStatus(ErrorStatus::INVALID_ARGUMENT);
+        }
+
+        // We need to intercept this ahead of SL copyTo,
+        // NNAPI Runtime reports both uninitialized memory
+        // and invompatible dimensions as BAD_DATA, but
+        // VTS expects to see INVALID_ARGUMENT for bad dimensions,
+        // and GENERAL_FAILURE for uninitialized memory.
+        if (memory->getSize().has_value() && mMemory->getSize().has_value()) {
+            if (*memory->getSize() != *mMemory->getSize()) {
+                LOG(ERROR) << "Incompatible sizes";
+                return toAStatus(ErrorStatus::INVALID_ARGUMENT);
+            }
+        }
+        Result result = memory->copyTo(*mMemory.get());
+
+        // Special case expected error status for uninitialized source memory
+        if (result == Result::BAD_DATA) {
             return toAStatus(ErrorStatus::GENERAL_FAILURE);
         }
-        SLW2SAS_RETURN_IF_ERROR(memory->copyTo(*mMemory.get()));
+        SLW2SAS_RETURN_IF_ERROR(result);
         return ndk::ScopedAStatus::ok();
     }
 
     ndk::ScopedAStatus copyTo(const Memory& dst) override {
         auto memory = convertFromHAL(mNnApi, dst);
+
         if (!memory) {
             LOG(ERROR) << "Failed to convert HAL Memory to SL memory";
             return toAStatus(ErrorStatus::INVALID_ARGUMENT);
         }
 
-        SLW2SAS_RETURN_IF_ERROR(mMemory->copyTo(*memory));
+        // We need to intercept this ahead of SL copyTo,
+        // NNAPI Runtime reports both uninitialized memory
+        // and invompatible dimensions as BAD_DATA, but
+        // VTS expects to see INVALID_ARGUMENT for bad dimensions,
+        // and GENERAL_FAILURE for uninitialized memory.
+        if (memory->getSize().has_value() && mMemory->getSize().has_value()) {
+            if (*memory->getSize() != *mMemory->getSize()) {
+                LOG(ERROR) << "Incompatible sizes";
+                return toAStatus(ErrorStatus::INVALID_ARGUMENT);
+            }
+        }
+
+        Result result = mMemory->copyTo(*memory);
+        // Special case expected error status for uninitialized source memory
+        if (result == Result::BAD_DATA) {
+            return toAStatus(ErrorStatus::GENERAL_FAILURE);
+        }
+        SLW2SAS_RETURN_IF_ERROR(result);
         return ndk::ScopedAStatus::ok();
     }
 
@@ -245,6 +295,7 @@ class ShimBuffer : public BnBuffer {
     };
 
     std::optional<::android::nn::OperandType> type;
+    std::vector<uint32_t> dimensions = ::android::nn::toUnsigned(desc.dimensions).value();
 
     for (const auto& role : inputRoles) {
         if (role.modelIndex < 0 || role.modelIndex >= preparedModels.size()) {
@@ -278,6 +329,9 @@ class ShimBuffer : public BnBuffer {
         auto operandType = static_cast<::android::nn::OperandType>(op.operandType.type);
         if (!type) {
             type = operandType;
+        }
+        if (dimensions.empty()) {
+            dimensions = op.dimensions;
         }
     }
 
@@ -313,10 +367,14 @@ class ShimBuffer : public BnBuffer {
         if (!type) {
             type = operandType;
         }
+        if (dimensions.empty()) {
+            dimensions = op.dimensions;
+        }
     }
 
     mNnapi->ANeuralNetworksMemoryDesc_finish(slDesc);
-    auto memory = std::make_shared<::android::nn::sl_wrapper::Memory>(mNnapi.get(), slDesc);
+    auto memory = std::make_shared<::android::nn::sl_wrapper::Memory>(
+            mNnapi.get(), slDesc, ::android::nn::getNonExtensionSize(*type, dimensions));
 
     if (!memory->isValid()) {
         LOG(ERROR) << "ShimDriver::allocate -- ANeuralNetworksMemory_createFromDesc failed.";
@@ -331,9 +389,8 @@ class ShimBuffer : public BnBuffer {
                          "ShimDriver::allocate -- ShimBufferTracker returned invalid token.");
     }
     const uint32_t tokenValue = token->get();
-    auto shimbuffer = ndk::SharedRefBase::make<ShimBuffer>(
-            mNnapi.get(), ::android::nn::toUnsigned(desc.dimensions).value(), *type,
-            std::move(memory), std::move(token));
+    auto shimbuffer = ndk::SharedRefBase::make<ShimBuffer>(mNnapi.get(), dimensions, *type,
+                                                           std::move(memory), std::move(token));
     buffer->buffer = std::move(shimbuffer);
     buffer->token = tokenValue;
 
@@ -376,7 +433,9 @@ ndk::ScopedAStatus ShimDevice::getSupportedOperations(const Model& model,
     supportedOperations->resize(numOperations);
 
     ErrorStatus convertErrorStatus = ErrorStatus::NONE;
-    auto modelAndMemory = convertFromHAL(mNnapi.get(), model, &convertErrorStatus);
+    std::vector<uint8_t> copiedOperandValues;
+    auto modelAndMemory =
+            convertFromHAL(mNnapi.get(), model, &copiedOperandValues, &convertErrorStatus);
     if (!modelAndMemory || modelAndMemory->models.empty()) {
         LOG(ERROR) << "Failed to convert HAL model to SL model";
         return toAStatus(convertErrorStatus);
@@ -422,7 +481,10 @@ ndk::ScopedAStatus ShimDevice::prepareModel(
     }
 
     ErrorStatus convertErrorStatus = ErrorStatus::NONE;
-    auto modelAndMemory = convertFromHAL(mNnapi.get(), model, &convertErrorStatus);
+    std::vector<uint8_t> copiedOperandValues;
+    auto modelAndMemory =
+            convertFromHAL(mNnapi.get(), model, &copiedOperandValues, &convertErrorStatus);
+
     if (!modelAndMemory || modelAndMemory->models.empty()) {
         callback->notify(ErrorStatus::INVALID_ARGUMENT, nullptr);
         return toAStatus(convertErrorStatus);
@@ -457,7 +519,8 @@ ndk::ScopedAStatus ShimDevice::prepareModel(
     const std::shared_ptr<ShimPreparedModel> preparedModel =
             ndk::SharedRefBase::make<ShimPreparedModel>(
                     mNnapi, mBufferTracker, std::move(compilation.second),
-                    std::move(modelAndMemory->models), std::move(modelAndMemory->memory));
+                    std::move(modelAndMemory->models), std::move(modelAndMemory->memory),
+                    std::move(copiedOperandValues));
 
     callback->notify(ErrorStatus::NONE, preparedModel);
 

@@ -26,6 +26,10 @@ cc_library_headers {
  * intended to be used by a non-updatable (without an OTA) NNAPI vendor drivers
  * backed by a SL/Updatable Driver.
  */
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
 cc_library_static {
     name: "libneuralnetworks_shim_static",
     apex_available: [
@@ -141,6 +145,7 @@ cc_library_static {
         "-Werror",
     ],
     apex_available: [
+        "//apex_available:platform",
         "com.android.neuralnetworks",
         "test_com.android.neuralnetworks",
     ],

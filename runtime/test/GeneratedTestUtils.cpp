@@ -94,7 +94,7 @@ class MemoryAHWB : public Memory {
    private:
 #ifdef NNTEST_SLTS
     MemoryAHWB(const NnApiSupportLibrary* nnapi, AHardwareBuffer* ahwb, void* buffer)
-        : Memory(nnapi, ahwb), mAhwb(ahwb), mBuffer(buffer) {}
+        : Memory(nnapi, ahwb, false, {}), mAhwb(ahwb), mBuffer(buffer) {}
 #else
     MemoryAHWB(AHardwareBuffer* ahwb, void* buffer) : Memory(ahwb), mAhwb(ahwb), mBuffer(buffer) {}
 #endif

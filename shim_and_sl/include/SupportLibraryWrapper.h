@@ -53,20 +53,23 @@ class Memory {
     // Create from a FD and may takes ownership of the fd.
     Memory(const NnApiSupportLibrary* nnapi, size_t size, int protect, int fd, size_t offset,
            bool ownsFd = false)
-        : mNnApi(nnapi), mOwnedFd(ownsFd ? std::optional<int>{fd} : std::nullopt) {
+        : mNnApi(nnapi), mOwnedFd(ownsFd ? std::optional<int>{fd} : std::nullopt), mSize(size) {
         mValid = mNnApi->ANeuralNetworksMemory_createFromFd(size, protect, fd, offset, &mMemory) ==
                  ANEURALNETWORKS_NO_ERROR;
     }
 
     // Create from a buffer, may take ownership.
-    Memory(const NnApiSupportLibrary* nnapi, AHardwareBuffer* buffer, bool ownAHWB = false)
-        : mNnApi(nnapi), mOwnedAHWB(ownAHWB ? buffer : nullptr) {
+    Memory(const NnApiSupportLibrary* nnapi, AHardwareBuffer* buffer, bool ownAHWB,
+           std::optional<size_t> size)
+        : mNnApi(nnapi), mOwnedAHWB(ownAHWB ? buffer : nullptr), mSize(size) {
         mValid = mNnApi->ANeuralNetworksMemory_createFromAHardwareBuffer(buffer, &mMemory) ==
                  ANEURALNETWORKS_NO_ERROR;
     }
 
     // Create from a desc
-    Memory(const NnApiSupportLibrary* nnapi, ANeuralNetworksMemoryDesc* desc) : mNnApi(nnapi) {
+    Memory(const NnApiSupportLibrary* nnapi, ANeuralNetworksMemoryDesc* desc,
+           std::optional<size_t> size)
+        : mNnApi(nnapi), mSize(size) {
         mValid = mNnApi->ANeuralNetworksMemory_createFromDesc(desc, &mMemory) ==
                  ANEURALNETWORKS_NO_ERROR;
     }
@@ -113,7 +116,7 @@ class Memory {
 
     ANeuralNetworksMemory* get() const { return mMemory; }
     bool isValid() const { return mValid; }
-
+    std::optional<size_t> getSize() const { return mSize; }
     Result copyTo(Memory& other) {
         return static_cast<Result>(mNnApi->ANeuralNetworksMemory_copy(mMemory, other.mMemory));
     }
@@ -124,6 +127,7 @@ class Memory {
     bool mValid = true;
     std::optional<int> mOwnedFd;
     AHardwareBuffer* mOwnedAHWB = nullptr;
+    std::optional<size_t> mSize;
 };
 
 class Model {

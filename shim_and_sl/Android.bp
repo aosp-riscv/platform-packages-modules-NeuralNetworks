@@ -14,9 +14,15 @@
  * limitations under the License.
  */
 
+// package has name collision with other module, must use licenses in targets
+// package {
+//     default_applicable_licenses: ["Android-Apache-2.0"],
+// }
+
 cc_library_headers {
     name: "neuralnetworks_supportlibrary_types_ndk",
     export_include_dirs: ["public"],
+    licenses: ["Android-Apache-2.0"],
     sdk_version: "current",
     vendor_available: true,
     min_sdk_version: "29",
@@ -46,6 +52,7 @@ cc_library_static {
         "ShimPreparedModel.cpp",
         "ShimUtils.cpp",
     ],
+    licenses: ["Android-Apache-2.0"],
     vendor_available: true,
     min_sdk_version: "30",
     cflags: [
@@ -92,6 +99,7 @@ cc_library_shared {
         "com.android.neuralnetworks",
         "test_com.android.neuralnetworks",
     ],
+    licenses: ["Android-Apache-2.0"],
     vendor_available: true,
     min_sdk_version: "30",
     whole_static_libs: [
@@ -126,6 +134,7 @@ llndk_library {
     name: "libneuralnetworks_shim.llndk",
     symbol_file: "libneuralnetworks_shim.map.txt",
     export_include_dirs: ["public"],
+    licenses: ["Android-Apache-2.0"],
 }
 
 cc_library_static {
@@ -157,6 +166,7 @@ cc_library_static {
         "libarect",
         "libbase",
     ],
+    licenses: ["Android-Apache-2.0"],
     vendor_available: true,
     min_sdk_version: "29",
     header_libs: [

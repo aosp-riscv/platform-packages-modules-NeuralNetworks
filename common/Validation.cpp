@@ -1030,8 +1030,8 @@ Result<Version> validateBufferDesc(const BufferDesc& /*bufferDesc*/) {
 }
 
 Result<Version> validateBufferRole(const BufferRole& bufferRole) {
-    NN_VALIDATE_GT(bufferRole.frequency, 0.0f);
-    NN_VALIDATE_LE(bufferRole.frequency, 1.0f);
+    NN_VALIDATE_GT(bufferRole.probability, 0.0f);
+    NN_VALIDATE_LE(bufferRole.probability, 1.0f);
     return Version::ANDROID_R;
 }
 
@@ -1253,8 +1253,8 @@ Result<Version> validateMemoryDescImpl(
         NN_VALIDATE(model != nullptr);
         const auto& inputIndexes = model->main.inputIndexes;
         NN_VALIDATE_LT(role.ioIndex, inputIndexes.size());
-        NN_VALIDATE_GT(role.frequency, 0.0f);
-        NN_VALIDATE_LE(role.frequency, 1.0f);
+        NN_VALIDATE_GT(role.probability, 0.0f);
+        NN_VALIDATE_LE(role.probability, 1.0f);
         const auto [it, success] = roles.emplace(preparedModel.get(), IOType::INPUT, role.ioIndex);
         NN_VALIDATE(success);
         operands.push_back(model->main.operands[inputIndexes[role.ioIndex]]);
@@ -1267,8 +1267,8 @@ Result<Version> validateMemoryDescImpl(
         NN_VALIDATE(model != nullptr);
         const auto& outputIndexes = model->main.outputIndexes;
         NN_VALIDATE_LT(role.ioIndex, outputIndexes.size());
-        NN_VALIDATE_GT(role.frequency, 0.0f);
-        NN_VALIDATE_LE(role.frequency, 1.0f);
+        NN_VALIDATE_GT(role.probability, 0.0f);
+        NN_VALIDATE_LE(role.probability, 1.0f);
         const auto [it, success] = roles.emplace(preparedModel.get(), IOType::OUTPUT, role.ioIndex);
         NN_VALIDATE(success);
         operands.push_back(model->main.operands[outputIndexes[role.ioIndex]]);

@@ -287,7 +287,7 @@ struct BufferDesc {
 struct BufferRole {
     uint32_t modelIndex = 0;
     uint32_t ioIndex = 0;
-    float frequency = 0.0f;
+    float probability = 0.0f;
 };
 
 struct Request {

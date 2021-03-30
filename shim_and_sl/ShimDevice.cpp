@@ -28,6 +28,7 @@
 #include <android/binder_auto_utils.h>
 #include <android/binder_manager.h>
 #include <android/binder_process.h>
+#include <nnapi/TypeUtils.h>
 #include <nnapi/hal/aidl/Conversions.h>
 
 #include <algorithm>
@@ -38,7 +39,6 @@
 #include <utility>
 #include <vector>
 
-#include <nnapi/TypeUtils.h>
 #include "ShimConverter.h"
 #include "ShimPreparedModel.h"
 #include "ShimUtils.h"
@@ -316,7 +316,7 @@ class ShimBuffer : public BnBuffer {
         }
 
         auto result = mNnapi->ANeuralNetworksMemoryDesc_addInputRole(
-                slDesc, pmodel->getCompilation().getHandle(), role.ioIndex, role.frequency);
+                slDesc, pmodel->getCompilation().getHandle(), role.ioIndex, role.probability);
 
         if (result != ANEURALNETWORKS_NO_ERROR) {
             LOG(ERROR) << "SampleDriver::allocate -- ANeuralNetworksMemoryDesc_addInputRole fail.";
@@ -354,7 +354,7 @@ class ShimBuffer : public BnBuffer {
         }
 
         auto result = mNnapi->ANeuralNetworksMemoryDesc_addOutputRole(
-                slDesc, pmodel->getCompilation().getHandle(), role.ioIndex, role.frequency);
+                slDesc, pmodel->getCompilation().getHandle(), role.ioIndex, role.probability);
 
         if (result != ANEURALNETWORKS_NO_ERROR) {
             LOG(ERROR) << "SampleDriver::allocate -- ANeuralNetworksMemoryDesc_addInputRole fail.";

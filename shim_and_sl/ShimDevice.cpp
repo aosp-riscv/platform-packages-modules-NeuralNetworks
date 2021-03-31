@@ -201,22 +201,18 @@ class ShimBuffer : public BnBuffer {
             LOG(ERROR) << "Invalid dimensions";
             return toAStatus(ErrorStatus::INVALID_ARGUMENT);
         }
-
-        // We need to intercept this ahead of SL copyTo,
-        // NNAPI Runtime reports both uninitialized memory
-        // and invompatible dimensions as BAD_DATA, but
-        // VTS expects to see INVALID_ARGUMENT for bad dimensions,
-        // and GENERAL_FAILURE for uninitialized memory.
-        if (memory->getSize().has_value() && mMemory->getSize().has_value()) {
-            if (*memory->getSize() != *mMemory->getSize()) {
-                LOG(ERROR) << "Incompatible sizes";
-                return toAStatus(ErrorStatus::INVALID_ARGUMENT);
-            }
-        }
         Result result = memory->copyTo(*mMemory.get());
 
         // Special case expected error status for uninitialized source memory
         if (result == Result::BAD_DATA) {
+            // NNAPI Runtime reports both uninitialized memory
+            // and incompatible dimensions as BAD_DATA, but
+            // VTS expects to see INVALID_ARGUMENT for bad dimensions,
+            // and GENERAL_FAILURE for uninitialized memory.
+            if (memory->getSize() != mMemory->getSize()) {
+                return toAStatus(ErrorStatus::INVALID_ARGUMENT, "Incompatible sizes");
+            }
+
             return toAStatus(ErrorStatus::GENERAL_FAILURE);
         }
         SLW2SAS_RETURN_IF_ERROR(result);
@@ -231,21 +227,16 @@ class ShimBuffer : public BnBuffer {
             return toAStatus(ErrorStatus::INVALID_ARGUMENT);
         }
 
-        // We need to intercept this ahead of SL copyTo,
-        // NNAPI Runtime reports both uninitialized memory
-        // and invompatible dimensions as BAD_DATA, but
-        // VTS expects to see INVALID_ARGUMENT for bad dimensions,
-        // and GENERAL_FAILURE for uninitialized memory.
-        if (memory->getSize().has_value() && mMemory->getSize().has_value()) {
-            if (*memory->getSize() != *mMemory->getSize()) {
-                LOG(ERROR) << "Incompatible sizes";
-                return toAStatus(ErrorStatus::INVALID_ARGUMENT);
-            }
-        }
-
         Result result = mMemory->copyTo(*memory);
         // Special case expected error status for uninitialized source memory
         if (result == Result::BAD_DATA) {
+            // NNAPI Runtime reports both uninitialized memory
+            // and incompatible dimensions as BAD_DATA, but
+            // VTS expects to see INVALID_ARGUMENT for bad dimensions,
+            // and GENERAL_FAILURE for uninitialized memory.
+            if (memory->getSize() != mMemory->getSize()) {
+                return toAStatus(ErrorStatus::INVALID_ARGUMENT, "Incompatible sizes");
+            }
             return toAStatus(ErrorStatus::GENERAL_FAILURE);
         }
         SLW2SAS_RETURN_IF_ERROR(result);
@@ -372,9 +363,16 @@ class ShimBuffer : public BnBuffer {
         }
     }
 
+    auto typeSize = ::android::nn::getNonExtensionSize(*type, dimensions);
+    if (!typeSize.has_value()) {
+        return toAStatus(ErrorStatus::INVALID_ARGUMENT,
+                         "ShimDriver::allocate -- failed to get underlying type size, "
+                         "possibly an extension type");
+    }
+
     mNnapi->ANeuralNetworksMemoryDesc_finish(slDesc);
-    auto memory = std::make_shared<::android::nn::sl_wrapper::Memory>(
-            mNnapi.get(), slDesc, ::android::nn::getNonExtensionSize(*type, dimensions));
+    auto memory =
+            std::make_shared<::android::nn::sl_wrapper::Memory>(mNnapi.get(), slDesc, *typeSize);
 
     if (!memory->isValid()) {
         LOG(ERROR) << "ShimDriver::allocate -- ANeuralNetworksMemory_createFromDesc failed.";

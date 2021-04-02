@@ -108,6 +108,10 @@ cc_library_shared {
     header_libs: [
         "libneuralnetworks_headers",
     ],
+    stubs: {
+        symbol_file: "libneuralnetworks_shim.map.txt",
+        versions: ["31"],
+    },
     static_libs: [
         "android.hardware.common-V2-ndk_platform",
         "android.hardware.neuralnetworks-V1-ndk_platform",

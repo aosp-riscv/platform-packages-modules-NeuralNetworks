@@ -36,7 +36,9 @@ int main() {
     };
 
     ANeuralNetworksShimDeviceInfo* deviceInfo;
-    ANeuralNetworksShimDeviceInfo_create(&deviceInfo, "nnapi-sample_sl");
+    ANeuralNetworksShimDeviceInfo_create(&deviceInfo,
+                                         /*deviceName=*/"nnapi-sample_sl",
+                                         /*serviceName=*/"nnapi-sample_sl_shim");
     ANeuralNetworksShimDeviceInfo_setNumberOfCacheFilesNeeded(deviceInfo, 0, 0);
     ANeuralNetworksShimDeviceInfo_setCapabilities(
             deviceInfo, ANeuralNetworksShimPerformanceInfo{.execTime = 0.5, .powerUsage = 0.5},

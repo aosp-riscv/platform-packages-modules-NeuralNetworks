@@ -121,6 +121,7 @@ ShimDevice::ShimDevice(std::shared_ptr<const NnApiSupportLibrary> nnapi,
                        ANeuralNetworksDevice* device, const ShimDeviceInfo& deviceInfo)
     : mNnapi(std::move(nnapi)),
       mBufferTracker(ShimBufferTracker::create()),
+      mServiceName(deviceInfo.serviceName),
       mDevice(device),
       mDeviceAdditionalData(deviceInfo.additionalData),
       mCapabilities(shimToHALCapabilities(deviceInfo.capabilities)) {}
@@ -554,7 +555,7 @@ int ShimDevice::registerService() {
         LOG(ERROR) << "ANeuralNetworksDevice_getName failed, error code " << result;
         return ANNSHIM_FAILED_TO_REGISTER_SERVICE;
     }
-    const std::string instance = std::string(ShimDevice::descriptor) + "/" + name + "_shim";
+    const std::string instance = std::string(ShimDevice::descriptor) + "/" + mServiceName;
     LOG(INFO) << "Attempting service registration for " << instance;
     binder_status_t status = AServiceManager_addService(this->asBinder().get(), instance.c_str());
     if (status != STATUS_OK) {

@@ -63,8 +63,12 @@ int ANeuralNetworksShim_registerSupportLibraryService(
 using namespace aidl::android::hardware::neuralnetworks;
 
 int ANeuralNetworksShimDeviceInfo_create(ANeuralNetworksShimDeviceInfo** deviceInfo,
-                                         const char* deviceName) {
-    auto result = new (std::nothrow) ShimDeviceInfo{.deviceName = std::string(deviceName)};
+                                         const char* deviceName, const char* serviceName) {
+    auto result = new (std::nothrow)
+            ShimDeviceInfo{.deviceName = std::string(deviceName),
+                           .serviceName = (serviceName == nullptr || strlen(serviceName) == 0)
+                                                  ? std::string(deviceName)
+                                                  : std::string(serviceName)};
     if (result == nullptr) {
         return ANNSHIM_GENERAL_ERROR;
     }

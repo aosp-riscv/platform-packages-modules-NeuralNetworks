@@ -78,6 +78,11 @@ struct ShimDeviceInfo {
     std::string deviceName;
 
     /**
+     * Name of HAL AIDL service backed by this SL NNAPI Driver device.
+     */
+    std::string serviceName;
+
+    /**
      * Capabilities information, to be returned from NNAPI HAL.
      * See NNAPI HAL IDevice::getCapabilities for more information.
      */
@@ -119,6 +124,7 @@ class ShimDevice : public BnDevice {
    private:
     std::shared_ptr<const NnApiSupportLibrary> mNnapi;
     std::shared_ptr<ShimBufferTracker> mBufferTracker;
+    std::string mServiceName;
     ANeuralNetworksDevice* mDevice;
     ShimDeviceAdditionalData mDeviceAdditionalData;
     Capabilities mCapabilities;

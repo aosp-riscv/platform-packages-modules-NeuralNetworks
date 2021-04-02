@@ -118,11 +118,14 @@ typedef struct ANeuralNetworksShimDeviceInfo ANeuralNetworksShimDeviceInfo;
  * @param deviceInfo The {@link ANeuralNetworksShimDeviceInfo} to be created.
  *                   Set to NULL if unsuccessful.
  * @param deviceName has to match NNAPI Device name exposed by SL Driver.
+ * @param serviceName name of the AIDL service backed by this SL Driver device.
+ *                    If null, the deviceName will be used as the service name.
  * @return {@link ANeuralNetworksShimResultCode} enum values.
  *         Returns ANNSHIM_NO_ERROR if successful.
  */
 int ANeuralNetworksShimDeviceInfo_create(ANeuralNetworksShimDeviceInfo** deviceInfo,
-                                         const char* deviceName) __INTRODUCED_IN(31);
+                                         const char* deviceName, const char* serviceName)
+        __INTRODUCED_IN(31);
 
 /**
  * Free ANeuralNetworksShimDeviceInfo struct.

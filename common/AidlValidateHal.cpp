@@ -56,8 +56,8 @@ bool validateMemoryDesc(
         NN_RET_CHECK(model != nullptr);
         const auto& inputIndexes = model->main.inputIndexes;
         NN_RET_CHECK_LT(role.ioIndex, inputIndexes.size());
-        NN_RET_CHECK_GT(role.frequency, 0.0f);
-        NN_RET_CHECK_LE(role.frequency, 1.0f);
+        NN_RET_CHECK_GT(role.probability, 0.0f);
+        NN_RET_CHECK_LE(role.probability, 1.0f);
         const auto [it, success] = roles.emplace(preparedModel.get(), IOType::INPUT, role.ioIndex);
         NN_RET_CHECK(success);
         operands.push_back(model->main.operands[inputIndexes[role.ioIndex]]);
@@ -70,8 +70,8 @@ bool validateMemoryDesc(
         NN_RET_CHECK(model != nullptr);
         const auto& outputIndexes = model->main.outputIndexes;
         NN_RET_CHECK_LT(role.ioIndex, outputIndexes.size());
-        NN_RET_CHECK_GT(role.frequency, 0.0f);
-        NN_RET_CHECK_LE(role.frequency, 1.0f);
+        NN_RET_CHECK_GT(role.probability, 0.0f);
+        NN_RET_CHECK_LE(role.probability, 1.0f);
         const auto [it, success] = roles.emplace(preparedModel.get(), IOType::OUTPUT, role.ioIndex);
         NN_RET_CHECK(success);
         operands.push_back(model->main.operands[outputIndexes[role.ioIndex]]);

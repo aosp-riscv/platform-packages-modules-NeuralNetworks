@@ -48,7 +48,7 @@ class Memory {
    public:
     // Takes ownership of a ANeuralNetworksMemory
     Memory(const NnApiSupportLibrary* nnapi, ANeuralNetworksMemory* memory)
-        : mNnApi(nnapi), mMemory(memory) {}
+        : mNnApi(nnapi), mMemory(memory), mSize(0) {}
 
     // Create from a FD and may takes ownership of the fd.
     Memory(const NnApiSupportLibrary* nnapi, size_t size, int protect, int fd, size_t offset,
@@ -59,16 +59,14 @@ class Memory {
     }
 
     // Create from a buffer, may take ownership.
-    Memory(const NnApiSupportLibrary* nnapi, AHardwareBuffer* buffer, bool ownAHWB,
-           std::optional<size_t> size)
+    Memory(const NnApiSupportLibrary* nnapi, AHardwareBuffer* buffer, bool ownAHWB, size_t size)
         : mNnApi(nnapi), mOwnedAHWB(ownAHWB ? buffer : nullptr), mSize(size) {
         mValid = mNnApi->ANeuralNetworksMemory_createFromAHardwareBuffer(buffer, &mMemory) ==
                  ANEURALNETWORKS_NO_ERROR;
     }
 
     // Create from a desc
-    Memory(const NnApiSupportLibrary* nnapi, ANeuralNetworksMemoryDesc* desc,
-           std::optional<size_t> size)
+    Memory(const NnApiSupportLibrary* nnapi, ANeuralNetworksMemoryDesc* desc, size_t size)
         : mNnApi(nnapi), mSize(size) {
         mValid = mNnApi->ANeuralNetworksMemory_createFromDesc(desc, &mMemory) ==
                  ANEURALNETWORKS_NO_ERROR;
@@ -116,7 +114,7 @@ class Memory {
 
     ANeuralNetworksMemory* get() const { return mMemory; }
     bool isValid() const { return mValid; }
-    std::optional<size_t> getSize() const { return mSize; }
+    size_t getSize() const { return mSize; }
     Result copyTo(Memory& other) {
         return static_cast<Result>(mNnApi->ANeuralNetworksMemory_copy(mMemory, other.mMemory));
     }
@@ -127,7 +125,7 @@ class Memory {
     bool mValid = true;
     std::optional<int> mOwnedFd;
     AHardwareBuffer* mOwnedAHWB = nullptr;
-    std::optional<size_t> mSize;
+    size_t mSize;
 };
 
 class Model {

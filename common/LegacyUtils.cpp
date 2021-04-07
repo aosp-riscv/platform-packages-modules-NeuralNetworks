@@ -92,16 +92,27 @@ void initVLogMask() {
 }
 
 Duration makeTimeoutDuration(uint64_t nanoseconds) {
-    return Duration{nanoseconds};
+    constexpr auto kMaxCount = Duration::max().count();
+    using CommonType = std::common_type_t<Duration::rep, uint64_t>;
+    const auto count = std::min<CommonType>(kMaxCount, nanoseconds);
+    return Duration{static_cast<Duration::rep>(count)};
+}
+
+OptionalDuration makeTimeoutDuration(int64_t nanoseconds) {
+    CHECK_GE(nanoseconds, -1);
+    if (nanoseconds == -1) {
+        return OptionalDuration{};
+    }
+    return makeTimeoutDuration(static_cast<uint64_t>(nanoseconds));
 }
 
 TimePoint makeDeadline(Duration duration) {
-    const auto maxTime = TimePoint::max();
+    constexpr auto kMaxTime = TimePoint::max();
     const auto currentTime = Clock::now();
 
     // If there would be an overflow, use the max value.
-    if (duration > maxTime - currentTime) {
-        return maxTime;
+    if (duration > kMaxTime - currentTime) {
+        return kMaxTime;
     }
     return currentTime + duration;
 }
@@ -111,14 +122,6 @@ bool hasDeadlinePassed(const OptionalTimePoint& deadline) {
         return false;
     }
     return Clock::now() >= *deadline;
-}
-
-static OptionalTimePoint makeTimePoint(const TimePoint& deadline) {
-    return deadline;
-}
-
-OptionalTimePoint makeTimePoint(const OptionalTimePoint& deadline) {
-    return deadline.has_value() ? makeTimePoint(*deadline) : OptionalTimePoint{};
 }
 
 static bool isExtensionOperandType(int32_t type) {

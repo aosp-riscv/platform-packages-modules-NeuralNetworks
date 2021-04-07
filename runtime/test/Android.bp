@@ -372,6 +372,7 @@ cc_library_static {
         "TestNeuralNetworksWrapper.cpp",
         "TestTrivialModel.cpp",
         "TestUnknownDimensions.cpp",
+        "TestUpdatability.cpp",
         "TestValidateModel.cpp",
         "TestValidateOperations.cpp",
         "TestValidation.cpp",

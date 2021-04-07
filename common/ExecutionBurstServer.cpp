@@ -25,6 +25,7 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <thread>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -400,6 +401,8 @@ std::optional<std::vector<FmqRequestDatum>> RequestChannelReceiver::getPacketBlo
             }
             return std::make_optional(std::move(packet));
         }
+
+        std::this_thread::yield();
     }
 
     // If we get to this point, we either stopped polling because it was taking

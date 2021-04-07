@@ -773,7 +773,7 @@ std::ostream& operator<<(std::ostream& os, const BufferDesc& bufferDesc) {
 
 std::ostream& operator<<(std::ostream& os, const BufferRole& bufferRole) {
     return os << "BufferRole{.modelIndex=" << bufferRole.modelIndex
-              << ", .ioIndex=" << bufferRole.ioIndex << ", .frequency=" << bufferRole.frequency
+              << ", .ioIndex=" << bufferRole.ioIndex << ", .probability=" << bufferRole.probability
               << "}";
 }
 

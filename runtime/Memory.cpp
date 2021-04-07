@@ -307,7 +307,7 @@ bool MemoryBuilder::badState(const char* name) const {
 }
 
 int MemoryBuilder::addRole(const CompilationBuilder& compilation, IOType ioType, uint32_t index,
-                           float freq) {
+                           float prob) {
     const char* tag = ioType == IOType::INPUT ? "addInputRole" : "addOutputRole";
     if (badState(tag)) {
         return ANEURALNETWORKS_BAD_STATE;
@@ -367,15 +367,15 @@ int MemoryBuilder::addRole(const CompilationBuilder& compilation, IOType ioType,
         return ANEURALNETWORKS_BAD_DATA;
     }
 
-    if (freq > 1.0f || freq <= 0.0f) {
-        LOG(ERROR) << "ANeuralNetworksMemoryDesc_" << tag << " -- invalid frequency " << freq;
+    if (prob > 1.0f || prob <= 0.0f) {
+        LOG(ERROR) << "ANeuralNetworksMemoryDesc_" << tag << " -- invalid frequency " << prob;
         return ANEURALNETWORKS_BAD_DATA;
     }
 
     mRoles.emplace(&compilation, ioType, index);
     for (const auto& [preparedModel, type, ind] : roles) {
         uint32_t modelIndex = mDesc.preparedModels.add(preparedModel);
-        BufferRole role = {.modelIndex = modelIndex, .ioIndex = ind, .frequency = freq};
+        BufferRole role = {.modelIndex = modelIndex, .ioIndex = ind, .probability = prob};
         if (type == IOType::INPUT) {
             mDesc.inputRoles.push_back(role);
         } else {

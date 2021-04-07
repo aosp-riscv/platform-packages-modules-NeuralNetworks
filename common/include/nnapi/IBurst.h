@@ -88,6 +88,14 @@ class IBurst {
      * @param request The input and output information on which the prepared model is to be
      *     executed.
      * @param measure Specifies whether or not to measure duration of the execution.
+     * @param deadline Optional time point. If provided, execute is expected to complete by this
+     *     time point. If it is not able to be completed by the deadline, the execution may be
+     *     aborted.
+     * @param loopTimeoutDuration The maximum amount of time that should be spent executing a {@link
+     *     OperationType::WHILE} operation. If a loop condition model does not output `false` within
+     *     this duration, the execution must be aborted. If no loop timeout duration is provided,
+     *     the maximum amount of time is {@link kControlFlowTimeoutDefault}. When provided, the
+     *     duration must not exceed {@link kControlFlowTimeoutMaximum}.
      * @return A pair consisting of:
      *     - A list of shape information of model output operands. The index into "outputShapes"
      *       corresponds to the index of the output operand in the Request outputs vector.
@@ -103,7 +111,8 @@ class IBurst {
      *       std::nullopt, indicating that measurement is not available.
      */
     virtual ExecutionResult<std::pair<std::vector<OutputShape>, Timing>> execute(
-            const Request& request, MeasureTiming measure) const = 0;
+            const Request& request, MeasureTiming measure, const nn::OptionalTimePoint& deadline,
+            const nn::OptionalDuration& loopTimeoutDuration) const = 0;
 
     // Public virtual destructor to allow objects to be stored (and destroyed) as smart pointers.
     // E.g., std::unique_ptr<IBurst>.

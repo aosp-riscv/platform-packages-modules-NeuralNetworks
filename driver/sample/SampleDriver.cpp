@@ -28,6 +28,7 @@
 #include <android-base/properties.h>
 #include <hidl/LegacySupport.h>
 #include <nnapi/Types.h>
+#include <nnapi/hal/1.3/Conversions.h>
 
 #include <algorithm>
 #include <chrono>
@@ -533,7 +534,7 @@ V1_3::ErrorStatus executeBase(const V1_3::Request& request, V1_2::MeasureTiming 
         notify(callback, V1_3::ErrorStatus::INVALID_ARGUMENT, {}, kNoTiming);
         return V1_3::ErrorStatus::INVALID_ARGUMENT;
     }
-    const auto deadline = makeDeadline(halDeadline);
+    const auto deadline = convert(halDeadline).value();
     if (hasDeadlinePassed(deadline)) {
         notify(callback, V1_3::ErrorStatus::MISSED_DEADLINE_PERSISTENT, {}, kNoTiming);
         return V1_3::ErrorStatus::NONE;
@@ -592,7 +593,7 @@ executeSynchronouslyBase(const V1_3::Request& request, V1_2::MeasureTiming measu
     if (!validateRequest(request, model)) {
         return {V1_3::ErrorStatus::INVALID_ARGUMENT, {}, kNoTiming};
     }
-    const auto deadline = makeDeadline(halDeadline);
+    const auto deadline = convert(halDeadline).value();
     if (hasDeadlinePassed(deadline)) {
         return {V1_3::ErrorStatus::MISSED_DEADLINE_PERSISTENT, {}, kNoTiming};
     }
@@ -677,7 +678,7 @@ hardware::Return<void> SamplePreparedModel::executeFenced(
         cb(V1_3::ErrorStatus::INVALID_ARGUMENT, hardware::hidl_handle(nullptr), nullptr);
         return hardware::Void();
     }
-    const auto deadline = makeDeadline(halDeadline);
+    const auto deadline = convert(halDeadline).value();
     if (hasDeadlinePassed(deadline)) {
         cb(V1_3::ErrorStatus::MISSED_DEADLINE_PERSISTENT, hardware::hidl_handle(nullptr), nullptr);
         return hardware::Void();

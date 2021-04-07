@@ -389,7 +389,9 @@ int ExecutionBuilder::getDuration(int32_t durationCode, uint64_t* duration) cons
     }();
     if (selectedDuration.has_value()) {
         constexpr uint64_t kMaxTiming = std::numeric_limits<uint64_t>::max() - 1;
-        *duration = std::min(selectedDuration.value().count(), kMaxTiming);
+        using CommonType = std::common_type_t<Duration::rep, uint64_t>;
+        const auto count = std::min<CommonType>(selectedDuration.value().count(), kMaxTiming);
+        *duration = static_cast<uint64_t>(count);
     } else {
         constexpr uint64_t kNoTiming = std::numeric_limits<uint64_t>::max();
         *duration = kNoTiming;

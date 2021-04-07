@@ -90,14 +90,20 @@ void initVLogMask();
         }                                             \
     } while (0)
 
-// Make an Duration from a duration in nanoseconds. If the value exceeds
-// the max duration, return the maximum expressible duration.
+// Make a Duration from a duration in nanoseconds. If the value exceeds the max duration, return the
+// maximum expressible duration.
 Duration makeTimeoutDuration(uint64_t nanoseconds);
+
+// Make a Duration from a duration in nanoseconds. If the value exceeds the max duration, return the
+// maximum expressible duration. If nanoseconds == -1, the duration is omitted. Precondition:
+// nanoseconds >= -1
+OptionalDuration makeTimeoutDuration(int64_t nanoseconds);
 
 // Make a deadline from a duration. If the sum of the current time and the
 // duration exceeds the max time, return a time point holding the maximum
 // expressible time.
 TimePoint makeDeadline(Duration duration);
+
 inline TimePoint makeDeadline(uint64_t duration) {
     return makeDeadline(makeTimeoutDuration(duration));
 }
@@ -112,22 +118,12 @@ inline OptionalTimePoint makeDeadline(std::optional<uint64_t> duration) {
     return duration.has_value() ? std::make_optional(makeDeadline(*duration)) : OptionalTimePoint{};
 }
 inline OptionalTimePoint makeDeadline(int64_t duration) {
-    // NN AIDL interface defines -1 to indicate that the duration has been omitted and forbids all
-    // other negative values.
-    CHECK_GE(duration, -1);
-    if (duration == -1) {
-        return OptionalTimePoint{};
-    }
-    return makeDeadline(static_cast<uint64_t>(duration));
+    return makeDeadline(makeTimeoutDuration(duration));
 }
 
 // Returns true if the deadline has passed. Returns false if either the deadline
 // has not been exceeded or if the deadline is not present.
 bool hasDeadlinePassed(const OptionalTimePoint& deadline);
-
-// Make an OptionalTimePoint from an optional deadline. If the deadline is not
-// provided, this function returns none for OptionalTimePoint.
-OptionalTimePoint makeTimePoint(const OptionalTimePoint& deadline);
 
 // Returns true if an operand type is an extension type.
 bool isExtensionOperandType(OperandType type);

@@ -17,7 +17,10 @@
 #ifndef ANDROID_FRAMEWORKS_ML_NN_COMMON_CONTROLFLOW_H
 #define ANDROID_FRAMEWORKS_ML_NN_COMMON_CONTROLFLOW_H
 
+#include <chrono>
 #include <cstdint>
+
+#include "nnapi/Types.h"
 
 namespace android {
 namespace nn {
@@ -37,8 +40,10 @@ constexpr uint32_t kBodyModelOperand = 1;
 constexpr uint32_t kFirstInput = 2;
 
 // See ANeuralNetworksExecution_setLoopTimeout.
-constexpr uint64_t kTimeoutNsDefault = 2'000'000'000;
-constexpr uint64_t kTimeoutNsMaximum = 15'000'000'000;
+constexpr uint64_t kTimeoutNsDefault =
+        std::chrono::duration_cast<std::chrono::nanoseconds>(kLoopTimeoutDefault).count();
+constexpr uint64_t kTimeoutNsMaximum =
+        std::chrono::duration_cast<std::chrono::nanoseconds>(kLoopTimeoutMaximum).count();
 
 }  // namespace operation_while
 }  // namespace nn

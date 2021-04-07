@@ -1643,7 +1643,7 @@ bool SamplePreparedModelXNNPACK::initialize() {
 template <typename T_IExecutionCallback>
 void asyncExecuteXNNPACK(Subgraph* subgraph, RunTimeOperandInfo* operands,
                          const V1_3::Request& request, V1_2::MeasureTiming measure,
-                         const V1_3::Model& model, const OptionalTimePoint& deadline,
+                         const V1_3::Model& model, const LegacyOptionalTimePoint& deadline,
                          const V1_3::OptionalTimeoutDuration& loopTimeoutDuration,
                          const sp<T_IExecutionCallback>& callback) {
     std::vector<RunTimePoolInfo> requestPoolInfos;

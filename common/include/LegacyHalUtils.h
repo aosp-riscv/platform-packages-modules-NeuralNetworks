@@ -38,8 +38,21 @@
 namespace android {
 namespace nn {
 
-// Make an optional deadline from an OptionalTimePoint.
-OptionalTimePoint makeDeadline(const V1_3::OptionalTimePoint& timePoint);
+using LegacyClock = std::chrono::steady_clock;
+using LegacyDuration = std::chrono::duration<uint64_t, std::nano>;
+using LegacyOptionalDuration = std::optional<LegacyDuration>;
+using LegacyTimePoint = std::chrono::time_point<std::chrono::steady_clock, LegacyDuration>;
+using LegacyOptionalTimePoint = std::optional<LegacyTimePoint>;
+
+// Make an optional deadline from an V1_3::OptionalTimePoint.
+LegacyOptionalTimePoint makeDeadline(const V1_3::OptionalTimePoint& timePoint);
+
+// Make an optional deadline from an V1_3::OptionalDuration.
+LegacyOptionalTimePoint makeDeadline(const V1_3::OptionalTimeoutDuration& optionalDuration);
+
+// Returns true if the deadline has passed. Returns false if either the deadline
+// has not been exceeded or if the deadline is not present.
+bool hasDeadlinePassed(const LegacyOptionalTimePoint& deadline);
 
 // Ensure that every user of FalseyErrorStream is linked to the
 // correct instance, using the correct LOG_TAG

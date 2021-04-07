@@ -17,6 +17,7 @@
 #ifndef ANDROID_FRAMEWORKS_ML_NN_COMMON_NNAPI_TYPES_H
 #define ANDROID_FRAMEWORKS_ML_NN_COMMON_NNAPI_TYPES_H
 
+#include <android-base/chrono_utils.h>
 #include <android-base/expected.h>
 #include <android-base/unique_fd.h>
 
@@ -56,6 +57,8 @@ constexpr uint32_t kDefaultRequestMemoryAlignment = 64;
 constexpr uint32_t kDefaultRequestMemoryPadding = 64;
 constexpr uint32_t kMinMemoryAlignment = alignof(std::max_align_t);
 constexpr uint32_t kMinMemoryPadding = 1;
+constexpr auto kLoopTimeoutDefault = std::chrono::seconds{2};
+constexpr auto kLoopTimeoutMaximum = std::chrono::seconds{15};
 
 // Aliases
 
@@ -341,9 +344,9 @@ class SyncFence {
     SharedHandle mSyncFence;
 };
 
-using Clock = std::chrono::steady_clock;
+using Clock = base::boot_clock;
 
-using Duration = std::chrono::duration<uint64_t, std::nano>;
+using Duration = std::chrono::nanoseconds;
 using OptionalDuration = std::optional<Duration>;
 
 using TimePoint = std::chrono::time_point<Clock, Duration>;

@@ -35,6 +35,7 @@ Result<Version> validate(const DeviceStatus& deviceStatus);
 Result<Version> validate(const ExecutionPreference& executionPreference);
 Result<Version> validate(const DeviceType& deviceType);
 Result<Version> validate(const MeasureTiming& measureTiming);
+Result<Version> validate(const OperandType& operandType);
 Result<Version> validate(const Priority& priority);
 Result<Version> validate(const ErrorStatus& errorStatus);
 Result<Version> validate(const FusedActivationFunc& activation);
@@ -50,11 +51,14 @@ Result<Version> validate(const BufferRole& bufferRole);
 Result<Version> validate(const Request& request);
 Result<Version> validate(const OptionalTimePoint& optionalTimePoint);
 Result<Version> validate(const OptionalDuration& optionalTimeoutDuration);
+Result<Version> validate(const CacheToken& cacheToken);
+Result<Version> validate(const SyncFence& syncFence);
 
 Result<Version> validate(const std::vector<OutputShape>& outputShapes);
 Result<Version> validate(const std::vector<Extension>& extensions);
 Result<Version> validate(const std::vector<SharedHandle>& handles);
 Result<Version> validate(const std::vector<BufferRole>& bufferRoles);
+Result<Version> validate(const std::vector<SyncFence>& syncFences);
 
 // Validate request applied to model.
 Result<Version> validateRequestForModel(const Request& request, const Model& model,

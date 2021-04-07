@@ -545,7 +545,7 @@ std::tuple<int, std::vector<OutputShape>, Timing> DriverPreparedModel::execute(
 
         VLOG(EXECUTION) << "Before burstController->execute() " << SHOW_IF_DEBUG(request);
 
-        result = burstController->execute(request, measure);
+        result = burstController->execute(request, measure, deadline, loopTimeoutDuration);
     } else {
         result = mPreparedModel->execute(request, measure, deadline, loopTimeoutDuration);
     }

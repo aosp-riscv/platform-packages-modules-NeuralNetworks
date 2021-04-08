@@ -74,8 +74,7 @@ class RuntimePreparedModel {
 
     virtual GeneralResult<SharedBurst> configureExecutionBurst() const = 0;
 
-    // Returns a pair of {alignment, padding}.
-    virtual std::pair<uint32_t, uint32_t> getMemoryPreference() const = 0;
+    virtual MemoryPreference getMemoryPreference() const = 0;
 };
 
 using ModelFactory = std::function<Model()>;

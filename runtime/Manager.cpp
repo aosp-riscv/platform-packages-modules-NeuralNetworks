@@ -158,7 +158,7 @@ class DriverPreparedModel : public RuntimePreparedModel {
         return mPreparedModel->configureExecutionBurst();
     }
 
-    std::pair<uint32_t, uint32_t> getMemoryPreference() const override {
+    MemoryPreference getMemoryPreference() const override {
         if (mDevice->getFeatureLevel() >= ANEURALNETWORKS_FEATURE_LEVEL_5) {
             return {kDefaultRequestMemoryAlignment, kDefaultRequestMemoryPadding};
         } else {
@@ -801,7 +801,7 @@ class CpuPreparedModel : public RuntimePreparedModel {
             const OptionalDuration& loopTimeoutDuration,
             const OptionalDuration& timeoutDurationAfterFence) const override;
 
-    std::pair<uint32_t, uint32_t> getMemoryPreference() const override {
+    MemoryPreference getMemoryPreference() const override {
         return {kPreferredAlignment, kPreferredPadding};
     }
 

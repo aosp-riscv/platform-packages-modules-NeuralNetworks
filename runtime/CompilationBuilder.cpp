@@ -208,12 +208,7 @@ int CompilationBuilder::getPreferredMemoryAlignmentForInput(uint32_t index,
                    << index;
         return ANEURALNETWORKS_BAD_DATA;
     }
-    uint32_t value = kMinMemoryAlignment;
-    mPlan.forEachStepRoleOfInput(
-            index, [&value](const RuntimePreparedModel* preparedModel, IOType, uint32_t) {
-                value = std::max(value, preparedModel->getMemoryPreference().first);
-            });
-    *alignment = value;
+    *alignment = mPlan.getMemoryPreference(IOType::INPUT, index).alignment;
     return ANEURALNETWORKS_NO_ERROR;
 }
 
@@ -235,12 +230,7 @@ int CompilationBuilder::getPreferredMemoryPaddingForInput(uint32_t index, uint32
                    << index;
         return ANEURALNETWORKS_BAD_DATA;
     }
-    uint32_t value = kMinMemoryPadding;
-    mPlan.forEachStepRoleOfInput(
-            index, [&value](const RuntimePreparedModel* preparedModel, IOType, uint32_t) {
-                value = std::max(value, preparedModel->getMemoryPreference().second);
-            });
-    *padding = value;
+    *padding = mPlan.getMemoryPreference(IOType::INPUT, index).padding;
     return ANEURALNETWORKS_NO_ERROR;
 }
 
@@ -263,12 +253,7 @@ int CompilationBuilder::getPreferredMemoryAlignmentForOutput(uint32_t index,
                    << index;
         return ANEURALNETWORKS_BAD_DATA;
     }
-    uint32_t value = kMinMemoryAlignment;
-    mPlan.forEachStepRoleOfOutput(
-            index, [&value](const RuntimePreparedModel* preparedModel, IOType, uint32_t) {
-                value = std::max(value, preparedModel->getMemoryPreference().first);
-            });
-    *alignment = value;
+    *alignment = mPlan.getMemoryPreference(IOType::OUTPUT, index).alignment;
     return ANEURALNETWORKS_NO_ERROR;
 }
 
@@ -291,12 +276,7 @@ int CompilationBuilder::getPreferredMemoryPaddingForOutput(uint32_t index,
                    << index;
         return ANEURALNETWORKS_BAD_DATA;
     }
-    uint32_t value = kMinMemoryPadding;
-    mPlan.forEachStepRoleOfOutput(
-            index, [&value](const RuntimePreparedModel* preparedModel, IOType, uint32_t) {
-                value = std::max(value, preparedModel->getMemoryPreference().second);
-            });
-    *padding = value;
+    *padding = mPlan.getMemoryPreference(IOType::OUTPUT, index).padding;
     return ANEURALNETWORKS_NO_ERROR;
 }
 

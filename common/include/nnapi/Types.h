@@ -359,6 +359,21 @@ struct Timing {
 
 enum class Version { ANDROID_OC_MR1, ANDROID_P, ANDROID_Q, ANDROID_R, ANDROID_S, CURRENT_RUNTIME };
 
+// Describes the memory preference of an operand.
+struct MemoryPreference {
+    // Must be a power of 2.
+    // For pointer buffers, the alignment is satisfied if the address of the pointer is a multiple
+    // of the "alignment" value. For memory pools, the alignment is satisfied if the offset of the
+    // sub-region specified by DataLocation is a multiple of the "alignment" value.
+    uint32_t alignment;
+    // Must be a power of 2.
+    // For both pointer buffers and memory pools, the padding is satisfied if the padded length is
+    // greater than or equal to the raw size of the operand (i.e. the size of an element multiplied
+    // by the number of elements) rounding up to a multiple of the "padding" value. In DataLocation,
+    // the padded length equals to the sum of the length and padding fields.
+    uint32_t padding;
+};
+
 }  // namespace android::nn
 
 #endif  // ANDROID_FRAMEWORKS_ML_NN_COMMON_NNAPI_TYPES_H

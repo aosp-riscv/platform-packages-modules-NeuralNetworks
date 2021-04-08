@@ -67,6 +67,9 @@ Result<Dimensions> combineDimensions(const Dimensions& lhs, const Dimensions& rh
 // Returns the operandValues's size and a size for each pool in the provided model.
 std::pair<size_t, std::vector<size_t>> getMemorySizes(const Model& model);
 
+// Round up "size" to the nearest multiple of "multiple". "multiple" must be a power of 2.
+uint32_t roundUp(uint32_t size, uint32_t multiple);
+
 // Set of output utility functions.
 std::ostream& operator<<(std::ostream& os, const DeviceStatus& deviceStatus);
 std::ostream& operator<<(std::ostream& os, const ExecutionPreference& executionPreference);
@@ -99,6 +102,7 @@ std::ostream& operator<<(std::ostream& os, const Operation& operation);
 std::ostream& operator<<(std::ostream& os, const SharedHandle& handle);
 std::ostream& operator<<(std::ostream& os, const Memory& memory);
 std::ostream& operator<<(std::ostream& os, const SharedMemory& memory);
+std::ostream& operator<<(std::ostream& os, const MemoryPreference& memoryPreference);
 std::ostream& operator<<(std::ostream& os, const Model::Subgraph& subgraph);
 std::ostream& operator<<(std::ostream& os, const Model::OperandValues& operandValues);
 std::ostream& operator<<(std::ostream& os,
@@ -133,6 +137,8 @@ bool operator!=(const Extension::OperandTypeInformation& a,
                 const Extension::OperandTypeInformation& b);
 bool operator==(const Extension& a, const Extension& b);
 bool operator!=(const Extension& a, const Extension& b);
+bool operator==(const MemoryPreference& a, const MemoryPreference& b);
+bool operator!=(const MemoryPreference& a, const MemoryPreference& b);
 bool operator==(const Operand::SymmPerChannelQuantParams& a,
                 const Operand::SymmPerChannelQuantParams& b);
 bool operator!=(const Operand::SymmPerChannelQuantParams& a,

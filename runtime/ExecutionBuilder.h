@@ -309,23 +309,20 @@ class StepExecutor {
                          outputDimensions);
     }
 
-    // If no length is provided, the input or output is assumed to have the length
-    // of the operand.  dimensions must either have zero rank or must be
+    // dimensions must either have zero rank or must be
     // consistent with and at least as well specified as operand dimensions
     // (i.e., either rank must match, or operand rank must be zero; and for each
     // individual dimension, either dimension must match, or operand dimension
     // must be zero).
     int setInputFromMemory(uint32_t inputIndex, const RuntimeMemory* memory, uint32_t offset,
-                           const Dimensions& dimensions = {},
-                           std::optional<uint32_t> length = std::nullopt) {
+                           uint32_t length, const Dimensions& dimensions = {}) {
         return setInputOrOutputFromMemory(mModel->getInputOperand(inputIndex), memory, offset,
-                                          dimensions, length, &mInputs.at(inputIndex));
+                                          length, dimensions, &mInputs.at(inputIndex));
     }
     int setOutputFromMemory(uint32_t outputIndex, const RuntimeMemory* memory, uint32_t offset,
-                            const Dimensions& dimensions = {},
-                            std::optional<uint32_t> length = std::nullopt) {
+                            uint32_t length, const Dimensions& dimensions = {}) {
         return setInputOrOutputFromMemory(mModel->getOutputOperand(outputIndex), memory, offset,
-                                          dimensions, length, &mOutputs.at(outputIndex));
+                                          length, dimensions, &mOutputs.at(outputIndex));
     }
 
     // Executes using the (driver, preparedModel) specified at construction time.
@@ -355,15 +352,13 @@ class StepExecutor {
                           ModelArgumentInfo* executorInputOrOutput,
                           const Dimensions* builderDimensions = nullptr);
 
-    // If no length is provided, the input or output is assumed to have the length
-    // of the corresponding operand.  dimensions must either have zero rank or
+    // dimensions must either have zero rank or
     // must be consistent with and at least as well specified as operand
     // dimensions (i.e., either rank must match, or operand rank must be zero;
     // and for each individual dimension, either dimension must match, or
     // operand dimension must be zero).
     int setInputOrOutputFromMemory(const Operand& inputOrOutputOperand, const RuntimeMemory* memory,
-                                   uint32_t offset, const Dimensions& dimensions,
-                                   std::optional<uint32_t> length,
+                                   uint32_t offset, uint32_t length, const Dimensions& dimensions,
                                    ModelArgumentInfo* inputOrOutputInfo);
 
     std::tuple<int, std::vector<OutputShape>, Timing> computeWithMemories(

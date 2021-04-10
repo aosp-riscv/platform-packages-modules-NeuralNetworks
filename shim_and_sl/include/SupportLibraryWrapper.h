@@ -518,7 +518,7 @@ class Execution {
     // setComputeMode() can be used to change the behavior of compute() to
     // use the burst API
     // Returns the previous ComputeMode.
-    enum class ComputeMode { SYNC, BURST };
+    enum class ComputeMode { SYNC, BURST, FENCED };
     static ComputeMode setComputeMode(ComputeMode mode) {
         ComputeMode oldComputeMode = mComputeMode;
         mComputeMode = mode;
@@ -541,6 +541,18 @@ class Execution {
                 result = static_cast<Result>(
                         mNnApi->ANeuralNetworksExecution_burstCompute(mExecution, burst));
                 mNnApi->ANeuralNetworksBurst_free(burst);
+                return result;
+            }
+            case ComputeMode::FENCED: {
+                ANeuralNetworksEvent* event = nullptr;
+                Result result = static_cast<Result>(
+                        mNnApi->ANeuralNetworksExecution_startComputeWithDependencies(
+                                mExecution, nullptr, 0, 0, &event));
+                if (result != Result::NO_ERROR) {
+                    return result;
+                }
+                result = static_cast<Result>(mNnApi->ANeuralNetworksEvent_wait(event));
+                mNnApi->ANeuralNetworksEvent_free(event);
                 return result;
             }
         }

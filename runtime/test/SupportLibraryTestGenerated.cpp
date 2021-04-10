@@ -510,6 +510,11 @@ TEST_P(DeviceMemoryTest, Test) {
     execute(testModel);
 }
 
+TEST_P(FencedComputeTest, Test) {
+    mComputeMode = Execution::ComputeMode::FENCED;
+    execute(testModel);
+}
+
 INSTANTIATE_GENERATED_TEST(GeneratedTests,
                            [](const TestModel& testModel) { return !testModel.expectFailure; });
 

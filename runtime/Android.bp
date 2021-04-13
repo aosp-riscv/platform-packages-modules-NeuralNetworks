@@ -115,6 +115,7 @@ cc_defaults {
     // this would remove half of dependencies here.
     static_libs: [
         "android.hardware.common-V2-ndk_platform",
+        "android.hardware.graphics.common-V2-ndk_platform",
         "android.hardware.neuralnetworks-V1-ndk_platform",
         "android.hardware.neuralnetworks@1.0",
         "android.hardware.neuralnetworks@1.1",
@@ -122,6 +123,7 @@ cc_defaults {
         "android.hardware.neuralnetworks@1.3",
         "android.hidl.allocator@1.0",
         "android.hidl.memory@1.0",
+        "libaidlcommonsupport",
         "libbase",
         "libcrypto_static",
         "libcutils",

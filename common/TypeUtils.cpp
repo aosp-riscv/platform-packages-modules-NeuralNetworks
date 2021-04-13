@@ -207,7 +207,7 @@ std::pair<size_t, std::vector<size_t>> getMemorySizes(const Model& model) {
     std::vector<size_t> poolSizes;
     poolSizes.reserve(model.pools.size());
     std::transform(model.pools.begin(), model.pools.end(), std::back_inserter(poolSizes),
-                   [](const SharedMemory& memory) { return memory->size; });
+                   [](const SharedMemory& memory) { return getSize(memory); });
 
     return std::make_pair(operandValuesSize, std::move(poolSizes));
 }
@@ -721,20 +721,33 @@ std::ostream& operator<<(std::ostream& os, const SharedHandle& handle) {
     return os << *handle;
 }
 
-static std::ostream& operator<<(std::ostream& os, const HardwareBufferHandle& handle) {
-    return os << (handle.get() != nullptr ? "<non-empty HardwareBufferHandle>"
-                                          : "<empty HardwareBufferHandle>");
+static std::ostream& operator<<(std::ostream& os, const Memory::Ashmem& memory) {
+    return os << "Ashmem{.fd=" << (memory.fd.ok() ? "<valid fd>" : "<invalid fd>")
+              << ", .size=" << memory.size << "}";
 }
 
-static std::ostream& operator<<(std::ostream& os,
-                                const std::variant<Handle, HardwareBufferHandle>& handle) {
-    std::visit([&os](const auto& x) { os << x; }, handle);
-    return os;
+static std::ostream& operator<<(std::ostream& os, const Memory::Fd& memory) {
+    return os << "Fd{.size=" << memory.size << ", .prot=" << memory.prot
+              << ", .fd=" << (memory.fd.ok() ? "<valid fd>" : "<invalid fd>")
+              << ", .offset=" << memory.offset << "}";
+}
+
+static std::ostream& operator<<(std::ostream& os, const Memory::HardwareBuffer& memory) {
+    if (memory.handle.get() == nullptr) {
+        return os << "<empty HardwareBuffer::Handle>";
+    }
+    return os << (isAhwbBlob(memory) ? "<AHardwareBuffer blob>" : "<non-blob AHardwareBuffer>");
+}
+
+static std::ostream& operator<<(std::ostream& os, const Memory::Unknown& memory) {
+    return os << "Unknown{.handle=" << memory.handle << ", .size=" << memory.size
+              << ", .name=" << memory.name << "}";
 }
 
 std::ostream& operator<<(std::ostream& os, const Memory& memory) {
-    return os << "Memory{.handle=" << memory.handle << ", .size=" << memory.size
-              << ", .name=" << memory.name << "}";
+    os << "Memory{.handle=";
+    std::visit([&os](const auto& x) { os << x; }, memory.handle);
+    return os << "}";
 }
 
 std::ostream& operator<<(std::ostream& os, const SharedMemory& memory) {

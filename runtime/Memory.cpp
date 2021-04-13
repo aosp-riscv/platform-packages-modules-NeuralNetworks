@@ -182,7 +182,7 @@ class DeviceMemoryValidator : public MemoryValidatorBase {
 
 RuntimeMemory::RuntimeMemory(SharedMemory memory) : kMemory(std::move(memory)) {
     CHECK(kMemory != nullptr);
-    mValidator = std::make_unique<SizedMemoryValidator>(kMemory->size);
+    mValidator = std::make_unique<SizedMemoryValidator>(nn::getSize(kMemory));
 }
 
 RuntimeMemory::RuntimeMemory(SharedMemory memory, std::unique_ptr<MemoryValidatorBase> validator)
@@ -548,8 +548,8 @@ std::pair<int, std::unique_ptr<MemoryAHWB>> MemoryAHWB::create(const AHardwareBu
     }
 
     std::unique_ptr<MemoryValidatorBase> validator;
-    if (memory.value()->name == "hardware_buffer_blob") {
-        validator = std::make_unique<SizedMemoryValidator>(memory.value()->size);
+    if (isAhwbBlob(memory.value())) {
+        validator = std::make_unique<SizedMemoryValidator>(nn::getSize(memory.value()));
     } else {
         validator = std::make_unique<AHardwareBufferNonBlobValidator>();
     }

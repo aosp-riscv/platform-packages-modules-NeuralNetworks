@@ -49,11 +49,13 @@ cc_defaults {
     ],
     static_libs: [
         "android.hardware.common-V2-ndk_platform",
+        "android.hardware.graphics.common-V2-ndk_platform",
         "android.hardware.neuralnetworks-V1-ndk_platform",
         "android.hardware.neuralnetworks@1.0",
         "android.hardware.neuralnetworks@1.1",
         "android.hardware.neuralnetworks@1.2",
         "android.hardware.neuralnetworks@1.3",
+        "libaidlcommonsupport",
         "libc++fs",
         "libneuralnetworks_generated_test_harness",
         "libtextclassifier_hash_static",

@@ -57,7 +57,9 @@ cc_defaults {
     ],
     static_libs: [
         "android.hardware.common-V2-ndk_platform",
+        "android.hardware.graphics.common-V2-ndk_platform",
         "android.hardware.neuralnetworks-V1-ndk_platform",
+        "libaidlcommonsupport",
         "libarect",
         "libcutils",
         "libneuralnetworks_shim_static",
@@ -105,6 +107,7 @@ cc_binary {
         "libneuralnetworks_headers",
     ],
     static_libs: [
+        "libaidlcommonsupport",
         "libarect",
         "libneuralnetworks_common",
         "neuralnetworks_utils_hal_aidl",

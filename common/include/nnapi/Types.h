@@ -35,6 +35,9 @@
 #include "nnapi/OperationTypes.h"
 #include "nnapi/Result.h"
 
+// Forward declare AHardwareBuffer
+extern "C" typedef struct AHardwareBuffer AHardwareBuffer;
+
 namespace android::nn {
 
 // Forward declarations
@@ -249,6 +252,35 @@ struct Handle {
 };
 
 using SharedHandle = std::shared_ptr<const Handle>;
+
+struct Memory {
+    struct Ashmem {
+        base::unique_fd fd;
+        size_t size;
+    };
+
+    struct Fd {
+        size_t size;
+        int prot;
+        base::unique_fd fd;
+        size_t offset;
+    };
+
+    // RAII wrapper for AHardwareBuffer
+    struct HardwareBuffer {
+        using Deleter = std::add_pointer_t<void(AHardwareBuffer*)>;
+        using Handle = std::unique_ptr<AHardwareBuffer, Deleter>;
+        Handle handle;
+    };
+
+    struct Unknown {
+        Handle handle;
+        size_t size;
+        std::string name;
+    };
+
+    std::variant<Ashmem, Fd, HardwareBuffer, Unknown> handle;
+};
 
 struct Model {
     struct Subgraph {

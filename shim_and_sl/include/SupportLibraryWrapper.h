@@ -99,6 +99,13 @@ class Memory {
             if (mMemory) {
                 mNnApi->ANeuralNetworksMemory_free(mMemory);
             }
+            if (mOwnedFd) {
+                close(*mOwnedFd);
+            }
+            if (mOwnedAHWB) {
+                AHardwareBuffer_release(mOwnedAHWB);
+            }
+
             mMemory = other.mMemory;
             mValid = other.mValid;
             mNnApi = other.mNnApi;

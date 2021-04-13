@@ -17,6 +17,7 @@
 #include "Validation.h"
 
 #include <android-base/logging.h>
+#include <android-base/mapped_file.h>
 
 #include <algorithm>
 #include <cctype>
@@ -738,43 +739,37 @@ Result<Version> validateSharedHandle(const SharedHandle& handle) {
     return validateHandle(*handle);
 }
 
+Result<Version> validateMemory(const Memory::Ashmem& memory) {
+    NN_VALIDATE(memory.fd.ok());
+    NN_VALIDATE_NE(memory.size, 0u);
+    return Version::ANDROID_OC_MR1;
+}
+
+Result<Version> validateMemory(const Memory::Fd& memory) {
+    NN_VALIDATE(memory.fd.ok());
+    NN_VALIDATE_NE(memory.size, 0u);
+
+    // `prot` is allowed to be either PROT_NONE (which has a value of 0) or the bitwise OR of either
+    // PROT_READ or PROT_WRITE. If any other bits are set, the `prot` field is invalid.
+    constexpr int kAllowedBits = PROT_READ | PROT_WRITE;
+    NN_VALIDATE_EQ(memory.prot & ~kAllowedBits, 0);
+
+    return Version::ANDROID_OC_MR1;
+}
+
+Result<Version> validateMemory(const Memory::HardwareBuffer& memory) {
+    NN_VALIDATE(memory.handle.get() != nullptr);
+    return Version::ANDROID_Q;
+}
+
+Result<Version> validateMemory(const Memory::Unknown& memory) {
+    NN_TRY(validateHandle(memory.handle));
+    return Version::ANDROID_Q;
+}
+
 Result<Version> validateSharedMemory(const SharedMemory& memory) {
     NN_VALIDATE(memory != nullptr);
-
-    if (memory->name == "ashmem") {
-        NN_VALIDATE_NE(memory->size, 0u);
-        NN_VALIDATE(std::holds_alternative<Handle>(memory->handle));
-        NN_TRY(validateHandle(std::get<Handle>(memory->handle)));
-        return Version::ANDROID_OC_MR1;
-    }
-    if (memory->name == "mmap_fd") {
-        NN_VALIDATE_NE(memory->size, 0u);
-        NN_VALIDATE(std::holds_alternative<Handle>(memory->handle));
-        NN_TRY(validateHandle(std::get<Handle>(memory->handle)));
-        return Version::ANDROID_OC_MR1;
-    }
-    if (memory->name == "hardware_buffer_blob") {
-        NN_VALIDATE_NE(memory->size, 0u);
-        NN_VALIDATE(std::holds_alternative<HardwareBufferHandle>(memory->handle));
-        NN_VALIDATE(std::get<HardwareBufferHandle>(memory->handle).get() != nullptr);
-        return Version::ANDROID_Q;
-    }
-    if (memory->name == "hardware_buffer") {
-        // For hardware_buffer memory, all size information is bound to the AHardwareBuffer, so
-        // memory.size must be 0.
-        NN_VALIDATE_EQ(memory->size, 0u);
-        // hardware_buffer can be represented by either Handle or HardwareBufferHandle.
-        if (const auto* handle = std::get_if<Handle>(&memory->handle)) {
-            NN_TRY(validateHandle(*handle));
-            return Version::ANDROID_Q;
-        }
-        if (const auto* handle = std::get_if<HardwareBufferHandle>(&memory->handle)) {
-            NN_VALIDATE(handle->get() != nullptr);
-            return Version::ANDROID_Q;
-        }
-    }
-
-    NN_VALIDATE_FAIL() << "Unknown memory type " << memory->name;
+    return std::visit([](const auto& x) { return validateMemory(x); }, memory->handle);
 }
 
 Result<void> validateModelSubgraphInputOutputs(const std::vector<uint32_t>& indexes,
@@ -1114,7 +1109,7 @@ Result<Version> validateRequest(const Request& request) {
     std::transform(request.pools.begin(), request.pools.end(), std::back_inserter(memorySizes),
                    [](const Request::MemoryPool& memoryPool) {
                        const auto* memory = std::get_if<SharedMemory>(&memoryPool);
-                       return memory != nullptr ? (*memory)->size : 0;
+                       return memory != nullptr ? getSize(*memory) : 0;
                    });
 
     for (size_t i = 0; i < request.inputs.size(); ++i) {

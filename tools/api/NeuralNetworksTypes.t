@@ -525,7 +525,7 @@ typedef struct ANeuralNetworksExecution ANeuralNetworksExecution;
 
 %insert SymmPerChannelQuantParams_Comment
 typedef struct ANeuralNetworksSymmPerChannelQuantParams {
-    /* The index of the channel dimension. */
+    /** The index of the channel dimension. */
     uint32_t channelDim;
     /** The size of the scale array. Should be equal to dimension[channelDim] of the Operand. */
     uint32_t scaleCount;
@@ -659,6 +659,10 @@ typedef struct ANeuralNetworksOperandType {
     int32_t zeroPoint;
 } ANeuralNetworksOperandType;
 
+/**
+ * Aliasing to {@link OperationCode}, used in function
+ * {@link ANeuralNetworksModel_addOperation}.
+ */
 typedef int32_t ANeuralNetworksOperationType;
 
 /**

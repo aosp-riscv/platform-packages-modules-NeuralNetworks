@@ -55,6 +55,7 @@ class ExecutionBuilder {
 
    public:
     explicit ExecutionBuilder(const CompilationBuilder* compilation);
+    virtual ~ExecutionBuilder() = default;
 
     int setInput(uint32_t index, const ANeuralNetworksOperandType* type, const void* buffer,
                  size_t length);
@@ -134,7 +135,7 @@ class ExecutionBuilder {
         return mMemories[poolIndex]->getRunTimePoolInfo();
     }
 
-   private:
+   protected:
     // If a callback is provided, then this is asynchronous. If a callback is
     // not provided (i.e., is nullptr), then this is synchronous.
     //
@@ -144,6 +145,13 @@ class ExecutionBuilder {
     // Providing both synchronizationCallback and burstBuilder is an error.
     int compute(std::shared_ptr<ExecutionCallback>* synchronizationCallback,
                 BurstBuilder* burstBuilder = nullptr);
+
+    virtual std::tuple<int, std::vector<OutputShape>, Timing> computeInternal(
+            const OptionalTimePoint& deadline, BurstBuilder* burstBuilder) = 0;
+
+    virtual std::tuple<int, int, ExecuteFencedInfoCallback> computeFencedInternal(
+            const std::vector<int>& waitFor, uint64_t timeoutDurationAfterFence,
+            const OptionalTimePoint& deadline) = 0;
 
     const CompilationBuilder* mCompilation;
 
@@ -157,9 +165,9 @@ class ExecutionBuilder {
     const ModelBuilder* mModel;
     const ExecutionPlan* mPlan;
 
-    // This is a DeviceManager::kPartitioning* value captured from
-    // CompilationBuilder when the ExecutionBuilder is constructed.
-    uint32_t mPartitioning;
+    // Whether CPU fallback is allowed based on the value of DeviceManager::kPartitioning* captured
+    // from CompilationBuilder when the ExecutionBuilder is constructed.
+    bool mAllowCpuFallback;
 
     // The information we'll send to the driver about the inputs and outputs.
     // Note that we build this in two steps:
@@ -240,6 +248,32 @@ class ExecutionBuilder {
 
     // Can compute APIs be invoked multiple times on the execution object?
     bool mReusable = false;
+};
+
+// For execution plan with a SIMPLE body, i.e. the whole model will be executed on a single device.
+class SimpleExecutionBuilder : public ExecutionBuilder {
+   public:
+    SimpleExecutionBuilder(const CompilationBuilder* compilation);
+
+    std::tuple<int, std::vector<OutputShape>, Timing> computeInternal(
+            const OptionalTimePoint& deadline, BurstBuilder* burstBuilder) override;
+
+    std::tuple<int, int, ExecuteFencedInfoCallback> computeFencedInternal(
+            const std::vector<int>& waitFor, uint64_t timeoutDurationAfterFence,
+            const OptionalTimePoint& deadline) override;
+};
+
+// For execution plan with a COMPOUND body, i.e. partitioned execution with multiple steps.
+class CompoundExecutionBuilder : public ExecutionBuilder {
+   public:
+    CompoundExecutionBuilder(const CompilationBuilder* compilation);
+
+    std::tuple<int, std::vector<OutputShape>, Timing> computeInternal(
+            const OptionalTimePoint& deadline, BurstBuilder* burstBuilder) override;
+
+    std::tuple<int, int, ExecuteFencedInfoCallback> computeFencedInternal(
+            const std::vector<int>& waitFor, uint64_t timeoutDurationAfterFence,
+            const OptionalTimePoint& deadline) override;
 };
 
 // class StepExecutor is used to execute a single "step" in a

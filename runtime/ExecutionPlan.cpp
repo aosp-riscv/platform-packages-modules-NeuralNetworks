@@ -1105,10 +1105,6 @@ int ExecutionPlan::finish(int32_t executionPreference, int32_t priority,
                          simulateFailureResultCode);
 }
 
-ExecutionPlan::Controller::Controller(const ExecutionPlan* plan, ExecutionBuilder* executionBuilder,
-                                      const BurstBuilder* burstBuilder)
-    : Controller(plan, executionBuilder, burstBuilder, 0, {}, {}, {}, {}, {}, {}, {}) {}
-
 ExecutionPlan::Controller::Controller(
         const ExecutionPlan* plan, ExecutionBuilder* executionBuilder,
         const BurstBuilder* burstBuilder, uint32_t totalSizeOfTemporaries,
@@ -1202,9 +1198,7 @@ std::vector<SharedBurst> ExecutionPlan::makeBursts() const {
 std::shared_ptr<ExecutionPlan::Controller> ExecutionPlan::makeController(
         ExecutionBuilder* executionBuilder, const BurstBuilder* burstBuilder) const {
     CHECK(isValid());
-    if (mState == SIMPLE) {
-        return std::shared_ptr<Controller>(new Controller(this, executionBuilder, burstBuilder));
-    }
+    CHECK(mState != SIMPLE);
     const auto* body = compound();
     // Create the layout for a RuntimeMemory object big enough to hold
     // - every partition boundary TEMPORARY operand that is not a dynamic temporary, and
@@ -1504,6 +1498,8 @@ int ExecutionPlan::next(std::shared_ptr<Controller> controller,
                         std::shared_ptr<StepExecutor>* executor, SharedBurst* burstController,
                         const std::vector<OutputShape>* mainModelOutputShapes,
                         int syncFdOfLastStep) const {
+    CHECK(mState == COMPOUND);
+
     controller->mLastStepSyncFd = syncFdOfLastStep;
     *executor = nullptr;
     if (burstController != nullptr) {
@@ -1515,33 +1511,6 @@ int ExecutionPlan::next(std::shared_ptr<Controller> controller,
 
     if (controller->mNextStepIndex == Controller::kBadStepIndex) {
         return ANEURALNETWORKS_OP_FAILED;
-    }
-
-    if (mState == EMPTY) {
-        CHECK_EQ(controller->mNextStepIndex, 0u);  // end
-        controller->mNextStepIndex = Controller::kBadStepIndex;
-        return ANEURALNETWORKS_NO_ERROR;
-    }
-
-    if (mState == SIMPLE) {
-        if (controller->mNextStepIndex == 0) {
-            // First (and only) step.
-            auto simpleBody = simple();
-            *executor = std::make_shared<StepExecutor>(controller->mExecutionBuilder,
-                                                       simpleBody->mModel, simpleBody->mDevice,
-                                                       simpleBody->mPreparedModel);
-            (*executor)->mapInputsAndOutputsTrivially();
-            if (burstController != nullptr && controller->mBurstBuilder != nullptr) {
-                *burstController = controller->mBurstBuilder->getControllerAt(0);
-            }
-            controller->mFallbackNextStepIndex = 0;
-            controller->mNextStepIndex = 1;
-            return ANEURALNETWORKS_NO_ERROR;
-        }
-
-        CHECK_EQ(controller->mNextStepIndex, 1u);  // end
-        controller->mNextStepIndex = Controller::kBadStepIndex;
-        return ANEURALNETWORKS_NO_ERROR;
     }
 
     return nextCompound(controller, executor, burstController, mainModelOutputShapes);
@@ -1851,6 +1820,15 @@ int ExecutionPlan::nextCompound(const GotoStep* step, std::shared_ptr<Controller
     VLOG(EXECUTION) << "next: " << *step;
     controller->mNextStepIndex = step->gotoStepIndex;
     return nextCompound(controller, executor, burstController, mainModelOutputShapes);
+}
+
+std::shared_ptr<StepExecutor> ExecutionPlan::makeStepExecutor(
+        ExecutionBuilder* executionBuilder) const {
+    auto simpleBody = simple();
+    auto executor = std::make_shared<StepExecutor>(executionBuilder, simpleBody->mModel,
+                                                   simpleBody->mDevice, simpleBody->mPreparedModel);
+    executor->mapInputsAndOutputsTrivially();
+    return executor;
 }
 
 void ExecutionPlan::becomeCompoundIfEmpty() {

@@ -291,7 +291,11 @@ int CompilationBuilder::createExecution(ExecutionBuilder** execution) {
         *execution = nullptr;
         return ANEURALNETWORKS_BAD_STATE;
     }
-    *execution = new (std::nothrow) ExecutionBuilder(this);
+    if (mPlan.isSimple()) {
+        *execution = new (std::nothrow) SimpleExecutionBuilder(this);
+    } else {
+        *execution = new (std::nothrow) CompoundExecutionBuilder(this);
+    }
     return (*execution ? ANEURALNETWORKS_NO_ERROR : ANEURALNETWORKS_OUT_OF_MEMORY);
 }
 

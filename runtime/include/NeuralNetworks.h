@@ -255,9 +255,9 @@ int ANeuralNetworksMemoryDesc_finish(ANeuralNetworksMemoryDesc* desc) __NNAPI_IN
  * unspecified dimensions or rank. In such a case, the same memory object may be used with different
  * shapes of outputs in different executions. When the memory is used as an input, the input shape
  * must be the same as the output shape from the last execution using this memory object as an
- * output, or the last {@link ANeuralNetworkMemory_copy} using this memory object as the destination
- * memory. Creating a memory object with unspecified dimensions or rank may fail for certain sets of
- * roles.
+ * output, or the last {@link ANeuralNetworksMemory_copy} using this memory object as the
+ * destination memory. Creating a memory object with unspecified dimensions or rank may fail for
+ * certain sets of roles.
  *
  * Using the memory in roles or shapes that are not compatible with the rules specified above will
  * return an error.
@@ -364,9 +364,9 @@ int ANeuralNetworks_getDevice(uint32_t devIndex, ANeuralNetworksDevice** device)
  *               and will be null-terminated. It will be recognizable as a known device name
  *               rather than a cryptic string. For devices with feature level reported by
  *               {@link ANeuralNetworksDevice_getFeatureLevel} that is
- *               (@link ANEURALNETWORKS_FEATURE_LEVEL_3} and above, the format of the name is
+ *               {@link ANEURALNETWORKS_FEATURE_LEVEL_3} and higher, the format of the name is
  *               {VENDOR}-{DEVICE}. For devices with feature level
- *               (@link ANEURALNETWORKS_FEATURE_LEVEL_2} or lower, the format of the name is
+ *               {@link ANEURALNETWORKS_FEATURE_LEVEL_2} or lower, the format of the name is
  *               undefined. The name will remain valid for the duration of the application.
  *
  * @return ANEURALNETWORKS_NO_ERROR if successful.
@@ -561,13 +561,13 @@ int ANeuralNetworksCompilation_setCaching(ANeuralNetworksCompilation* compilatio
  * If {@link ANeuralNetworksExecution_setTimeout} was called on this execution,
  * and the execution is not able to complete before the timeout duration is
  * exceeded, then execution may be aborted, in which case
- * {@link ANEURALNETWORKS_MISSED_DEADLINE_*} will be returned. If the device has
+ * ANEURALNETWORKS_MISSED_DEADLINE_* {@link ResultCode} will be returned. If the device has
  * a feature level reported by {@link ANeuralNetworksDevice_getFeatureLevel}
  * that is lower than 30, then the timeout duration hint will be ignored.
  *
  * If this execution contains a {@link ANEURALNETWORKS_WHILE} operation, and
  * the condition model does not output false within the loop timeout duration,
- * then execution will be aborted and {@link ANEURALNETWORKS_MISSED_DEADLINE_*}
+ * then execution will be aborted and ANEURALNETWORKS_MISSED_DEADLINE_* {@link ResultCode}
  * will be returned.
  *
  * Before NNAPI feature level 5, this function may only be invoked when the execution is in the
@@ -681,11 +681,11 @@ void ANeuralNetworksBurst_free(ANeuralNetworksBurst* burst) __NNAPI_INTRODUCED_I
  * If {@link ANeuralNetworksExecution_setTimeout} was called on the execution,
  * and the execution is not able to complete before the timeout duration is
  * exceeded, then execution may be aborted, in which case
- * {@link ANEURALNETWORKS_MISSED_DEADLINE_*} will be returned.
+ * ANEURALNETWORKS_MISSED_DEADLINE_* {@link ResultCode} will be returned.
  *
  * If the execution contains a {@link ANEURALNETWORKS_WHILE} operation, and
  * the condition model does not output false within the loop timeout duration,
- * then execution will be aborted and {@link ANEURALNETWORKS_MISSED_DEADLINE_*}
+ * then execution will be aborted and ANEURALNETWORKS_MISSED_DEADLINE_* {@link ResultCode}
  * will be returned. If the device has a feature level reported by
  * {@link ANeuralNetworksDevice_getFeatureLevel} that is lower than
  * {@link ANEURALNETWORKS_FEATURE_LEVEL_4}, then the timeout duration hint will be ignored.
@@ -821,7 +821,7 @@ int ANeuralNetworksExecution_getDuration(const ANeuralNetworksExecution* executi
  *
  * @param size The requested size in bytes.
  *             Must not be larger than the file size.
- * @param prot The desired memory protection for the mapping.
+ * @param protect The desired memory protection for the mapping.
  *             It is either PROT_NONE or the bitwise OR of one or
  *             more of the following flags: PROT_READ, PROT_WRITE.
  * @param fd The requested file descriptor.
@@ -926,9 +926,8 @@ int ANeuralNetworksModel_finish(ANeuralNetworksModel* model) __NNAPI_INTRODUCED_
  * {@link ANeuralNetworksModel_setOperandValueFromMemory},
  * {@link ANeuralNetworksExecution_setInput},
  * {@link ANeuralNetworksExecution_setInputFromMemory},
- * {@link ANeuralNetworksExecution_setOutput},
- * {@link ANeuralNetworksExecution_setOutputFromMemory} and
- * {@link ANeuralNetworksExecution_setOperandValue}.
+ * {@link ANeuralNetworksExecution_setOutput}, and
+ * {@link ANeuralNetworksExecution_setOutputFromMemory}.
  *
  * <p>Every operand must be referenced in exactly one of the following
  * ways:<ul>
@@ -938,7 +937,8 @@ int ANeuralNetworksModel_finish(ANeuralNetworksModel* model) __NNAPI_INTRODUCED_
  *        {@link ANeuralNetworksModel_setOperandValue} or
  *        {@link ANeuralNetworksModel_setOperandValueFromMemory}.</li>
  *    <li>It is identified as an output of exactly one operation with
- *        {@link ANeuralNetworksModel_addOperation}.</li></p>
+ *        {@link ANeuralNetworksModel_addOperation}.</li>
+ *    </ul></p>
  * <p>An operand that is identified as a model input or as a constant
  * must not also be identified as a model output with
  * {@link ANeuralNetworksModel_identifyInputsAndOutputs}.</p>
@@ -972,11 +972,11 @@ int ANeuralNetworksModel_addOperand(ANeuralNetworksModel* model,
  * Sets an operand to a constant value.
  *
  * Values of length smaller or equal to
- * {@link ANEURALNETWORKS_MAX_SIZE_OF_IMMEDIATELY_COPIED_VALUES}
+ * ANEURALNETWORKS_MAX_SIZE_OF_IMMEDIATELY_COPIED_VALUES
  * are immediately copied into the model.
  *
  * For values of length greater than
- * {@link ANEURALNETWORKS_MAX_SIZE_OF_IMMEDIATELY_COPIED_VALUES}, a pointer to
+ * ANEURALNETWORKS_MAX_SIZE_OF_IMMEDIATELY_COPIED_VALUES, a pointer to
  * the buffer is stored within the model. The application must not change the
  * content of this region until all executions using this model have
  * completed. As the data may be copied during processing, modifying the data
@@ -1061,7 +1061,6 @@ int ANeuralNetworksModel_setOperandSymmPerChannelQuantParams(
  *
  * @param model The model to be modified.
  * @param index The index of the model operand we're setting.
- * @param buffer A pointer to the data to use.
  * @param memory The memory containing the data.
  * @param offset This specifies the location of the data within the memory.
  *               The offset is in bytes from the start of memory.
@@ -1249,9 +1248,9 @@ void ANeuralNetworksCompilation_free(ANeuralNetworksCompilation* compilation)
  * Available since NNAPI feature level 1.
  *
  * @param compilation The compilation to be modified.
- * @param preference Either {@link PREFER_LOW_POWER},
- *                  {@link PREFER_SINGLE_FAST_ANSWER}, or
- *                  {@link PREFER_SUSTAINED_SPEED}.
+ * @param preference Either {@link ANEURALNETWORKS_PREFER_LOW_POWER},
+ *                  {@link ANEURALNETWORKS_PREFER_FAST_SINGLE_ANSWER}, or
+ *                  {@link ANEURALNETWORKS_PREFER_SUSTAINED_SPEED}.
  *
  * @return ANEURALNETWORKS_NO_ERROR if successful.
  */
@@ -1271,7 +1270,7 @@ int ANeuralNetworksCompilation_setPreference(ANeuralNetworksCompilation* compila
  * If {@link ANeuralNetworksCompilation_setTimeout} was called on this
  * compilation, and the compilation is not able to be finished before the
  * timeout duration is exceeded, then compilation may be aborted, in which case
- * {@link ANEURALNETWORKS_MISSED_DEADLINE_*} will be returned.
+ * ANEURALNETWORKS_MISSED_DEADLINE_* {@link ResultCode} will be returned.
  *
  * See {@link ANeuralNetworksCompilation} for information on multithreaded usage.
  *
@@ -1685,7 +1684,7 @@ int ANeuralNetworksExecution_setOutputFromMemory(ANeuralNetworksExecution* execu
  * If {@link ANeuralNetworksExecution_setTimeout} was called on this execution,
  * and the execution is not able to complete before the timeout duration is
  * exceeded, then execution may be aborted, in which case
- * {@link ANEURALNETWORKS_MISSED_DEADLINE_*} will be returned through
+ * ANEURALNETWORKS_MISSED_DEADLINE_* {@link ResultCode} will be returned through
  * {@link ANeuralNetworksExecution_startCompute} or
  * {@link ANeuralNetworksEvent_wait} on the event object. If the device has a
  * feature level reported by {@link ANeuralNetworksDevice_getFeatureLevel} that
@@ -1694,13 +1693,13 @@ int ANeuralNetworksExecution_setOutputFromMemory(ANeuralNetworksExecution* execu
  *
  * If this execution contains a {@link ANEURALNETWORKS_WHILE} operation, and
  * the condition model does not output false within the loop timeout duration,
- * then execution will be aborted and {@link ANEURALNETWORKS_MISSED_DEADLINE_*}
+ * then execution will be aborted and ANEURALNETWORKS_MISSED_DEADLINE_* {@link ResultCode}
  * will be returned through {@link ANeuralNetworksEvent_wait} on the event
  * object.
  *
  * If the device can detect before the execution has started that the execution
  * will not complete within the timeout duration, the device may choose to skip
- * the execution and instead return {@link ANEURALNETWORKS_MISSED_DEADLINE_*}.
+ * the execution and instead return ANEURALNETWORKS_MISSED_DEADLINE_* {@link ResultCode}.
  *
  * Before NNAPI feature level 5, this function may only be invoked when the execution is in the
  * preparation state. Starting at NNAPI feature level 5, if the user sets the execution to be
@@ -1832,11 +1831,11 @@ uint64_t ANeuralNetworks_getMaximumLoopTimeout() __NNAPI_INTRODUCED_IN(30);
  * If {@link ANeuralNetworksExecution_setTimeout} was called on the execution
  * corresponding to this event, and the execution is not able to complete
  * before the duration is exceeded, the execution may be aborted, in which case
- * {@link ANEURALNETWORKS_MISSED_DEADLINE_*} will be returned here.
+ * ANEURALNETWORKS_MISSED_DEADLINE_* {@link ResultCode} will be returned here.
  *
  * If the execution contains a {@link ANEURALNETWORKS_WHILE} operation, and
  * the condition model does not output false within the loop timeout duration,
- * the execution will be aborted, and {@link ANEURALNETWORKS_MISSED_DEADLINE_*}
+ * the execution will be aborted, and ANEURALNETWORKS_MISSED_DEADLINE_* {@link ResultCode}
  * will be returned here.
  *
  * See {@link ANeuralNetworksExecution} for information on execution states and multithreaded usage.
@@ -1939,7 +1938,7 @@ int ANeuralNetworksEvent_getSyncFenceFd(const ANeuralNetworksEvent* event, int* 
  * otherwise this function will fail with ANEURALNETWORKS_BAD_DATA. If either
  * the timeout duration from {@link ANeuralNetworksExecution_setTimeout} or the
  * timeout duration passed to this call is exceeded, the execution may be
- * aborted, in which case {@link ANEURALNETWORKS_MISSED_DEADLINE_*} will be
+ * aborted, in which case ANEURALNETWORKS_MISSED_DEADLINE_* {@link ResultCode} will be
  * returned through {@link ANeuralNetworksExecution_startComputeWithDependencies}
  * or {@link ANeuralNetworksEvent_wait} on the event object. If the device has a
  * feature level reported by {@link ANeuralNetworksDevice_getFeatureLevel} that
@@ -1948,7 +1947,7 @@ int ANeuralNetworksEvent_getSyncFenceFd(const ANeuralNetworksEvent* event, int* 
  *
  * If this execution contains a {@link ANEURALNETWORKS_WHILE} operation, and
  * the condition model does not output false within the loop timeout duration,
- * then execution will be aborted and {@link ANEURALNETWORKS_MISSED_DEADLINE_*}
+ * then execution will be aborted and ANEURALNETWORKS_MISSED_DEADLINE_* {@link ResultCode}
  * will be returned through {@link ANeuralNetworksEvent_wait} on the event
  * object.
  *
@@ -2012,10 +2011,9 @@ int ANeuralNetworksExecution_startComputeWithDependencies(
  * NNAPI specification and features the runtime implements. An NNAPI device feature level is
  * always less than or equal to the runtime feature level.
  *
- * This function returns a {@link FeatureLevelCode} enum value, NOT an Android API level.
- *
- * @param featureLevel {@link FeatureLevelCode} of the NNAPI specification version that this
- *                     NNAPI runtime implements.
+ * This function returns a {@link FeatureLevelCode} enum value,
+ * which is the NNAPI specification version that this NNAPI runtime implements.
+ * It is NOT an Android API level.
  *
  * Available since NNAPI feature level 5.
  */
@@ -2147,7 +2145,7 @@ int ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput(
  *              an index into the outputs list passed to
  *              {@link ANeuralNetworksModel_identifyInputsAndOutputs}. It is not
  *              the index associated with {@link ANeuralNetworksModel_addOperand}.
- * @param padding The returned perferred alignment. It will be a power of 2.
+ * @param alignment The returned perferred alignment. It will be a power of 2.
  *
  * @return ANEURALNETWORKS_NO_ERROR if successful.
  *         ANEURALNETWORKS_UNEXPECTED_NULL if either compilation or alignment is NULL.

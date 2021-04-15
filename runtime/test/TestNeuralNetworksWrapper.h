@@ -33,6 +33,10 @@
 #include "NeuralNetworksWrapper.h"
 #include "NeuralNetworksWrapperExtensions.h"
 
+#ifndef __NNAPI_FL5_MIN_ANDROID_API__
+#define __NNAPI_FL5_MIN_ANDROID_API__ __ANDROID_API_FUTURE__
+#endif
+
 namespace android {
 namespace nn {
 namespace test_wrapper {
@@ -309,23 +313,43 @@ class Compilation {
     Result finish() { return static_cast<Result>(ANeuralNetworksCompilation_finish(mCompilation)); }
 
     Result getPreferredMemoryAlignmentForInput(uint32_t index, uint32_t* alignment) const {
-        return static_cast<Result>(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput(
-                mCompilation, index, alignment));
+        if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
+            return static_cast<Result>(
+                    NNAPI_CALL(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput(
+                            mCompilation, index, alignment)));
+        } else {
+            return Result::FEATURE_LEVEL_TOO_LOW;
+        }
     };
 
     Result getPreferredMemoryPaddingForInput(uint32_t index, uint32_t* padding) const {
-        return static_cast<Result>(ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput(
-                mCompilation, index, padding));
+        if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
+            return static_cast<Result>(
+                    NNAPI_CALL(ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput(
+                            mCompilation, index, padding)));
+        } else {
+            return Result::FEATURE_LEVEL_TOO_LOW;
+        }
     };
 
     Result getPreferredMemoryAlignmentForOutput(uint32_t index, uint32_t* alignment) const {
-        return static_cast<Result>(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput(
-                mCompilation, index, alignment));
+        if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
+            return static_cast<Result>(
+                    NNAPI_CALL(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput(
+                            mCompilation, index, alignment)));
+        } else {
+            return Result::FEATURE_LEVEL_TOO_LOW;
+        }
     };
 
     Result getPreferredMemoryPaddingForOutput(uint32_t index, uint32_t* padding) const {
-        return static_cast<Result>(ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput(
-                mCompilation, index, padding));
+        if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
+            return static_cast<Result>(
+                    NNAPI_CALL(ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput(
+                            mCompilation, index, padding)));
+        } else {
+            return Result::FEATURE_LEVEL_TOO_LOW;
+        }
     };
 
     ANeuralNetworksCompilation* getHandle() const { return mCompilation; }
@@ -411,12 +435,21 @@ class Execution {
     }
 
     Result enableInputAndOutputPadding(bool enable) {
-        return static_cast<Result>(
-                ANeuralNetworksExecution_enableInputAndOutputPadding(mExecution, enable));
+        if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
+            return static_cast<Result>(
+                    ANeuralNetworksExecution_enableInputAndOutputPadding(mExecution, enable));
+        } else {
+            return Result::FEATURE_LEVEL_TOO_LOW;
+        }
     }
 
     Result setReusable(bool reusable) {
-        return static_cast<Result>(ANeuralNetworksExecution_setReusable(mExecution, reusable));
+        if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
+            return static_cast<Result>(
+                    NNAPI_CALL(ANeuralNetworksExecution_setReusable(mExecution, reusable)));
+        } else {
+            return Result::FEATURE_LEVEL_TOO_LOW;
+        }
     }
 
     Result startCompute(Event* event) {

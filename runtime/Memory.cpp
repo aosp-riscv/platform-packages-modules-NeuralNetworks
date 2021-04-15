@@ -182,7 +182,7 @@ class DeviceMemoryValidator : public MemoryValidatorBase {
 
 RuntimeMemory::RuntimeMemory(SharedMemory memory) : kMemory(std::move(memory)) {
     CHECK(kMemory != nullptr);
-    mValidator = std::make_unique<SizedMemoryValidator>(kMemory->size);
+    mValidator = std::make_unique<SizedMemoryValidator>(nn::getSize(kMemory));
 }
 
 RuntimeMemory::RuntimeMemory(SharedMemory memory, std::unique_ptr<MemoryValidatorBase> validator)
@@ -307,7 +307,7 @@ bool MemoryBuilder::badState(const char* name) const {
 }
 
 int MemoryBuilder::addRole(const CompilationBuilder& compilation, IOType ioType, uint32_t index,
-                           float freq) {
+                           float prob) {
     const char* tag = ioType == IOType::INPUT ? "addInputRole" : "addOutputRole";
     if (badState(tag)) {
         return ANEURALNETWORKS_BAD_STATE;
@@ -367,15 +367,15 @@ int MemoryBuilder::addRole(const CompilationBuilder& compilation, IOType ioType,
         return ANEURALNETWORKS_BAD_DATA;
     }
 
-    if (freq > 1.0f || freq <= 0.0f) {
-        LOG(ERROR) << "ANeuralNetworksMemoryDesc_" << tag << " -- invalid frequency " << freq;
+    if (prob > 1.0f || prob <= 0.0f) {
+        LOG(ERROR) << "ANeuralNetworksMemoryDesc_" << tag << " -- invalid frequency " << prob;
         return ANEURALNETWORKS_BAD_DATA;
     }
 
     mRoles.emplace(&compilation, ioType, index);
     for (const auto& [preparedModel, type, ind] : roles) {
         uint32_t modelIndex = mDesc.preparedModels.add(preparedModel);
-        BufferRole role = {.modelIndex = modelIndex, .ioIndex = ind, .frequency = freq};
+        BufferRole role = {.modelIndex = modelIndex, .ioIndex = ind, .probability = prob};
         if (type == IOType::INPUT) {
             mDesc.inputRoles.push_back(role);
         } else {
@@ -548,8 +548,8 @@ std::pair<int, std::unique_ptr<MemoryAHWB>> MemoryAHWB::create(const AHardwareBu
     }
 
     std::unique_ptr<MemoryValidatorBase> validator;
-    if (memory.value()->name == "hardware_buffer_blob") {
-        validator = std::make_unique<SizedMemoryValidator>(memory.value()->size);
+    if (isAhwbBlob(memory.value())) {
+        validator = std::make_unique<SizedMemoryValidator>(nn::getSize(memory.value()));
     } else {
         validator = std::make_unique<AHardwareBufferNonBlobValidator>();
     }

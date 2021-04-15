@@ -20,11 +20,13 @@
 
 #include <android-base/logging.h>
 #include <android-base/properties.h>
+#include <android-base/scopeguard.h>
 #include <android/binder_auto_utils.h>
 #include <android/binder_interface_utils.h>
 #include <android/binder_manager.h>
 #include <android/binder_process.h>
 #include <nnapi/Result.h>
+#include <nnapi/Types.h>
 #include <nnapi/Validation.h>
 #include <nnapi/hal/aidl/Conversions.h>
 #include <nnapi/hal/aidl/Utils.h>
@@ -54,10 +56,6 @@ namespace nn {
 namespace sample_driver {
 
 namespace {
-
-auto now() {
-    return std::chrono::steady_clock::now();
-};
 
 int64_t nanosecondsDuration(TimePoint end, TimePoint start) {
     return std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
@@ -190,8 +188,10 @@ ndk::ScopedAStatus SampleDriver::allocate(
                          "SampleDriver::allocate -- does not support dynamic output shape.");
     }
 
+    // An operand obtained from validateMemoryDesc is guaranteed to be representable in canonical
+    // types, so it safe to do an unvalidated conversion here.
     auto bufferWrapper =
-            AidlManagedBuffer::create(size, std::move(roles), convert(operand).value());
+            AidlManagedBuffer::create(size, std::move(roles), unvalidatedConvert(operand).value());
     if (bufferWrapper == nullptr) {
         LOG(ERROR) << "SampleDriver::allocate -- not enough memory.";
         return toAStatus(aidl_hal::ErrorStatus::GENERAL_FAILURE,
@@ -392,7 +392,7 @@ ndk::ScopedAStatus SamplePreparedModel::executeSynchronously(
     VLOG(DRIVER) << "executeSynchronously(" << SHOW_IF_DEBUG(halRequest.toString()) << ")";
 
     TimePoint driverStart, driverEnd, deviceStart, deviceEnd;
-    if (measureTiming) driverStart = now();
+    if (measureTiming) driverStart = Clock::now();
 
     const auto model = convert(mModel).value();
 
@@ -438,9 +438,9 @@ ndk::ScopedAStatus SamplePreparedModel::executeSynchronously(
     if (deadline.has_value()) {
         executor.setDeadline(*deadline);
     }
-    if (measureTiming) deviceStart = now();
+    if (measureTiming) deviceStart = Clock::now();
     int n = executor.run(model, request, mPoolInfos, requestPoolInfos);
-    if (measureTiming) deviceEnd = now();
+    if (measureTiming) deviceEnd = Clock::now();
     VLOG(DRIVER) << "executor.run returned " << n;
     aidl_hal::ErrorStatus executionStatus = convertResultCodeToAidlErrorStatus(n);
     if (executionStatus != aidl_hal::ErrorStatus::NONE &&
@@ -461,7 +461,7 @@ ndk::ScopedAStatus SamplePreparedModel::executeSynchronously(
     executionResult->outputShapes = std::move(outputShapes);
     executionResult->timing = kNoTiming;
     if (measureTiming && executionStatus == aidl_hal::ErrorStatus::NONE) {
-        driverEnd = now();
+        driverEnd = Clock::now();
         aidl_hal::Timing timing = {.timeOnDevice = nanosecondsDuration(deviceEnd, deviceStart),
                                    .timeInDriver = nanosecondsDuration(driverEnd, driverStart)};
         VLOG(DRIVER) << "executeSynchronously timing = " << timing.toString();
@@ -481,7 +481,7 @@ ndk::ScopedAStatus SamplePreparedModel::executeFenced(
     VLOG(DRIVER) << "executeFenced(" << SHOW_IF_DEBUG(halRequest.toString()) << ")";
 
     TimePoint driverStart, driverEnd, deviceStart, deviceEnd;
-    if (measureTiming) driverStart = now();
+    if (measureTiming) driverStart = Clock::now();
 
     const auto model = convert(mModel).value();
 
@@ -534,7 +534,7 @@ ndk::ScopedAStatus SamplePreparedModel::executeFenced(
     }
 
     TimePoint driverStartAfterFence;
-    if (measureTiming) driverStartAfterFence = now();
+    if (measureTiming) driverStartAfterFence = Clock::now();
 
     NNTRACE_FULL_SWITCH(NNTRACE_LAYER_DRIVER, NNTRACE_PHASE_INPUTS_AND_OUTPUTS,
                         "SamplePreparedModel::executeFenced");
@@ -553,9 +553,9 @@ ndk::ScopedAStatus SamplePreparedModel::executeFenced(
     if (closestDeadline.has_value()) {
         executor.setDeadline(*closestDeadline);
     }
-    if (measureTiming) deviceStart = now();
+    if (measureTiming) deviceStart = Clock::now();
     int n = executor.run(model, request, mPoolInfos, requestPoolInfos);
-    if (measureTiming) deviceEnd = now();
+    if (measureTiming) deviceEnd = Clock::now();
     VLOG(DRIVER) << "executor.run returned " << n;
     aidl_hal::ErrorStatus executionStatus = convertResultCodeToAidlErrorStatus(n);
     if (executionStatus != aidl_hal::ErrorStatus::NONE) {
@@ -576,7 +576,7 @@ ndk::ScopedAStatus SamplePreparedModel::executeFenced(
     aidl_hal::Timing timingSinceLaunch = kNoTiming;
     aidl_hal::Timing timingAfterFence = kNoTiming;
     if (measureTiming) {
-        driverEnd = now();
+        driverEnd = Clock::now();
         timingSinceLaunch = {.timeOnDevice = nanosecondsDuration(deviceEnd, deviceStart),
                              .timeInDriver = nanosecondsDuration(driverEnd, driverStart)};
         timingAfterFence = {.timeOnDevice = nanosecondsDuration(deviceEnd, deviceStart),
@@ -588,6 +588,50 @@ ndk::ScopedAStatus SamplePreparedModel::executeFenced(
     executionResult->callback = ndk::SharedRefBase::make<SampleFencedExecutionCallback>(
             timingSinceLaunch, timingAfterFence, executionStatus);
     executionResult->syncFence = ndk::ScopedFileDescriptor();
+    return ndk::ScopedAStatus::ok();
+}
+
+ndk::ScopedAStatus SamplePreparedModel::configureExecutionBurst(
+        std::shared_ptr<aidl_hal::IBurst>* burst) {
+    std::shared_ptr<SamplePreparedModel> self = this->template ref<SamplePreparedModel>();
+    *burst = ndk::SharedRefBase::make<SampleBurst>(std::move(self));
+    return ndk::ScopedAStatus::ok();
+}
+
+SampleBurst::SampleBurst(std::shared_ptr<SamplePreparedModel> preparedModel)
+    : kPreparedModel(std::move(preparedModel)) {
+    CHECK(kPreparedModel != nullptr);
+}
+
+ndk::ScopedAStatus SampleBurst::executeSynchronously(
+        const aidl_hal::Request& request, const std::vector<int64_t>& memoryIdentifierTokens,
+        bool measureTiming, int64_t deadline, int64_t loopTimeoutDuration,
+        aidl_hal::ExecutionResult* executionResult) {
+    if (request.pools.size() != memoryIdentifierTokens.size()) {
+        return toAStatus(aidl_hal::ErrorStatus::INVALID_ARGUMENT,
+                         "request.pools.size() != memoryIdentifierTokens.size()");
+    }
+    if (!std::all_of(memoryIdentifierTokens.begin(), memoryIdentifierTokens.end(),
+                     [](int64_t token) { return token >= -1; })) {
+        return toAStatus(aidl_hal::ErrorStatus::INVALID_ARGUMENT, "Invalid memoryIdentifierTokens");
+    }
+
+    // Ensure at most one execution is in flight at a time.
+    const bool executionAlreadyInFlight = mExecutionInFlight.test_and_set();
+    if (executionAlreadyInFlight) {
+        return toAStatus(aidl_hal::ErrorStatus::GENERAL_FAILURE,
+                         "Burst object supports at most one execution at a time");
+    }
+    const auto guard = base::make_scope_guard([this] { mExecutionInFlight.clear(); });
+
+    return kPreparedModel->executeSynchronously(request, measureTiming, deadline,
+                                                loopTimeoutDuration, executionResult);
+}
+
+ndk::ScopedAStatus SampleBurst::releaseMemoryResource(int64_t memoryIdentifierToken) {
+    if (memoryIdentifierToken < -1) {
+        return toAStatus(aidl_hal::ErrorStatus::INVALID_ARGUMENT, "Invalid memoryIdentifierToken");
+    }
     return ndk::ScopedAStatus::ok();
 }
 

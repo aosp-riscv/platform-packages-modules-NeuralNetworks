@@ -22,12 +22,12 @@
 #include "Tracing.h"
 #include "nnapi/Validation.h"
 
-#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
+#ifdef NN_INCLUDE_CPU_IMPLEMENTATION
 #include <tensorflow/lite/kernels/internal/optimized/optimized_ops.h>
 #include <tensorflow/lite/kernels/internal/reference/integer_ops/pooling.h>
 
 #include "CpuOperationUtils.h"
-#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
+#endif  // NN_INCLUDE_CPU_IMPLEMENTATION
 
 namespace android {
 namespace nn {
@@ -39,7 +39,7 @@ constexpr uint32_t kInputTensor = 0;
 constexpr uint32_t kNumOutputs = 1;
 constexpr uint32_t kOutputTensor = 0;
 
-#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
+#ifdef NN_INCLUDE_CPU_IMPLEMENTATION
 namespace {
 
 struct PoolingParam {
@@ -291,7 +291,7 @@ bool maxPool(const T* inputData, const Shape& inputShape, const PoolingParam& pa
 }
 
 }  // namespace
-#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
+#endif  // NN_INCLUDE_CPU_IMPLEMENTATION
 
 Result<Version> validate(OperationType opType, const IOperationValidationContext* context) {
     NN_RET_CHECK_EQ(context->getNumOutputs(), kNumOutputs);
@@ -357,7 +357,7 @@ Result<Version> validate(OperationType opType, const IOperationValidationContext
     return minSupportedVersion;
 }
 
-#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
+#ifdef NN_INCLUDE_CPU_IMPLEMENTATION
 bool prepare(IOperationExecutionContext* context) {
     Shape input = context->getInputShape(kInputTensor);
     NN_RET_CHECK_EQ(getNumberOfDimensions(input), 4);
@@ -437,7 +437,7 @@ bool executeMaxPool(IOperationExecutionContext* context) {
             NN_RET_CHECK_FAIL() << "Unsupported tensor type for operation MAX_POOL_2D";
     }
 }
-#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
+#endif  // NN_INCLUDE_CPU_IMPLEMENTATION
 
 #undef POOLING_DISPATCH_INPUT_TYPE
 

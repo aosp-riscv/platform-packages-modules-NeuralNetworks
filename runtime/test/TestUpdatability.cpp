@@ -21,21 +21,29 @@
 class UpdatabilityTest : public ::testing::Test {};
 
 TEST_F(UpdatabilityTest, GetFeatureLevel) {
-    EXPECT_GE(ANeuralNetworks_getRuntimeFeatureLevel(), ANEURALNETWORKS_FEATURE_LEVEL_5);
+    if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
+        EXPECT_GE(ANeuralNetworks_getRuntimeFeatureLevel(), ANEURALNETWORKS_FEATURE_LEVEL_5);
+    } else {
+        GTEST_SKIP();
+    }
 }
 
 TEST_F(UpdatabilityTest, DeviceFeatureLevelLowerOrEqualToRuntimeFeatureLevel) {
-    const int64_t runtimeFeatureLevel = ANeuralNetworks_getRuntimeFeatureLevel();
-    uint32_t numDevices = 0;
-    EXPECT_EQ(ANeuralNetworks_getDeviceCount(&numDevices), ANEURALNETWORKS_NO_ERROR);
-    for (uint32_t i = 0; i < numDevices; i++) {
-        SCOPED_TRACE(i);
-        int64_t featureLevel;
-        ANeuralNetworksDevice* device;
-        EXPECT_EQ(ANeuralNetworks_getDevice(i, &device), ANEURALNETWORKS_NO_ERROR);
-        EXPECT_EQ(ANeuralNetworksDevice_getFeatureLevel(device, &featureLevel),
-                  ANEURALNETWORKS_NO_ERROR);
+    if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
+        const int64_t runtimeFeatureLevel = ANeuralNetworks_getRuntimeFeatureLevel();
+        uint32_t numDevices = 0;
+        EXPECT_EQ(ANeuralNetworks_getDeviceCount(&numDevices), ANEURALNETWORKS_NO_ERROR);
+        for (uint32_t i = 0; i < numDevices; i++) {
+            SCOPED_TRACE(i);
+            int64_t featureLevel;
+            ANeuralNetworksDevice* device;
+            EXPECT_EQ(ANeuralNetworks_getDevice(i, &device), ANEURALNETWORKS_NO_ERROR);
+            EXPECT_EQ(ANeuralNetworksDevice_getFeatureLevel(device, &featureLevel),
+                      ANEURALNETWORKS_NO_ERROR);
 
-        EXPECT_LE(featureLevel, runtimeFeatureLevel);
+            EXPECT_LE(featureLevel, runtimeFeatureLevel);
+        }
+    } else {
+        GTEST_SKIP();
     }
 }

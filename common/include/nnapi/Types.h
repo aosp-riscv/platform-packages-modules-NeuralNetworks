@@ -17,6 +17,7 @@
 #ifndef ANDROID_FRAMEWORKS_ML_NN_COMMON_NNAPI_TYPES_H
 #define ANDROID_FRAMEWORKS_ML_NN_COMMON_NNAPI_TYPES_H
 
+#include <android-base/chrono_utils.h>
 #include <android-base/expected.h>
 #include <android-base/unique_fd.h>
 
@@ -33,6 +34,9 @@
 #include "nnapi/OperandTypes.h"
 #include "nnapi/OperationTypes.h"
 #include "nnapi/Result.h"
+
+// Forward declare AHardwareBuffer
+extern "C" typedef struct AHardwareBuffer AHardwareBuffer;
 
 namespace android::nn {
 
@@ -56,6 +60,8 @@ constexpr uint32_t kDefaultRequestMemoryAlignment = 64;
 constexpr uint32_t kDefaultRequestMemoryPadding = 64;
 constexpr uint32_t kMinMemoryAlignment = alignof(std::max_align_t);
 constexpr uint32_t kMinMemoryPadding = 1;
+constexpr auto kLoopTimeoutDefault = std::chrono::seconds{2};
+constexpr auto kLoopTimeoutMaximum = std::chrono::seconds{15};
 
 // Aliases
 
@@ -247,6 +253,35 @@ struct Handle {
 
 using SharedHandle = std::shared_ptr<const Handle>;
 
+struct Memory {
+    struct Ashmem {
+        base::unique_fd fd;
+        size_t size;
+    };
+
+    struct Fd {
+        size_t size;
+        int prot;
+        base::unique_fd fd;
+        size_t offset;
+    };
+
+    // RAII wrapper for AHardwareBuffer
+    struct HardwareBuffer {
+        using Deleter = std::add_pointer_t<void(AHardwareBuffer*)>;
+        using Handle = std::unique_ptr<AHardwareBuffer, Deleter>;
+        Handle handle;
+    };
+
+    struct Unknown {
+        Handle handle;
+        size_t size;
+        std::string name;
+    };
+
+    std::variant<Ashmem, Fd, HardwareBuffer, Unknown> handle;
+};
+
 struct Model {
     struct Subgraph {
         std::vector<Operand> operands;
@@ -287,7 +322,7 @@ struct BufferDesc {
 struct BufferRole {
     uint32_t modelIndex = 0;
     uint32_t ioIndex = 0;
-    float frequency = 0.0f;
+    float probability = 0.0f;
 };
 
 struct Request {
@@ -341,9 +376,9 @@ class SyncFence {
     SharedHandle mSyncFence;
 };
 
-using Clock = std::chrono::steady_clock;
+using Clock = base::boot_clock;
 
-using Duration = std::chrono::duration<uint64_t, std::nano>;
+using Duration = std::chrono::nanoseconds;
 using OptionalDuration = std::optional<Duration>;
 
 using TimePoint = std::chrono::time_point<Clock, Duration>;

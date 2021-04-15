@@ -22,9 +22,9 @@
 #include "OperationResolver.h"
 #include "OperationsUtils.h"
 
-#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
+#ifdef NN_INCLUDE_CPU_IMPLEMENTATION
 #include "LSTM.h"
-#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
+#endif  // NN_INCLUDE_CPU_IMPLEMENTATION
 
 namespace android {
 namespace nn {
@@ -88,7 +88,7 @@ constexpr uint32_t kOutputTensor = 0;
 constexpr uint32_t kOutputStateOutTensor = 1;
 constexpr uint32_t kCellStateOutTensor = 2;
 
-#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
+#ifdef NN_INCLUDE_CPU_IMPLEMENTATION
 namespace {
 
 inline bool hasTensor(IOperationExecutionContext* context, const uint32_t tensor) {
@@ -115,7 +115,7 @@ inline LSTMParams getLSTMParams(IOperationExecutionContext* context) {
 }
 
 }  // namespace
-#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
+#endif  // NN_INCLUDE_CPU_IMPLEMENTATION
 
 Result<Version> validate(const IOperationValidationContext* context) {
     NN_RET_CHECK_EQ(context->getNumInputs(), kNumInputs);
@@ -171,7 +171,7 @@ Result<Version> validate(const IOperationValidationContext* context) {
     return minVersionSupported;
 }
 
-#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
+#ifdef NN_INCLUDE_CPU_IMPLEMENTATION
 bool prepare(IOperationExecutionContext* context) {
     // Check that none of the required inputs are omitted
     const std::vector<int> requiredInputs = {
@@ -518,7 +518,7 @@ bool execute(IOperationExecutionContext* context) {
     }
     return true;
 }
-#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
+#endif  // NN_INCLUDE_CPU_IMPLEMENTATION
 
 }  // namespace unidirectional_sequence_lstm
 

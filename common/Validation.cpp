@@ -17,6 +17,7 @@
 #include "Validation.h"
 
 #include <android-base/logging.h>
+#include <android-base/mapped_file.h>
 
 #include <algorithm>
 #include <cctype>
@@ -130,8 +131,11 @@ Result<Version> validateDeviceStatus(const DeviceStatus& deviceStatus) {
 
 Result<Version> validateExecutionPreference(const ExecutionPreference& executionPreference) {
     switch (executionPreference) {
-        case ExecutionPreference::LOW_POWER:
         case ExecutionPreference::FAST_SINGLE_ANSWER:
+            // ExecutionPreference::FAST_SINGLE_ANSWER is the default value, so it is implicitly
+            // valid for all versions.
+            return Version::ANDROID_OC_MR1;
+        case ExecutionPreference::LOW_POWER:
         case ExecutionPreference::SUSTAINED_SPEED:
             return Version::ANDROID_P;
     }
@@ -159,6 +163,8 @@ Result<Version> validateDeviceType(const DeviceType& deviceType) {
 Result<Version> validateMeasureTiming(const MeasureTiming& measureTiming) {
     switch (measureTiming) {
         case MeasureTiming::NO:
+            // MeasureTiming::NO is the default value, so it is implicitly valid for all versions.
+            return Version::ANDROID_OC_MR1;
         case MeasureTiming::YES:
             return Version::ANDROID_Q;
     }
@@ -218,8 +224,10 @@ Result<Version> validateOperandLifeTime(const Operand& operand) {
 
 Result<Version> validatePriority(const Priority& priority) {
     switch (priority) {
-        case Priority::LOW:
         case Priority::MEDIUM:
+            // Priority::MEDIUM is the default value, so it is implicitly valid for all versions.
+            return Version::ANDROID_OC_MR1;
+        case Priority::LOW:
         case Priority::HIGH:
             return Version::ANDROID_R;
     }
@@ -261,6 +269,11 @@ Result<Version> validateOutputShape(const OutputShape& /*outputShape*/) {
 }
 
 Result<Version> validateTiming(const Timing& timing) {
+    constexpr auto kNoTiming = Timing{};
+    if (timing == kNoTiming) {
+        // kNoTiming is the default value, so it is implicitly valid for all versions.
+        return Version::ANDROID_OC_MR1;
+    }
     if (timing.timeInDriver.has_value() && timing.timeOnDevice.has_value()) {
         // `lazyMessage` is a lazy function to produce the timing validation error message.
         // Currently, the code is not able to inline the message in NN_VALIDATE due to a
@@ -646,10 +659,10 @@ Result<Version> validateOperandExtraParams(const Operand& operand) {
     NN_VALIDATE_FAIL() << "Invalid OperandType " << operand.type;
 }
 
-Result<Version> validateOperandImpl(const Operand& operand, size_t operandValuesSize,
-                                    const std::vector<size_t>& poolSizes,
-                                    const std::vector<Model::Subgraph>& subgraphs,
-                                    std::vector<std::optional<Version>>* subgraphVersionCache) {
+Result<Version> validateOperand(const Operand& operand, size_t operandValuesSize,
+                                const std::vector<size_t>& poolSizes,
+                                const std::vector<Model::Subgraph>& subgraphs,
+                                std::vector<std::optional<Version>>* subgraphVersionCache) {
     auto version = NN_TRY(validateOperandType(operand.type));
     version = combineVersions(version, NN_TRY(validateOperandLifeTime(operand)));
     version = combineVersions(version, NN_TRY(validateOperandDimensions(operand)));
@@ -684,8 +697,8 @@ Result<std::vector<Version>> validateOperands(
     std::vector<Version> versions;
     versions.reserve(operands.size());
     for (size_t i = 0; i < operands.size(); ++i) {
-        auto result = validateOperandImpl(operands[i], operandValuesSize, poolSizes, subgraphs,
-                                          subgraphVersionCache);
+        auto result = validateOperand(operands[i], operandValuesSize, poolSizes, subgraphs,
+                                      subgraphVersionCache);
         if (!result.has_value()) {
             return error() << std::move(result).error() << " for operand " << i;
         }
@@ -726,43 +739,37 @@ Result<Version> validateSharedHandle(const SharedHandle& handle) {
     return validateHandle(*handle);
 }
 
+Result<Version> validateMemory(const Memory::Ashmem& memory) {
+    NN_VALIDATE(memory.fd.ok());
+    NN_VALIDATE_NE(memory.size, 0u);
+    return Version::ANDROID_OC_MR1;
+}
+
+Result<Version> validateMemory(const Memory::Fd& memory) {
+    NN_VALIDATE(memory.fd.ok());
+    NN_VALIDATE_NE(memory.size, 0u);
+
+    // `prot` is allowed to be either PROT_NONE (which has a value of 0) or the bitwise OR of either
+    // PROT_READ or PROT_WRITE. If any other bits are set, the `prot` field is invalid.
+    constexpr int kAllowedBits = PROT_READ | PROT_WRITE;
+    NN_VALIDATE_EQ(memory.prot & ~kAllowedBits, 0);
+
+    return Version::ANDROID_OC_MR1;
+}
+
+Result<Version> validateMemory(const Memory::HardwareBuffer& memory) {
+    NN_VALIDATE(memory.handle.get() != nullptr);
+    return Version::ANDROID_Q;
+}
+
+Result<Version> validateMemory(const Memory::Unknown& memory) {
+    NN_TRY(validateHandle(memory.handle));
+    return Version::ANDROID_Q;
+}
+
 Result<Version> validateSharedMemory(const SharedMemory& memory) {
     NN_VALIDATE(memory != nullptr);
-
-    if (memory->name == "ashmem") {
-        NN_VALIDATE_NE(memory->size, 0u);
-        NN_VALIDATE(std::holds_alternative<Handle>(memory->handle));
-        NN_TRY(validateHandle(std::get<Handle>(memory->handle)));
-        return Version::ANDROID_OC_MR1;
-    }
-    if (memory->name == "mmap_fd") {
-        NN_VALIDATE_NE(memory->size, 0u);
-        NN_VALIDATE(std::holds_alternative<Handle>(memory->handle));
-        NN_TRY(validateHandle(std::get<Handle>(memory->handle)));
-        return Version::ANDROID_OC_MR1;
-    }
-    if (memory->name == "hardware_buffer_blob") {
-        NN_VALIDATE_NE(memory->size, 0u);
-        NN_VALIDATE(std::holds_alternative<HardwareBufferHandle>(memory->handle));
-        NN_VALIDATE(std::get<HardwareBufferHandle>(memory->handle).get() != nullptr);
-        return Version::ANDROID_Q;
-    }
-    if (memory->name == "hardware_buffer") {
-        // For hardware_buffer memory, all size information is bound to the AHardwareBuffer, so
-        // memory.size must be 0.
-        NN_VALIDATE_EQ(memory->size, 0u);
-        // hardware_buffer can be represented by either Handle or HardwareBufferHandle.
-        if (const auto* handle = std::get_if<Handle>(&memory->handle)) {
-            NN_TRY(validateHandle(*handle));
-            return Version::ANDROID_Q;
-        }
-        if (const auto* handle = std::get_if<HardwareBufferHandle>(&memory->handle)) {
-            NN_VALIDATE(handle->get() != nullptr);
-            return Version::ANDROID_Q;
-        }
-    }
-
-    NN_VALIDATE_FAIL() << "Unknown memory type " << memory->name;
+    return std::visit([](const auto& x) { return validateMemory(x); }, memory->handle);
 }
 
 Result<void> validateModelSubgraphInputOutputs(const std::vector<uint32_t>& indexes,
@@ -1025,13 +1032,14 @@ Result<Version> validateModel(const Model& model) {
     return version;
 }
 
-Result<Version> validateBufferDesc(const BufferDesc& /*bufferDesc*/) {
-    return Version::ANDROID_R;
+Result<Version> validateBufferDesc(const BufferDesc& bufferDesc) {
+    // An empty BufferDesc is the default value, so it is implicitly valid for all versions.
+    return bufferDesc.dimensions.empty() ? Version::ANDROID_OC_MR1 : Version::ANDROID_R;
 }
 
 Result<Version> validateBufferRole(const BufferRole& bufferRole) {
-    NN_VALIDATE_GT(bufferRole.frequency, 0.0f);
-    NN_VALIDATE_LE(bufferRole.frequency, 1.0f);
+    NN_VALIDATE_GT(bufferRole.probability, 0.0f);
+    NN_VALIDATE_LE(bufferRole.probability, 1.0f);
     return Version::ANDROID_R;
 }
 
@@ -1101,7 +1109,7 @@ Result<Version> validateRequest(const Request& request) {
     std::transform(request.pools.begin(), request.pools.end(), std::back_inserter(memorySizes),
                    [](const Request::MemoryPool& memoryPool) {
                        const auto* memory = std::get_if<SharedMemory>(&memoryPool);
-                       return memory != nullptr ? (*memory)->size : 0;
+                       return memory != nullptr ? getSize(*memory) : 0;
                    });
 
     for (size_t i = 0; i < request.inputs.size(); ++i) {
@@ -1124,12 +1132,34 @@ Result<Version> validateRequest(const Request& request) {
     return version;
 }
 
-Result<Version> validateOptionalTimePoint(const OptionalTimePoint& /*optionalTimePoint*/) {
-    return Version::ANDROID_R;
+Result<Version> validateOptionalTimePoint(const OptionalTimePoint& optionalTimePoint) {
+    if (optionalTimePoint.has_value()) {
+        NN_VALIDATE_GE(optionalTimePoint->time_since_epoch().count(), 0);
+    }
+    // An omitted time point is the default value, so it is implicitly valid for all versions.
+    return !optionalTimePoint.has_value() ? Version::ANDROID_OC_MR1 : Version::ANDROID_R;
 }
 
-Result<Version> validateOptionalTimeoutDuration(
-        const OptionalDuration& /*optionalTimeoutDuration*/) {
+Result<Version> validateOptionalTimeoutDuration(const OptionalDuration& optionalTimeoutDuration) {
+    if (optionalTimeoutDuration.has_value()) {
+        NN_VALIDATE_GE(optionalTimeoutDuration->count(), 0);
+    }
+    // An omitted duration is the default value, so it is implicitly valid for all versions.
+    return !optionalTimeoutDuration.has_value() ? Version::ANDROID_OC_MR1 : Version::ANDROID_R;
+}
+
+Result<Version> validateCacheToken(const CacheToken& cacheToken) {
+    // A CacheToken of 0 is the default value, so it is implicitly valid for all versions.
+    constexpr auto kDefaultCacheToken = CacheToken{};
+    return cacheToken == kDefaultCacheToken ? Version::ANDROID_OC_MR1 : Version::ANDROID_Q;
+}
+
+Result<Version> validateSyncFence(const SyncFence& syncFence) {
+    // The absence of a sync fence is implicitly valid for all versions.
+    if (!syncFence.hasFd()) {
+        return Version::ANDROID_OC_MR1;
+    }
+    NN_VALIDATE_GE(syncFence.getFd(), 0);
     return Version::ANDROID_R;
 }
 
@@ -1253,8 +1283,8 @@ Result<Version> validateMemoryDescImpl(
         NN_VALIDATE(model != nullptr);
         const auto& inputIndexes = model->main.inputIndexes;
         NN_VALIDATE_LT(role.ioIndex, inputIndexes.size());
-        NN_VALIDATE_GT(role.frequency, 0.0f);
-        NN_VALIDATE_LE(role.frequency, 1.0f);
+        NN_VALIDATE_GT(role.probability, 0.0f);
+        NN_VALIDATE_LE(role.probability, 1.0f);
         const auto [it, success] = roles.emplace(preparedModel.get(), IOType::INPUT, role.ioIndex);
         NN_VALIDATE(success);
         operands.push_back(model->main.operands[inputIndexes[role.ioIndex]]);
@@ -1267,8 +1297,8 @@ Result<Version> validateMemoryDescImpl(
         NN_VALIDATE(model != nullptr);
         const auto& outputIndexes = model->main.outputIndexes;
         NN_VALIDATE_LT(role.ioIndex, outputIndexes.size());
-        NN_VALIDATE_GT(role.frequency, 0.0f);
-        NN_VALIDATE_LE(role.frequency, 1.0f);
+        NN_VALIDATE_GT(role.probability, 0.0f);
+        NN_VALIDATE_LE(role.probability, 1.0f);
         const auto [it, success] = roles.emplace(preparedModel.get(), IOType::OUTPUT, role.ioIndex);
         NN_VALIDATE(success);
         operands.push_back(model->main.operands[outputIndexes[role.ioIndex]]);
@@ -2692,6 +2722,10 @@ Result<Version> validate(const MeasureTiming& measureTiming) {
     return validateMeasureTiming(measureTiming);
 }
 
+Result<Version> validate(const OperandType& operandType) {
+    return validateOperandType(operandType);
+}
+
 Result<Version> validate(const Priority& priority) {
     return validatePriority(priority);
 }
@@ -2752,6 +2786,14 @@ Result<Version> validate(const OptionalDuration& optionalTimeoutDuration) {
     return validateOptionalTimeoutDuration(optionalTimeoutDuration);
 }
 
+Result<Version> validate(const CacheToken& cacheToken) {
+    return validateCacheToken(cacheToken);
+}
+
+Result<Version> validate(const SyncFence& syncFence) {
+    return validateSyncFence(syncFence);
+}
+
 Result<Version> validate(const std::vector<OutputShape>& outputShapes) {
     return validateVector(outputShapes, validateOutputShape);
 }
@@ -2766,6 +2808,10 @@ Result<Version> validate(const std::vector<SharedHandle>& handles) {
 
 Result<Version> validate(const std::vector<BufferRole>& bufferRoles) {
     return validateVector(bufferRoles, validateBufferRole);
+}
+
+Result<Version> validate(const std::vector<SyncFence>& syncFences) {
+    return validateVector(syncFences, validateSyncFence);
 }
 
 Result<Version> validateRequestForModel(const Request& request, const Model& model,
@@ -2846,8 +2892,8 @@ Result<Version> validateOperandAndAnythingItDependsOn(const Operand& operand,
                                                       const std::vector<Model::Subgraph>& subgraphs,
                                                       SubgraphVersionCache* subgraphVersionCache) {
     CHECK(subgraphVersionCache != nullptr);
-    return validateOperandImpl(operand, operandValuesSize, poolSizes, subgraphs,
-                               &subgraphVersionCache->cache);
+    return validateOperand(operand, operandValuesSize, poolSizes, subgraphs,
+                           &subgraphVersionCache->cache);
 }
 
 }  // namespace android::nn

@@ -33,6 +33,7 @@
 #include <utility>
 #include <vector>
 
+#include "AndroidVersionUtil.h"
 #include "GeneratedTestUtils.h"
 #include "TestHarness.h"
 #include "TestNeuralNetworksWrapper.h"
@@ -241,7 +242,11 @@ void GeneratedTests::executeWithCompilation(const Compilation& compilation,
     NNTRACE_APP(NNTRACE_PHASE_EXECUTION, "executeWithCompilation example");
 
     Execution execution(&compilation);
-    execution.setReusable(mTestReusableExecution);
+
+    if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
+        execution.setReusable(mTestReusableExecution);
+    }
+
     std::vector<TestBuffer> outputs;
     std::vector<Memory> inputMemories, outputMemories;
 
@@ -287,8 +292,10 @@ void GeneratedTests::executeWithCompilation(const Compilation& compilation,
     };
 
     computeAndCheckResults();
-    if (mTestReusableExecution) {
-        computeAndCheckResults();
+    if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
+        if (mTestReusableExecution) {
+            computeAndCheckResults();
+        }
     }
 }
 
@@ -298,22 +305,26 @@ static bool isPowerOfTwo(uint32_t x) {
 
 static void validateCompilationMemoryPreferences(const Compilation& compilation,
                                                  const TestModel& testModel) {
-    for (uint32_t i = 0; i < testModel.main.inputIndexes.size(); i++) {
-        SCOPED_TRACE("Input index: " + std::to_string(i));
-        uint32_t alignment = 0, padding = 0;
-        ASSERT_EQ(compilation.getPreferredMemoryAlignmentForInput(i, &alignment), Result::NO_ERROR);
-        ASSERT_EQ(compilation.getPreferredMemoryPaddingForInput(i, &padding), Result::NO_ERROR);
-        EXPECT_TRUE(isPowerOfTwo(alignment)) << "alignment: " << alignment;
-        EXPECT_TRUE(isPowerOfTwo(padding)) << "padding: " << padding;
-    }
-    for (uint32_t i = 0; i < testModel.main.outputIndexes.size(); i++) {
-        SCOPED_TRACE("Output index: " + std::to_string(i));
-        uint32_t alignment = 0, padding = 0;
-        ASSERT_EQ(compilation.getPreferredMemoryAlignmentForOutput(i, &alignment),
-                  Result::NO_ERROR);
-        ASSERT_EQ(compilation.getPreferredMemoryPaddingForOutput(i, &padding), Result::NO_ERROR);
-        EXPECT_TRUE(isPowerOfTwo(alignment)) << "alignment: " << alignment;
-        EXPECT_TRUE(isPowerOfTwo(padding)) << "padding: " << padding;
+    if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
+        for (uint32_t i = 0; i < testModel.main.inputIndexes.size(); i++) {
+            SCOPED_TRACE("Input index: " + std::to_string(i));
+            uint32_t alignment = 0, padding = 0;
+            ASSERT_EQ(compilation.getPreferredMemoryAlignmentForInput(i, &alignment),
+                      Result::NO_ERROR);
+            ASSERT_EQ(compilation.getPreferredMemoryPaddingForInput(i, &padding), Result::NO_ERROR);
+            EXPECT_TRUE(isPowerOfTwo(alignment)) << "alignment: " << alignment;
+            EXPECT_TRUE(isPowerOfTwo(padding)) << "padding: " << padding;
+        }
+        for (uint32_t i = 0; i < testModel.main.outputIndexes.size(); i++) {
+            SCOPED_TRACE("Output index: " + std::to_string(i));
+            uint32_t alignment = 0, padding = 0;
+            ASSERT_EQ(compilation.getPreferredMemoryAlignmentForOutput(i, &alignment),
+                      Result::NO_ERROR);
+            ASSERT_EQ(compilation.getPreferredMemoryPaddingForOutput(i, &padding),
+                      Result::NO_ERROR);
+            EXPECT_TRUE(isPowerOfTwo(alignment)) << "alignment: " << alignment;
+            EXPECT_TRUE(isPowerOfTwo(padding)) << "padding: " << padding;
+        }
     }
 }
 

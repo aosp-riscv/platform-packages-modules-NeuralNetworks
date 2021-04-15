@@ -23,12 +23,12 @@
 #include "Operations.h"
 #include "Tracing.h"
 
-#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
+#ifdef NN_INCLUDE_CPU_IMPLEMENTATION
 #include <tensorflow/lite/kernels/internal/optimized/depthwiseconv_uint8.h>
 #include <tensorflow/lite/kernels/internal/reference/depthwiseconv_float.h>
 
 #include "CpuOperationUtils.h"
-#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
+#endif  // NN_INCLUDE_CPU_IMPLEMENTATION
 
 namespace android {
 namespace nn {
@@ -43,7 +43,7 @@ constexpr uint32_t kBiasTensor = 2;
 constexpr uint32_t kNumOutputs = 1;
 constexpr uint32_t kOutputTensor = 0;
 
-#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
+#ifdef NN_INCLUDE_CPU_IMPLEMENTATION
 namespace {
 
 struct DepthwiseConv2dParam {
@@ -416,7 +416,7 @@ bool depthwiseConvQuant8PerChannel(const T* inputData, const Shape& inputShape,
 #undef ANDROID_NN_DEPTHWISE_CONV_PARAMETERS
 
 }  // namespace
-#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
+#endif  // NN_INCLUDE_CPU_IMPLEMENTATION
 
 Result<Version> validate(const IOperationValidationContext* context) {
     const uint32_t numInputs = context->getNumInputs();
@@ -515,7 +515,7 @@ Result<Version> validate(const IOperationValidationContext* context) {
     return minSupportedVersion;
 }
 
-#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
+#ifdef NN_INCLUDE_CPU_IMPLEMENTATION
 bool prepare(IOperationExecutionContext* context) {
     Shape input = context->getInputShape(kInputTensor);
     Shape filter = context->getInputShape(kFilterTensor);
@@ -680,7 +680,7 @@ bool execute(IOperationExecutionContext* context) {
             NN_RET_CHECK_FAIL() << "Unsupported tensor type for operation " << kOperationName;
     }
 }
-#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
+#endif  // NN_INCLUDE_CPU_IMPLEMENTATION
 
 }  // namespace depthwise_conv_2d
 

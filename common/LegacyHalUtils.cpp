@@ -50,8 +50,37 @@ static Type handleError(GeneralResult<Type> result) {
     return std::move(result).value();
 }
 
-OptionalTimePoint makeDeadline(const V1_3::OptionalTimePoint& timePoint) {
-    return handleError(convert(timePoint));
+LegacyOptionalTimePoint makeDeadline(const V1_3::OptionalTimePoint& timePoint) {
+    using Disc = V1_3::OptionalTimePoint::hidl_discriminator;
+    if (timePoint.getDiscriminator() == Disc::none) {
+        return LegacyOptionalTimePoint{};
+    }
+    const uint64_t count = timePoint.nanosecondsSinceEpoch();
+    return LegacyTimePoint{LegacyDuration{count}};
+}
+
+LegacyOptionalTimePoint makeDeadline(const V1_3::OptionalTimeoutDuration& optionalDuration) {
+    if (optionalDuration.getDiscriminator() ==
+        V1_3::OptionalTimeoutDuration::hidl_discriminator::none) {
+        return LegacyOptionalTimePoint{};
+    }
+
+    const auto duration = LegacyDuration{optionalDuration.nanoseconds()};
+    constexpr auto kMaxTime = LegacyTimePoint::max();
+    const auto currentTime = LegacyClock::now();
+
+    // If there would be an overflow, use the max value.
+    if (duration > kMaxTime - currentTime) {
+        return kMaxTime;
+    }
+    return currentTime + duration;
+}
+
+bool hasDeadlinePassed(const LegacyOptionalTimePoint& deadline) {
+    if (!deadline.has_value()) {
+        return false;
+    }
+    return LegacyClock::now() >= *deadline;
 }
 
 bool isExtensionOperandType(V1_3::OperandType type) {

@@ -41,6 +41,23 @@
 #include <Eigen/Core>
 #endif  // NNAPI_OPENMP
 
+#ifdef NN_INCLUDE_CPU_IMPLEMENTATION
+#include "operations/BidirectionalSequenceLSTM.h"
+#include "operations/Cast.h"
+#include "operations/EmbeddingLookup.h"
+#include "operations/ExpandDims.h"
+#include "operations/HashtableLookup.h"
+#include "operations/LSHProjection.h"
+#include "operations/LSTM.h"
+#include "operations/MaximumMinimum.h"
+#include "operations/Multinomial.h"
+#include "operations/Pow.h"
+#include "operations/QuantizedLSTM.h"
+#include "operations/RNN.h"
+#include "operations/SVDF.h"
+#include "operations/Tile.h"
+#endif  // NN_INCLUDE_CPU_IMPLEMENTATION
+
 namespace android {
 namespace nn {
 namespace {
@@ -385,7 +402,7 @@ bool setRunTimePoolInfosFromMemoryPools(std::vector<RunTimePoolInfo>* poolInfos,
     return true;
 }
 
-#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
+#ifdef NN_INCLUDE_CPU_IMPLEMENTATION
 template <typename T>
 inline bool convertToNhwcImpl(T* to, const T* from, const std::vector<uint32_t>& fromDim) {
     uint32_t spatialSize = fromDim[2] * fromDim[3];
@@ -503,7 +520,7 @@ static bool convertFromNhwc(RunTimeOperandInfo& to, const RunTimeOperandInfo& fr
     }
     return true;
 }
-#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
+#endif  // NN_INCLUDE_CPU_IMPLEMENTATION
 
 // Decrements the usage count for the operands listed.  Frees the memory
 // allocated for any temporary variable with a count of zero.
@@ -699,7 +716,7 @@ void CpuExecutor::updateForArguments(const std::vector<uint32_t>& indexes,
 }
 
 int CpuExecutor::executeOperation(const Operation& operation, RunTimeOperandInfo* operands) {
-#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
+#ifdef NN_INCLUDE_CPU_IMPLEMENTATION
     if (hasDeadlinePassed(mDeadline)) {
         return ANEURALNETWORKS_MISSED_DEADLINE_TRANSIENT;
     }
@@ -1657,9 +1674,9 @@ int CpuExecutor::executeOperation(const Operation& operation, RunTimeOperandInfo
     consumeOperationInputs(ins, operands);
     return result;
 #else
-    LOG(ERROR) << "Compabibility layer build does not support CPU execution";
+    LOG(ERROR) << "Built without CPU execution support";
     return ANEURALNETWORKS_OP_FAILED;
-#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
+#endif  // NN_INCLUDE_CPU_IMPLEMENTATION
 }
 
 // Copies RunTimeOperandInfo, preserving the original lifetime and numberOfUsesLeft

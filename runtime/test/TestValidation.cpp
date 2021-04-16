@@ -31,6 +31,7 @@
 #include <utility>
 #include <vector>
 
+#include "AndroidVersionUtil.h"
 #include "NeuralNetworks.h"
 #include "NeuralNetworksOEM.h"
 
@@ -1146,60 +1147,68 @@ TEST_F(ValidationTestCompilation, SetTimeout) {
 }
 
 TEST_F(ValidationTestCompilation, GetPreferredMemoryAlignmentAndPadding) {
-    uint32_t result;
+    if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
+        uint32_t result;
 
-    // The following calls should fail, because the compilation has not been finished.
-    EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput(mCompilation, 0,
-                                                                             &result),
-              ANEURALNETWORKS_BAD_STATE);
-    EXPECT_EQ(
-            ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput(mCompilation, 0, &result),
-            ANEURALNETWORKS_BAD_STATE);
-    EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput(mCompilation, 0,
-                                                                              &result),
-              ANEURALNETWORKS_BAD_STATE);
-    EXPECT_EQ(
-            ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput(mCompilation, 0, &result),
-            ANEURALNETWORKS_BAD_STATE);
+        // The following calls should fail, because the compilation has not been finished.
+        EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput(mCompilation, 0,
+                                                                                 &result),
+                  ANEURALNETWORKS_BAD_STATE);
+        EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput(mCompilation, 0,
+                                                                               &result),
+                  ANEURALNETWORKS_BAD_STATE);
+        EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput(mCompilation, 0,
+                                                                                  &result),
+                  ANEURALNETWORKS_BAD_STATE);
+        EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput(mCompilation, 0,
+                                                                                &result),
+                  ANEURALNETWORKS_BAD_STATE);
 
-    EXPECT_EQ(ANeuralNetworksCompilation_finish(mCompilation), ANEURALNETWORKS_NO_ERROR);
+        EXPECT_EQ(ANeuralNetworksCompilation_finish(mCompilation), ANEURALNETWORKS_NO_ERROR);
 
-    // The following calls should fail because of unexpected nullptr.
-    EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput(nullptr, 0, &result),
-              ANEURALNETWORKS_UNEXPECTED_NULL);
-    EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput(mCompilation, 0,
-                                                                             nullptr),
-              ANEURALNETWORKS_UNEXPECTED_NULL);
-    EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput(nullptr, 0, &result),
-              ANEURALNETWORKS_UNEXPECTED_NULL);
-    EXPECT_EQ(
-            ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput(mCompilation, 0, nullptr),
-            ANEURALNETWORKS_UNEXPECTED_NULL);
-    EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput(nullptr, 0, &result),
-              ANEURALNETWORKS_UNEXPECTED_NULL);
-    EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput(mCompilation, 0,
-                                                                              nullptr),
-              ANEURALNETWORKS_UNEXPECTED_NULL);
-    EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput(nullptr, 0, &result),
-              ANEURALNETWORKS_UNEXPECTED_NULL);
-    EXPECT_EQ(
-            ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput(mCompilation, 0, nullptr),
-            ANEURALNETWORKS_UNEXPECTED_NULL);
+        // The following calls should fail because of unexpected nullptr.
+        EXPECT_EQ(
+                ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput(nullptr, 0, &result),
+                ANEURALNETWORKS_UNEXPECTED_NULL);
+        EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput(mCompilation, 0,
+                                                                                 nullptr),
+                  ANEURALNETWORKS_UNEXPECTED_NULL);
+        EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput(nullptr, 0, &result),
+                  ANEURALNETWORKS_UNEXPECTED_NULL);
+        EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput(mCompilation, 0,
+                                                                               nullptr),
+                  ANEURALNETWORKS_UNEXPECTED_NULL);
+        EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput(nullptr, 0,
+                                                                                  &result),
+                  ANEURALNETWORKS_UNEXPECTED_NULL);
+        EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput(mCompilation, 0,
+                                                                                  nullptr),
+                  ANEURALNETWORKS_UNEXPECTED_NULL);
+        EXPECT_EQ(
+                ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput(nullptr, 0, &result),
+                ANEURALNETWORKS_UNEXPECTED_NULL);
+        EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput(mCompilation, 0,
+                                                                                nullptr),
+                  ANEURALNETWORKS_UNEXPECTED_NULL);
 
-    // The following calls should fail, because the index is out of range.
-    const uint32_t invalidIndex = 1000;
-    EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput(mCompilation,
-                                                                             invalidIndex, &result),
-              ANEURALNETWORKS_BAD_DATA);
-    EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput(mCompilation,
-                                                                           invalidIndex, &result),
-              ANEURALNETWORKS_BAD_DATA);
-    EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput(
-                      mCompilation, invalidIndex, &result),
-              ANEURALNETWORKS_BAD_DATA);
-    EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput(mCompilation,
-                                                                            invalidIndex, &result),
-              ANEURALNETWORKS_BAD_DATA);
+        // The following calls should fail, because the index is out of range.
+        const uint32_t invalidIndex = 1000;
+        EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput(
+                          mCompilation, invalidIndex, &result),
+                  ANEURALNETWORKS_BAD_DATA);
+        EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput(
+                          mCompilation, invalidIndex, &result),
+                  ANEURALNETWORKS_BAD_DATA);
+        EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput(
+                          mCompilation, invalidIndex, &result),
+                  ANEURALNETWORKS_BAD_DATA);
+        EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput(
+                          mCompilation, invalidIndex, &result),
+                  ANEURALNETWORKS_BAD_DATA);
+
+    } else {
+        GTEST_SKIP();
+    }
 }
 
 // Also see TEST_F(ValidationTestCompilationForDevices_1, CreateExecution)
@@ -1277,8 +1286,13 @@ TEST_F(ValidationTestCompilation, ExecutionUsability) {
                       ANEURALNETWORKS_NO_ERROR);
 
             if (explicitlyDisableReusablility) {
-                ASSERT_EQ(ANeuralNetworksExecution_setReusable(execution, false),
-                          ANEURALNETWORKS_NO_ERROR);
+                if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
+                    ASSERT_EQ(ANeuralNetworksExecution_setReusable(execution, false),
+                              ANEURALNETWORKS_NO_ERROR);
+                } else {
+                    ANeuralNetworksExecution_free(execution);
+                    continue;
+                }
             }
 
             // Set inputs and outputs.
@@ -1311,10 +1325,13 @@ TEST_F(ValidationTestCompilation, ExecutionUsability) {
                         ANEURALNETWORKS_BAD_STATE);
 
                 // Enable/Disable input and output padding.
-                ASSERT_EQ(ANeuralNetworksExecution_enableInputAndOutputPadding(execution, true),
-                          ANEURALNETWORKS_BAD_STATE);
-                ASSERT_EQ(ANeuralNetworksExecution_enableInputAndOutputPadding(execution, false),
-                          ANEURALNETWORKS_BAD_STATE);
+                if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
+                    ASSERT_EQ(ANeuralNetworksExecution_enableInputAndOutputPadding(execution, true),
+                              ANEURALNETWORKS_BAD_STATE);
+                    ASSERT_EQ(
+                            ANeuralNetworksExecution_enableInputAndOutputPadding(execution, false),
+                            ANEURALNETWORKS_BAD_STATE);
+                }
 
                 // Set inputs and outputs.
                 ASSERT_EQ(
@@ -1331,10 +1348,12 @@ TEST_F(ValidationTestCompilation, ExecutionUsability) {
                           ANEURALNETWORKS_BAD_STATE);
 
                 // Set reusable.
-                ASSERT_EQ(ANeuralNetworksExecution_setReusable(execution, true),
-                          ANEURALNETWORKS_BAD_STATE);
-                ASSERT_EQ(ANeuralNetworksExecution_setReusable(execution, false),
-                          ANEURALNETWORKS_BAD_STATE);
+                if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
+                    ASSERT_EQ(ANeuralNetworksExecution_setReusable(execution, true),
+                              ANEURALNETWORKS_BAD_STATE);
+                    ASSERT_EQ(ANeuralNetworksExecution_setReusable(execution, false),
+                              ANEURALNETWORKS_BAD_STATE);
+                }
 
                 // Reuse for asynchronous execution.
                 {
@@ -1479,8 +1498,15 @@ static void testConcurrentExecution(bool reusable, ANeuralNetworksCompilation* c
             ASSERT_EQ(
                     ANeuralNetworksExecution_setOutput(execution, 0, nullptr, &out0, sizeof(out0)),
                     ANEURALNETWORKS_NO_ERROR);
-            ASSERT_EQ(ANeuralNetworksExecution_setReusable(execution, reusable),
-                      ANEURALNETWORKS_NO_ERROR);
+            if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
+                ASSERT_EQ(ANeuralNetworksExecution_setReusable(execution, reusable),
+                          ANEURALNETWORKS_NO_ERROR);
+            } else {
+                if (reusable) {
+                    ANeuralNetworksExecution_free(execution);
+                    return;
+                }
+            }
 
             // Compute on the same execution concurrently.
             auto first = std::async(std::launch::async, [compute, executionType1, execution] {
@@ -1525,16 +1551,25 @@ TEST_F(ValidationTestExecution, SetLoopTimeout) {
 }
 
 TEST_F(ValidationTestExecution, EnableInputAndOutputPadding) {
-    EXPECT_EQ(ANeuralNetworksExecution_enableInputAndOutputPadding(nullptr, true),
-              ANEURALNETWORKS_UNEXPECTED_NULL);
-    EXPECT_EQ(ANeuralNetworksExecution_enableInputAndOutputPadding(nullptr, false),
-              ANEURALNETWORKS_UNEXPECTED_NULL);
+    if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
+        EXPECT_EQ(ANeuralNetworksExecution_enableInputAndOutputPadding(nullptr, true),
+                  ANEURALNETWORKS_UNEXPECTED_NULL);
+        EXPECT_EQ(ANeuralNetworksExecution_enableInputAndOutputPadding(nullptr, false),
+                  ANEURALNETWORKS_UNEXPECTED_NULL);
+    } else {
+        GTEST_SKIP();
+    }
 }
 
 TEST_F(ValidationTestExecution, ExecutionSetReusable) {
-    EXPECT_EQ(ANeuralNetworksExecution_setReusable(nullptr, true), ANEURALNETWORKS_UNEXPECTED_NULL);
-    EXPECT_EQ(ANeuralNetworksExecution_setReusable(nullptr, false),
-              ANEURALNETWORKS_UNEXPECTED_NULL);
+    if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
+        EXPECT_EQ(ANeuralNetworksExecution_setReusable(nullptr, true),
+                  ANEURALNETWORKS_UNEXPECTED_NULL);
+        EXPECT_EQ(ANeuralNetworksExecution_setReusable(nullptr, false),
+                  ANEURALNETWORKS_UNEXPECTED_NULL);
+    } else {
+        GTEST_SKIP();
+    }
 }
 
 TEST_F(ValidationTestExecution, SetInput) {
@@ -1572,13 +1607,18 @@ TEST_F(ValidationTestExecution, SetInput) {
 }
 
 TEST_F(ValidationTestExecution, SetInputEnablePadding) {
-    EXPECT_EQ(ANeuralNetworksExecution_enableInputAndOutputPadding(mExecution, true),
-              ANEURALNETWORKS_NO_ERROR);
+    if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
+        EXPECT_EQ(ANeuralNetworksExecution_enableInputAndOutputPadding(mExecution, true),
+                  ANEURALNETWORKS_NO_ERROR);
 
-    // This should fail, because length is less than the size of a float32.
-    char buffer[20];
-    EXPECT_EQ(ANeuralNetworksExecution_setInput(mExecution, 0, nullptr, buffer, sizeof(float) - 1),
-              ANEURALNETWORKS_BAD_DATA);
+        // This should fail, because length is less than the size of a float32.
+        char buffer[20];
+        EXPECT_EQ(ANeuralNetworksExecution_setInput(mExecution, 0, nullptr, buffer,
+                                                    sizeof(float) - 1),
+                  ANEURALNETWORKS_BAD_DATA);
+    } else {
+        GTEST_SKIP();
+    }
 }
 
 TEST_F(ValidationTestExecution, SetOutput) {
@@ -1616,13 +1656,18 @@ TEST_F(ValidationTestExecution, SetOutput) {
 }
 
 TEST_F(ValidationTestExecution, SetOutputEnablePadding) {
-    EXPECT_EQ(ANeuralNetworksExecution_enableInputAndOutputPadding(mExecution, true),
-              ANEURALNETWORKS_NO_ERROR);
+    if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
+        EXPECT_EQ(ANeuralNetworksExecution_enableInputAndOutputPadding(mExecution, true),
+                  ANEURALNETWORKS_NO_ERROR);
 
-    // This should fail, because length is less than the size of a float32.
-    char buffer[20];
-    EXPECT_EQ(ANeuralNetworksExecution_setOutput(mExecution, 0, nullptr, buffer, sizeof(float) - 1),
-              ANEURALNETWORKS_BAD_DATA);
+        // This should fail, because length is less than the size of a float32.
+        char buffer[20];
+        EXPECT_EQ(ANeuralNetworksExecution_setOutput(mExecution, 0, nullptr, buffer,
+                                                     sizeof(float) - 1),
+                  ANEURALNETWORKS_BAD_DATA);
+    } else {
+        GTEST_SKIP();
+    }
 }
 
 TEST_F(ValidationTestExecution, SetInputFromMemory) {
@@ -1690,26 +1735,30 @@ TEST_F(ValidationTestExecution, SetInputFromMemory) {
 }
 
 TEST_F(ValidationTestExecution, SetInputFromMemoryEnablePadding) {
-    const size_t memorySize = 20;
-    int memoryFd = ASharedMemory_create("nnMemory", memorySize);
-    ASSERT_GT(memoryFd, 0);
+    if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
+        const size_t memorySize = 20;
+        int memoryFd = ASharedMemory_create("nnMemory", memorySize);
+        ASSERT_GT(memoryFd, 0);
 
-    ANeuralNetworksMemory* memory;
-    EXPECT_EQ(ANeuralNetworksMemory_createFromFd(memorySize, PROT_READ | PROT_WRITE, memoryFd, 0,
-                                                 &memory),
-              ANEURALNETWORKS_NO_ERROR);
+        ANeuralNetworksMemory* memory;
+        EXPECT_EQ(ANeuralNetworksMemory_createFromFd(memorySize, PROT_READ | PROT_WRITE, memoryFd,
+                                                     0, &memory),
+                  ANEURALNETWORKS_NO_ERROR);
 
-    EXPECT_EQ(ANeuralNetworksExecution_enableInputAndOutputPadding(mExecution, true),
-              ANEURALNETWORKS_NO_ERROR);
+        EXPECT_EQ(ANeuralNetworksExecution_enableInputAndOutputPadding(mExecution, true),
+                  ANEURALNETWORKS_NO_ERROR);
 
-    // This should fail, because length is less than the size of a float32.
-    EXPECT_EQ(ANeuralNetworksExecution_setInputFromMemory(mExecution, 0, nullptr, memory, 0,
-                                                          sizeof(float) - 1),
-              ANEURALNETWORKS_BAD_DATA);
+        // This should fail, because length is less than the size of a float32.
+        EXPECT_EQ(ANeuralNetworksExecution_setInputFromMemory(mExecution, 0, nullptr, memory, 0,
+                                                              sizeof(float) - 1),
+                  ANEURALNETWORKS_BAD_DATA);
 
-    // close memory
-    ANeuralNetworksMemory_free(memory);
-    close(memoryFd);
+        // close memory
+        ANeuralNetworksMemory_free(memory);
+        close(memoryFd);
+    } else {
+        GTEST_SKIP();
+    }
 }
 
 TEST_F(ValidationTestExecution, SetInputFromAHardwareBufferBlob) {
@@ -1758,34 +1807,39 @@ TEST_F(ValidationTestExecution, SetInputFromAHardwareBufferBlob) {
 }
 
 TEST_F(ValidationTestExecution, SetInputFromAHardwareBufferBlobEnablePadding) {
-    const size_t memorySize = 20;
+    if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
+        const size_t memorySize = 20;
 
-    AHardwareBuffer_Desc desc{
-            .width = memorySize,
-            .height = 1,
-            .layers = 1,
-            .format = AHARDWAREBUFFER_FORMAT_BLOB,
-            .usage = AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN | AHARDWAREBUFFER_USAGE_CPU_WRITE_OFTEN,
-    };
+        AHardwareBuffer_Desc desc{
+                .width = memorySize,
+                .height = 1,
+                .layers = 1,
+                .format = AHARDWAREBUFFER_FORMAT_BLOB,
+                .usage = AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN |
+                         AHARDWAREBUFFER_USAGE_CPU_WRITE_OFTEN,
+        };
 
-    AHardwareBuffer* buffer = nullptr;
-    ASSERT_EQ(AHardwareBuffer_allocate(&desc, &buffer), 0);
+        AHardwareBuffer* buffer = nullptr;
+        ASSERT_EQ(AHardwareBuffer_allocate(&desc, &buffer), 0);
 
-    ANeuralNetworksMemory* memory;
-    EXPECT_EQ(ANeuralNetworksMemory_createFromAHardwareBuffer(buffer, &memory),
-              ANEURALNETWORKS_NO_ERROR);
+        ANeuralNetworksMemory* memory;
+        EXPECT_EQ(ANeuralNetworksMemory_createFromAHardwareBuffer(buffer, &memory),
+                  ANEURALNETWORKS_NO_ERROR);
 
-    EXPECT_EQ(ANeuralNetworksExecution_enableInputAndOutputPadding(mExecution, true),
-              ANEURALNETWORKS_NO_ERROR);
+        EXPECT_EQ(ANeuralNetworksExecution_enableInputAndOutputPadding(mExecution, true),
+                  ANEURALNETWORKS_NO_ERROR);
 
-    // This should fail, because length is less than the size of a float32.
-    EXPECT_EQ(ANeuralNetworksExecution_setInputFromMemory(mExecution, 0, nullptr, memory, 0,
-                                                          sizeof(float) - 1),
-              ANEURALNETWORKS_BAD_DATA);
+        // This should fail, because length is less than the size of a float32.
+        EXPECT_EQ(ANeuralNetworksExecution_setInputFromMemory(mExecution, 0, nullptr, memory, 0,
+                                                              sizeof(float) - 1),
+                  ANEURALNETWORKS_BAD_DATA);
 
-    // close memory
-    ANeuralNetworksMemory_free(memory);
-    AHardwareBuffer_release(buffer);
+        // close memory
+        ANeuralNetworksMemory_free(memory);
+        AHardwareBuffer_release(buffer);
+    } else {
+        GTEST_SKIP();
+    }
 }
 
 TEST_F(ValidationTestExecution, SetOutputFromMemory) {
@@ -1857,30 +1911,35 @@ TEST_F(ValidationTestExecution, SetOutputFromMemory) {
 }
 
 TEST_F(ValidationTestExecution, SetOutputFromMemoryEnablePadding) {
-    ANeuralNetworksExecution* execution;
-    EXPECT_EQ(ANeuralNetworksExecution_create(mCompilation, &execution), ANEURALNETWORKS_NO_ERROR);
+    if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
+        ANeuralNetworksExecution* execution;
+        EXPECT_EQ(ANeuralNetworksExecution_create(mCompilation, &execution),
+                  ANEURALNETWORKS_NO_ERROR);
 
-    const size_t memorySize = 20;
-    int memoryFd = ASharedMemory_create("nnMemory", memorySize);
-    ASSERT_GT(memoryFd, 0);
+        const size_t memorySize = 20;
+        int memoryFd = ASharedMemory_create("nnMemory", memorySize);
+        ASSERT_GT(memoryFd, 0);
 
-    ANeuralNetworksMemory* memory;
-    EXPECT_EQ(ANeuralNetworksMemory_createFromFd(memorySize, PROT_READ | PROT_WRITE, memoryFd, 0,
-                                                 &memory),
-              ANEURALNETWORKS_NO_ERROR);
+        ANeuralNetworksMemory* memory;
+        EXPECT_EQ(ANeuralNetworksMemory_createFromFd(memorySize, PROT_READ | PROT_WRITE, memoryFd,
+                                                     0, &memory),
+                  ANEURALNETWORKS_NO_ERROR);
 
-    EXPECT_EQ(ANeuralNetworksExecution_enableInputAndOutputPadding(mExecution, true),
-              ANEURALNETWORKS_NO_ERROR);
+        EXPECT_EQ(ANeuralNetworksExecution_enableInputAndOutputPadding(mExecution, true),
+                  ANEURALNETWORKS_NO_ERROR);
 
-    // This should fail, because length is less than the size of a float32.
-    EXPECT_EQ(ANeuralNetworksExecution_setOutputFromMemory(execution, 0, nullptr, memory, 0,
-                                                           sizeof(float) - 1),
-              ANEURALNETWORKS_BAD_DATA);
+        // This should fail, because length is less than the size of a float32.
+        EXPECT_EQ(ANeuralNetworksExecution_setOutputFromMemory(execution, 0, nullptr, memory, 0,
+                                                               sizeof(float) - 1),
+                  ANEURALNETWORKS_BAD_DATA);
 
-    // close memory
-    ANeuralNetworksMemory_free(memory);
-    ANeuralNetworksExecution_free(execution);
-    close(memoryFd);
+        // close memory
+        ANeuralNetworksMemory_free(memory);
+        ANeuralNetworksExecution_free(execution);
+        close(memoryFd);
+    } else {
+        GTEST_SKIP();
+    }
 }
 
 TEST_F(ValidationTestExecution, SetOutputFromAHardwareBufferBlob) {
@@ -1930,83 +1989,96 @@ TEST_F(ValidationTestExecution, SetOutputFromAHardwareBufferBlob) {
 }
 
 TEST_F(ValidationTestExecution, SetOutputFromAHardwareBufferBlobEnablePadding) {
-    const size_t memorySize = 20;
+    if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
+        const size_t memorySize = 20;
 
-    AHardwareBuffer_Desc desc{
-            .width = memorySize,
-            .height = 1,
-            .layers = 1,
-            .format = AHARDWAREBUFFER_FORMAT_BLOB,
-            .usage = AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN | AHARDWAREBUFFER_USAGE_CPU_WRITE_OFTEN,
-    };
+        AHardwareBuffer_Desc desc{
+                .width = memorySize,
+                .height = 1,
+                .layers = 1,
+                .format = AHARDWAREBUFFER_FORMAT_BLOB,
+                .usage = AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN |
+                         AHARDWAREBUFFER_USAGE_CPU_WRITE_OFTEN,
+        };
 
-    AHardwareBuffer* buffer = nullptr;
-    ASSERT_EQ(AHardwareBuffer_allocate(&desc, &buffer), 0);
+        AHardwareBuffer* buffer = nullptr;
+        ASSERT_EQ(AHardwareBuffer_allocate(&desc, &buffer), 0);
 
-    ANeuralNetworksMemory* memory;
-    EXPECT_EQ(ANeuralNetworksMemory_createFromAHardwareBuffer(buffer, &memory),
-              ANEURALNETWORKS_NO_ERROR);
+        ANeuralNetworksMemory* memory;
+        EXPECT_EQ(ANeuralNetworksMemory_createFromAHardwareBuffer(buffer, &memory),
+                  ANEURALNETWORKS_NO_ERROR);
 
-    EXPECT_EQ(ANeuralNetworksExecution_enableInputAndOutputPadding(mExecution, true),
-              ANEURALNETWORKS_NO_ERROR);
+        EXPECT_EQ(ANeuralNetworksExecution_enableInputAndOutputPadding(mExecution, true),
+                  ANEURALNETWORKS_NO_ERROR);
 
-    // This should fail, because length is less than the size of a float32.
-    EXPECT_EQ(ANeuralNetworksExecution_setOutputFromMemory(mExecution, 0, nullptr, memory, 0,
-                                                           sizeof(float) - 1),
-              ANEURALNETWORKS_BAD_DATA);
+        // This should fail, because length is less than the size of a float32.
+        EXPECT_EQ(ANeuralNetworksExecution_setOutputFromMemory(mExecution, 0, nullptr, memory, 0,
+                                                               sizeof(float) - 1),
+                  ANEURALNETWORKS_BAD_DATA);
 
-    // close memory
-    ANeuralNetworksMemory_free(memory);
-    AHardwareBuffer_release(buffer);
+        // close memory
+        ANeuralNetworksMemory_free(memory);
+        AHardwareBuffer_release(buffer);
+    } else {
+        GTEST_SKIP();
+    }
 }
 
 TEST_F(ValidationTestExecution, EnablePaddingAfterSetInputOutput) {
-    ANeuralNetworksExecution* execution;
-    char buffer[20];
-    const size_t memorySize = 20;
-    int memoryFd = ASharedMemory_create("nnMemory", memorySize);
-    ASSERT_GT(memoryFd, 0);
+    if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
+        ANeuralNetworksExecution* execution;
+        char buffer[20];
+        const size_t memorySize = 20;
+        int memoryFd = ASharedMemory_create("nnMemory", memorySize);
+        ASSERT_GT(memoryFd, 0);
 
-    ANeuralNetworksMemory* memory;
-    EXPECT_EQ(ANeuralNetworksMemory_createFromFd(memorySize, PROT_READ | PROT_WRITE, memoryFd, 0,
-                                                 &memory),
-              ANEURALNETWORKS_NO_ERROR);
+        ANeuralNetworksMemory* memory;
+        EXPECT_EQ(ANeuralNetworksMemory_createFromFd(memorySize, PROT_READ | PROT_WRITE, memoryFd,
+                                                     0, &memory),
+                  ANEURALNETWORKS_NO_ERROR);
 
-    // Enable padding after setInput.
-    EXPECT_EQ(ANeuralNetworksExecution_create(mCompilation, &execution), ANEURALNETWORKS_NO_ERROR);
-    EXPECT_EQ(ANeuralNetworksExecution_setInput(execution, 0, nullptr, buffer, 8),
-              ANEURALNETWORKS_NO_ERROR);
-    EXPECT_EQ(ANeuralNetworksExecution_enableInputAndOutputPadding(execution, true),
-              ANEURALNETWORKS_BAD_STATE);
-    ANeuralNetworksExecution_free(execution);
+        // Enable padding after setInput.
+        EXPECT_EQ(ANeuralNetworksExecution_create(mCompilation, &execution),
+                  ANEURALNETWORKS_NO_ERROR);
+        EXPECT_EQ(ANeuralNetworksExecution_setInput(execution, 0, nullptr, buffer, 8),
+                  ANEURALNETWORKS_NO_ERROR);
+        EXPECT_EQ(ANeuralNetworksExecution_enableInputAndOutputPadding(execution, true),
+                  ANEURALNETWORKS_BAD_STATE);
+        ANeuralNetworksExecution_free(execution);
 
-    // Enable padding after setInputFromMemory.
-    EXPECT_EQ(ANeuralNetworksExecution_create(mCompilation, &execution), ANEURALNETWORKS_NO_ERROR);
-    EXPECT_EQ(ANeuralNetworksExecution_setInputFromMemory(execution, 0, nullptr, memory, 0, 8),
-              ANEURALNETWORKS_NO_ERROR);
-    EXPECT_EQ(ANeuralNetworksExecution_enableInputAndOutputPadding(execution, true),
-              ANEURALNETWORKS_BAD_STATE);
-    ANeuralNetworksExecution_free(execution);
+        // Enable padding after setInputFromMemory.
+        EXPECT_EQ(ANeuralNetworksExecution_create(mCompilation, &execution),
+                  ANEURALNETWORKS_NO_ERROR);
+        EXPECT_EQ(ANeuralNetworksExecution_setInputFromMemory(execution, 0, nullptr, memory, 0, 8),
+                  ANEURALNETWORKS_NO_ERROR);
+        EXPECT_EQ(ANeuralNetworksExecution_enableInputAndOutputPadding(execution, true),
+                  ANEURALNETWORKS_BAD_STATE);
+        ANeuralNetworksExecution_free(execution);
 
-    // Enable padding after setOutput.
-    EXPECT_EQ(ANeuralNetworksExecution_create(mCompilation, &execution), ANEURALNETWORKS_NO_ERROR);
-    EXPECT_EQ(ANeuralNetworksExecution_setOutput(execution, 0, nullptr, buffer, 8),
-              ANEURALNETWORKS_NO_ERROR);
-    EXPECT_EQ(ANeuralNetworksExecution_enableInputAndOutputPadding(execution, true),
-              ANEURALNETWORKS_BAD_STATE);
-    ANeuralNetworksExecution_free(execution);
+        // Enable padding after setOutput.
+        EXPECT_EQ(ANeuralNetworksExecution_create(mCompilation, &execution),
+                  ANEURALNETWORKS_NO_ERROR);
+        EXPECT_EQ(ANeuralNetworksExecution_setOutput(execution, 0, nullptr, buffer, 8),
+                  ANEURALNETWORKS_NO_ERROR);
+        EXPECT_EQ(ANeuralNetworksExecution_enableInputAndOutputPadding(execution, true),
+                  ANEURALNETWORKS_BAD_STATE);
+        ANeuralNetworksExecution_free(execution);
 
-    // Enable padding after setOutputFromMemory.
-    EXPECT_EQ(ANeuralNetworksExecution_create(mCompilation, &execution), ANEURALNETWORKS_NO_ERROR);
-    EXPECT_EQ(ANeuralNetworksExecution_setOutputFromMemory(execution, 0, nullptr, memory, 0, 8),
-              ANEURALNETWORKS_NO_ERROR);
-    EXPECT_EQ(ANeuralNetworksExecution_enableInputAndOutputPadding(execution, true),
-              ANEURALNETWORKS_BAD_STATE);
-    ANeuralNetworksExecution_free(execution);
+        // Enable padding after setOutputFromMemory.
+        EXPECT_EQ(ANeuralNetworksExecution_create(mCompilation, &execution),
+                  ANEURALNETWORKS_NO_ERROR);
+        EXPECT_EQ(ANeuralNetworksExecution_setOutputFromMemory(execution, 0, nullptr, memory, 0, 8),
+                  ANEURALNETWORKS_NO_ERROR);
+        EXPECT_EQ(ANeuralNetworksExecution_enableInputAndOutputPadding(execution, true),
+                  ANEURALNETWORKS_BAD_STATE);
+        ANeuralNetworksExecution_free(execution);
 
-    // close memory
-    ANeuralNetworksMemory_free(memory);
-    close(memoryFd);
+        // close memory
+        ANeuralNetworksMemory_free(memory);
+        close(memoryFd);
+    } else {
+        GTEST_SKIP();
+    }
 }
 
 TEST_F(ValidationTestExecutionDeviceMemory, SetInputFromMemory) {
@@ -2953,22 +3025,26 @@ class ValidationTestInvalidCompilation : public ValidationTestModel {
 };
 
 TEST_F(ValidationTestInvalidCompilation, GetPreferredMemoryAlignmentAndPadding) {
-    if (!mInvalidCompilation) {
-        return;
+    if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
+        if (!mInvalidCompilation) {
+            return;
+        }
+        uint32_t result;
+        EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput(
+                          mInvalidCompilation, 0, &result),
+                  ANEURALNETWORKS_BAD_STATE);
+        EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput(mInvalidCompilation,
+                                                                               0, &result),
+                  ANEURALNETWORKS_BAD_STATE);
+        EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput(
+                          mInvalidCompilation, 0, &result),
+                  ANEURALNETWORKS_BAD_STATE);
+        EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput(mInvalidCompilation,
+                                                                                0, &result),
+                  ANEURALNETWORKS_BAD_STATE);
+    } else {
+        GTEST_SKIP();
     }
-    uint32_t result;
-    EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput(mInvalidCompilation, 0,
-                                                                             &result),
-              ANEURALNETWORKS_BAD_STATE);
-    EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput(mInvalidCompilation, 0,
-                                                                           &result),
-              ANEURALNETWORKS_BAD_STATE);
-    EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput(mInvalidCompilation,
-                                                                              0, &result),
-              ANEURALNETWORKS_BAD_STATE);
-    EXPECT_EQ(ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput(mInvalidCompilation, 0,
-                                                                            &result),
-              ANEURALNETWORKS_BAD_STATE);
 }
 
 TEST_F(ValidationTestInvalidCompilation, CreateExecution) {

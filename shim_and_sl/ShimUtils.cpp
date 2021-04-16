@@ -63,6 +63,8 @@ ErrorStatus convertResultToErrorStatus(Result status) {
             return ErrorStatus::INVALID_ARGUMENT;
         case Result::OP_FAILED:
             return ErrorStatus::GENERAL_FAILURE;
+        case Result::FEATURE_LEVEL_TOO_LOW:
+            return ErrorStatus::GENERAL_FAILURE;
     }
 
     LOG(FATAL) << "Invalid Result " << static_cast<std::underlying_type_t<Result>>(status);

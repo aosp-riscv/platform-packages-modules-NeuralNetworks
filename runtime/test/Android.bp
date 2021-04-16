@@ -410,6 +410,7 @@ cc_library_static {
         "libgmock_ndk",
         "libgtest_ndk_c++",
     ],
+    min_sdk_version: "30",
     sdk_version: "current",
     stl: "libc++_static",
 }

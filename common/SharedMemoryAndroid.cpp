@@ -218,8 +218,11 @@ GeneralResult<Mapping> map(const Memory::HardwareBuffer& memory) {
     }
     const uint32_t size = desc.width;
 
+    const uint64_t kCpuUsageMask =
+            AHARDWAREBUFFER_USAGE_CPU_READ_MASK | AHARDWAREBUFFER_USAGE_CPU_WRITE_MASK;
     void* data = nullptr;
-    const auto status = AHardwareBuffer_lock(memory.handle.get(), desc.usage, -1, nullptr, &data);
+    const auto status = AHardwareBuffer_lock(memory.handle.get(), desc.usage & kCpuUsageMask, -1,
+                                             nullptr, &data);
     if (status != /*NO_ERROR*/ 0) {
         return NN_ERROR() << "Can't lock the AHardwareBuffer. Error: " << status;
     }

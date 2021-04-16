@@ -46,6 +46,9 @@ apex_defaults {
     compile_multilib: "both",
     key: "com.android.neuralnetworks.key",
     certificate: ":com.android.neuralnetworks.certificate",
+    // Indicates that pre-installed version of this apex can be compressed.
+    // Whether it actually will be compressed is controlled on per-device basis.
+    compressible: true,
 }
 
 apex {

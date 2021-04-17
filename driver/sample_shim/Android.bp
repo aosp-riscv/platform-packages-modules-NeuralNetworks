@@ -98,10 +98,7 @@ cc_binary {
 cc_binary {
     name: "android.hardware.neuralnetworks-shell-service-sample",
     defaults: ["neuralnetworks_defaults"],
-    srcs: [
-        "InvalidInterfaces.cpp",
-        "ShellServiceSample.cpp",
-    ],
+    srcs: ["ShellServiceSample.cpp"],
     header_libs: [
         "libnativewindow_headers",
         "libneuralnetworks_headers",

@@ -547,23 +547,4 @@ ndk::ScopedAStatus ShimDevice::prepareModelFromCache(
     return toAStatus(ErrorStatus::GENERAL_FAILURE);
 }
 
-int ShimDevice::registerService() {
-    const char* name = nullptr;
-
-    auto result = mNnapi->ANeuralNetworksDevice_getName(mDevice, &name);
-    if (result != ANEURALNETWORKS_NO_ERROR) {
-        LOG(ERROR) << "ANeuralNetworksDevice_getName failed, error code " << result;
-        return ANNSHIM_FAILED_TO_REGISTER_SERVICE;
-    }
-    const std::string instance = std::string(ShimDevice::descriptor) + "/" + mServiceName;
-    LOG(INFO) << "Attempting service registration for " << instance;
-    binder_status_t status = AServiceManager_addService(this->asBinder().get(), instance.c_str());
-    if (status != STATUS_OK) {
-        LOG(ERROR) << "AServiceManager_addService failed for " << instance << ", error code "
-                   << status;
-        return ANNSHIM_FAILED_TO_REGISTER_SERVICE;
-    }
-    return ANNSHIM_NO_ERROR;
-}
-
 }  // namespace aidl::android::hardware::neuralnetworks

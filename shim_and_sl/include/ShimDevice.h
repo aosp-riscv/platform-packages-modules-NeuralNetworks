@@ -18,7 +18,6 @@
 
 #include <aidl/android/hardware/neuralnetworks/BnBuffer.h>
 #include <aidl/android/hardware/neuralnetworks/BnDevice.h>
-#include <android/binder_auto_utils.h>
 
 #include <memory>
 #include <stack>
@@ -119,7 +118,6 @@ class ShimDevice : public BnDevice {
             const std::vector<::ndk::ScopedFileDescriptor>& dataCache,
             const std::vector<uint8_t>& token,
             const std::shared_ptr<IPreparedModelCallback>& callback) override;
-    int registerService();
 
    private:
     std::shared_ptr<const NnApiSupportLibrary> mNnapi;

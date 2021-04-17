@@ -26,6 +26,12 @@ LIBNEURALNETWORKS_SHIM {
     ANeuralNetworksShimDeviceInfo_setCapabilities; # llndk apex
     ANeuralNetworksShimDeviceInfo_setNumberOfCacheFilesNeeded; # llndk apex
     ANeuralNetworksShimDeviceInfo_addVendorExtension; # llndk apex
+    ANeuralNetworksShimRegistrationParams_create; # llndk apex
+    ANeuralNetworksShimRegistrationParams_free; # llndk apex
+    ANeuralNetworksShimRegistrationParams_addDeviceInfo; # llndk apex
+    ANeuralNetworksShimRegistrationParams_setNumberOfListenerThreads; # llndk apex
+    ANeuralNetworksShimRegistrationParams_registerAsLazyService; # llndk apex
+    ANeuralNetworksShimRegistrationParams_fallbackToMinimumSupportDevice; # llndk apex
 
   local:
     *;

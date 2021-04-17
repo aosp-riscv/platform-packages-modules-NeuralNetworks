@@ -20,11 +20,23 @@
 #include <vector>
 
 #include "NeuralNetworksShim.h"
+#include "ShimDevice.h"
 
 namespace android::neuralnetworks::shim {
 
-ANeuralNetworksShimResultCode registerDevices(NnApiSLDriverImpl* nnapiSLImpl,
-                                              ANeuralNetworksShimDeviceInfo* devicesToRegister[],
-                                              int devicesToRegisterCount);
+struct RegistrationParams {
+    NnApiSLDriverImpl* nnapiSupportLibraryPackage = nullptr;
+    std::vector<aidl::android::hardware::neuralnetworks::ShimDeviceInfo> deviceInfos;
+    uint32_t numberOfListenerThreads = 15;
+    bool registerAsLazyService = false;
+    bool fallbackToMinimumSupportDevice = false;
+};
+
+ANeuralNetworksShimResultCode registerDevices(
+        NnApiSLDriverImpl* nnapiSLImpl,
+        const std::vector<aidl::android::hardware::neuralnetworks::ShimDeviceInfo>&
+                devicesToRegister,
+        uint32_t numberOfListenerThreads, bool registerAsLazyService,
+        bool fallbackToMinimumSupportDevice);
 
 }  // namespace android::neuralnetworks::shim

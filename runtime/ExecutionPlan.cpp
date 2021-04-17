@@ -2492,16 +2492,19 @@ int ModelBuilder::findBestDeviceForEachOperation(
             }
         } else {
             float bestPerfVal = 0.0;  // Do not check bestPerfVal if bestChoice < 0.
+            bool bestIsUpdatable = false;
             for (size_t deviceIndex = 0; deviceIndex < deviceCount; deviceIndex++) {
                 const auto& device = devices[deviceIndex];
                 if (canDo[deviceIndex].check(operationIndex)) {
                     const float perfVal = getPerformance(preference, device, operationIndex);
-                    const bool deviceIsPreferred =
-                            (device == DeviceManager::getCpuDevice() || device->isUpdatable());
+                    const bool isUpdatable = device->isUpdatable();
+                    const bool deviceIsPreferred = (device == DeviceManager::getCpuDevice() ||
+                                                    (isUpdatable && !bestIsUpdatable));
                     if (bestChoice < 0 || perfVal < bestPerfVal ||
                         (perfVal == bestPerfVal && deviceIsPreferred)) {
                         bestChoice = deviceIndex;
                         bestPerfVal = perfVal;
+                        bestIsUpdatable = isUpdatable;
                     }
                 } else {
                     // Somewhat noisy logging, but only place where the user of NNAPI can get

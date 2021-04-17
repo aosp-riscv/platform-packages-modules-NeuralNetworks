@@ -17,15 +17,17 @@
 #define LOG_TAG "NeuralNetworksShim"
 
 #include "NeuralNetworksShim.h"
+
 #include <android-base/logging.h>
 #include <nnapi/Types.h>
-#include "ShimDevice.h"
-#include "ShimDeviceManager.h"
 
 #include <limits>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "ShimDevice.h"
+#include "ShimDeviceManager.h"
 
 static_assert(offsetof(NnApiSLDriverImplFL5, base.implFeatureLevel) == 0,
               ".base.implFeatureLevel is not at offset 0 of a NnApiSLDriverImplFL5 struct");
@@ -53,17 +55,39 @@ static_assert(ANNSHIM_FAILED_TO_REGISTER_SERVICE == 2,
 static_assert(ANNSHIM_GENERAL_ERROR == 3, "ANNSHIM_GENERAL_ERROR has changed");
 static_assert(ANNSHIM_INVALID_ARGUMENT == 4, "ANNSHIM_INVALID_ARGUMENT has changed");
 
-int ANeuralNetworksShim_registerSupportLibraryService(
-        NnApiSLDriverImpl* nnapiImpl, ANeuralNetworksShimDeviceInfo* devicesToRegister[],
-        int devicesToRegisterCount) {
-    return static_cast<int>(android::neuralnetworks::shim::registerDevices(
-            nnapiImpl, devicesToRegister, devicesToRegisterCount));
-}
-
 using namespace aidl::android::hardware::neuralnetworks;
+using android::neuralnetworks::shim::registerDevices;
+using android::neuralnetworks::shim::RegistrationParams;
+
+int ANeuralNetworksShim_registerSupportLibraryService(
+        const ANeuralNetworksShimRegistrationParams* registrationParams) {
+    if (registrationParams == nullptr) {
+        LOG(ERROR) << "Invalid arguments, registrationParams == nullptr ";
+        return ANNSHIM_INVALID_ARGUMENT;
+    }
+    const auto* params = reinterpret_cast<const RegistrationParams*>(registrationParams);
+
+    NnApiSLDriverImpl* const nnapiImpl = params->nnapiSupportLibraryPackage;
+    const auto& deviceInfos = params->deviceInfos;
+    const uint32_t numberOfListenerThreads = params->numberOfListenerThreads;
+    const bool registerAsLazyService = params->registerAsLazyService;
+    const bool fallbackToMinimumSupportDevice = params->fallbackToMinimumSupportDevice;
+
+    return static_cast<int>(registerDevices(nnapiImpl, deviceInfos, numberOfListenerThreads,
+                                            registerAsLazyService, fallbackToMinimumSupportDevice));
+}
 
 int ANeuralNetworksShimDeviceInfo_create(ANeuralNetworksShimDeviceInfo** deviceInfo,
                                          const char* deviceName, const char* serviceName) {
+    if (deviceInfo != nullptr) {
+        *deviceInfo = nullptr;
+    }
+
+    if (deviceName == nullptr) {
+        LOG(ERROR) << "Invalid arguments, deviceName passed a nullptr";
+        return ANNSHIM_INVALID_ARGUMENT;
+    }
+
     auto result = new (std::nothrow)
             ShimDeviceInfo{.deviceName = std::string(deviceName),
                            .serviceName = (serviceName == nullptr || strlen(serviceName) == 0)
@@ -86,7 +110,7 @@ int ANeuralNetworksShimDeviceInfo_setCapabilities(
         ANeuralNetworksShimPerformanceInfo relaxedFloat32toFloat16PerformanceScalar,
         ANeuralNetworksShimPerformanceInfo relaxedFloat32toFloat16PerformanceTensor,
         uint32_t operandPerformanceCount,
-        ANeuralNetworksShimOperandPerformanceInfo operandPerformance[]) {
+        const ANeuralNetworksShimOperandPerformanceInfo operandPerformance[]) {
     if (deviceInfo == nullptr) {
         LOG(ERROR) << "ANeuralNetworksShimDeviceInfo_setOperandsPerformance passed a nullptr";
         return ANNSHIM_INVALID_ARGUMENT;
@@ -153,7 +177,8 @@ int ANeuralNetworksShimDeviceInfo_setNumberOfCacheFilesNeeded(
 int ANeuralNetworksShimDeviceInfo_addVendorExtension(
         ANeuralNetworksShimDeviceInfo* deviceInfo, const char* extensionName,
         uint32_t extensionOperandTypeInformationCount,
-        ANeuralNetworksShimExtensionOperandTypeInformation extensionOperandTypeInformation[]) {
+        const ANeuralNetworksShimExtensionOperandTypeInformation
+                extensionOperandTypeInformation[]) {
     if (deviceInfo == nullptr || extensionName == nullptr) {
         LOG(ERROR) << "ANeuralNetworksShimDeviceInfo_addVendorExtension passed a nullptr";
         return ANNSHIM_INVALID_ARGUMENT;
@@ -176,5 +201,94 @@ int ANeuralNetworksShimDeviceInfo_addVendorExtension(
                     extensionOperandTypeInformation + extensionOperandTypeInformationCount);
     shimDeviceInfo->additionalData.vendorExtensions.push_back(std::move(extension));
 
+    return ANNSHIM_NO_ERROR;
+}
+
+int ANeuralNetworksShimRegistrationParams_create(
+        NnApiSLDriverImpl* nnapiSupportLibraryPackage,
+        ANeuralNetworksShimRegistrationParams** outRegistrationParams) {
+    if (outRegistrationParams != nullptr) {
+        *outRegistrationParams = nullptr;
+    }
+
+    if (nnapiSupportLibraryPackage == nullptr) {
+        LOG(ERROR) << "Invalid arguments, nnapiSupportLibraryPackage == nullptr ";
+        return ANNSHIM_INVALID_ARGUMENT;
+    }
+    if (outRegistrationParams == nullptr) {
+        LOG(ERROR) << "Invalid arguments, outRegistrationParams == nullptr ";
+        return ANNSHIM_INVALID_ARGUMENT;
+    }
+
+    auto result = new (std::nothrow) RegistrationParams{
+            .nnapiSupportLibraryPackage = nnapiSupportLibraryPackage,
+            .registerAsLazyService = false,
+            .fallbackToMinimumSupportDevice = false,
+    };
+    if (result == nullptr) {
+        return ANNSHIM_GENERAL_ERROR;
+    }
+    *outRegistrationParams = reinterpret_cast<ANeuralNetworksShimRegistrationParams*>(result);
+    return ANNSHIM_NO_ERROR;
+}
+
+void ANeuralNetworksShimRegistrationParams_free(
+        ANeuralNetworksShimRegistrationParams* registrationParams) {
+    delete reinterpret_cast<RegistrationParams*>(registrationParams);
+}
+
+int ANeuralNetworksShimRegistrationParams_addDeviceInfo(
+        ANeuralNetworksShimRegistrationParams* registrationParams,
+        const ANeuralNetworksShimDeviceInfo* deviceInfo) {
+    if (registrationParams == nullptr) {
+        LOG(ERROR) << "Invalid arguments, registrationParams == nullptr";
+        return ANNSHIM_INVALID_ARGUMENT;
+    }
+    if (deviceInfo == nullptr) {
+        LOG(ERROR) << "Invalid arguments, deviceInfo == nullptr";
+        return ANNSHIM_INVALID_ARGUMENT;
+    }
+
+    auto params = reinterpret_cast<RegistrationParams*>(registrationParams);
+    auto info = reinterpret_cast<const ShimDeviceInfo*>(deviceInfo);
+    params->deviceInfos.push_back(*info);
+    return ANNSHIM_NO_ERROR;
+}
+
+int ANeuralNetworksShimRegistrationParams_setNumberOfListenerThreads(
+        ANeuralNetworksShimRegistrationParams* registrationParams,
+        uint32_t numberOfListenerThreads) {
+    if (registrationParams == nullptr) {
+        LOG(ERROR) << "Invalid arguments, registrationParams == nullptr";
+        return ANNSHIM_INVALID_ARGUMENT;
+    }
+    if (registrationParams == 0) {
+        LOG(ERROR) << "Invalid arguments, numberOfListenerThreads == 0";
+        return ANNSHIM_INVALID_ARGUMENT;
+    }
+    auto params = reinterpret_cast<RegistrationParams*>(registrationParams);
+    params->numberOfListenerThreads = numberOfListenerThreads;
+    return ANNSHIM_NO_ERROR;
+}
+
+int ANeuralNetworksShimRegistrationParams_registerAsLazyService(
+        ANeuralNetworksShimRegistrationParams* registrationParams, bool asLazy) {
+    if (registrationParams == nullptr) {
+        LOG(ERROR) << "Invalid arguments, registrationParams == nullptr";
+        return ANNSHIM_INVALID_ARGUMENT;
+    }
+    auto params = reinterpret_cast<RegistrationParams*>(registrationParams);
+    params->registerAsLazyService = asLazy;
+    return ANNSHIM_NO_ERROR;
+}
+
+int ANeuralNetworksShimRegistrationParams_fallbackToMinimumSupportDevice(
+        ANeuralNetworksShimRegistrationParams* registrationParams, bool fallback) {
+    if (registrationParams == nullptr) {
+        LOG(ERROR) << "Invalid arguments, registrationParams == nullptr";
+        return ANNSHIM_INVALID_ARGUMENT;
+    }
+    auto params = reinterpret_cast<RegistrationParams*>(registrationParams);
+    params->fallbackToMinimumSupportDevice = fallback;
     return ANNSHIM_NO_ERROR;
 }

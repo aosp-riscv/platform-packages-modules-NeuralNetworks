@@ -235,7 +235,10 @@ ndk_headers {
     name: "libneuralnetworks_ndk_headers",
     from: "include",
     to: "android",
-    srcs: ["include/NeuralNetworks.h"],
+    srcs: [
+        "include/NeuralNetworks.h",
+        "include/NeuralNetworksTypes.h",
+    ],
     license: "NOTICE",
 }
 

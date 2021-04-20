@@ -155,7 +155,7 @@ ANeuralNetworksShimResultCode registerDevices(
         if (const auto iter = nameToDevice.find(name); iter != nameToDevice.end()) {
             ANeuralNetworksDevice* device = iter->second;
 
-            auto shimDevice = ndk::SharedRefBase::make<ShimDevice>(nnapi, device, info);
+            auto shimDevice = ndk::SharedRefBase::make<ShimDevice>(nnapi, device, info.serviceName);
             devices.push_back(std::move(shimDevice));
             continue;
         }

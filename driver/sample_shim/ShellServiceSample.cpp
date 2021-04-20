@@ -112,79 +112,6 @@ void registerInvalidDevices(const std::vector<Names>& names) {
     ABinderProcess_joinThreadPool();
 }
 
-ANeuralNetworksShimPerformanceInfo convert(const PerformanceInfo& performanceInfo) {
-    return {.execTime = performanceInfo.execTime, .powerUsage = performanceInfo.powerUsage};
-}
-
-ANeuralNetworksShimOperandPerformanceInfo convert(const OperandPerformance& operandPerformance) {
-    return {.operandType = static_cast<int32_t>(operandPerformance.type),
-            .performanceInfo = convert(operandPerformance.info)};
-}
-
-std::vector<ANeuralNetworksShimOperandPerformanceInfo> convert(
-        const std::vector<OperandPerformance>& operandPerformances) {
-    std::vector<ANeuralNetworksShimOperandPerformanceInfo> result;
-    result.reserve(operandPerformances.size());
-    std::transform(operandPerformances.begin(), operandPerformances.end(),
-                   std::back_inserter(result),
-                   [](const OperandPerformance& opPerf) { return convert(opPerf); });
-    return result;
-}
-
-ANeuralNetworksShimExtensionOperandTypeInformation convert(
-        const ExtensionOperandTypeInformation& opTypeInfo) {
-    return {
-            .type = opTypeInfo.type,
-            .byteSize = static_cast<uint32_t>(opTypeInfo.byteSize),
-            .isTensor = opTypeInfo.isTensor,
-    };
-}
-
-std::vector<ANeuralNetworksShimExtensionOperandTypeInformation> convert(
-        const std::vector<ExtensionOperandTypeInformation>& opTypeInfos) {
-    std::vector<ANeuralNetworksShimExtensionOperandTypeInformation> result;
-    result.reserve(opTypeInfos.size());
-    std::transform(
-            opTypeInfos.begin(), opTypeInfos.end(), std::back_inserter(result),
-            [](const ExtensionOperandTypeInformation& opTypeInfo) { return convert(opTypeInfo); });
-    return result;
-}
-
-void addDeviceInfoToParams(ANeuralNetworksShimRegistrationParams* params, const Names& names,
-                           const Metadata& metadata) {
-    const auto& capabilities = metadata.capabilities;
-    const auto& numberOfCacheFiles = metadata.numberOfCacheFiles;
-    const auto& vendorExtensions = metadata.vendorExtensions;
-
-    const auto relaxedFloat32toFloat16PerformanceScalar =
-            convert(capabilities.relaxedFloat32toFloat16PerformanceScalar);
-    const auto relaxedFloat32toFloat16PerformanceTensor =
-            convert(capabilities.relaxedFloat32toFloat16PerformanceTensor);
-    const auto operandPerformance = convert(capabilities.operandPerformance);
-    const auto ifPerformance = convert(capabilities.ifPerformance);
-    const auto whilePerformance = convert(capabilities.whilePerformance);
-
-    ANeuralNetworksShimDeviceInfo* deviceInfo;
-    ANeuralNetworksShimDeviceInfo_create(&deviceInfo, names.driverName.c_str(),
-                                         names.serviceName.c_str());
-    const auto guardDeviceInfo = ::android::base::make_scope_guard(
-            [deviceInfo] { ANeuralNetworksShimDeviceInfo_free(deviceInfo); });
-
-    ANeuralNetworksShimDeviceInfo_setNumberOfCacheFilesNeeded(
-            deviceInfo, numberOfCacheFiles.numModelCache, numberOfCacheFiles.numDataCache);
-    ANeuralNetworksShimDeviceInfo_setCapabilities(
-            deviceInfo, ifPerformance, whilePerformance, relaxedFloat32toFloat16PerformanceScalar,
-            relaxedFloat32toFloat16PerformanceTensor, operandPerformance.size(),
-            operandPerformance.data());
-    for (const auto& vendorExtension : vendorExtensions) {
-        const auto opTypeInfo = convert(vendorExtension.operandTypes);
-        ANeuralNetworksShimDeviceInfo_addVendorExtension(deviceInfo, vendorExtension.name.c_str(),
-                                                         opTypeInfo.size(), opTypeInfo.data());
-    }
-
-    ANeuralNetworksShimRegistrationParams_addDeviceInfo(params, deviceInfo);
-}
-
 int registerDevices(const std::string& driverPath, const std::string& metadataPath,
                     const std::vector<Names>& devices) {
     // Load support library.
@@ -235,8 +162,13 @@ int registerDevices(const std::string& driverPath, const std::string& metadataPa
     ANeuralNetworksShimRegistrationParams_fallbackToMinimumSupportDevice(params, /*fallback=*/true);
 
     for (const auto& device : devices) {
-        const auto& metadata = metadataTable.at(device.driverName);
-        addDeviceInfoToParams(params, device, metadata);
+        ANeuralNetworksShimDeviceInfo* deviceInfo;
+        ANeuralNetworksShimDeviceInfo_create(&deviceInfo, device.driverName.c_str(),
+                                             device.serviceName.c_str());
+        const auto guardDeviceInfo = ::android::base::make_scope_guard(
+                [deviceInfo] { ANeuralNetworksShimDeviceInfo_free(deviceInfo); });
+
+        ANeuralNetworksShimRegistrationParams_addDeviceInfo(params, deviceInfo);
     }
 
     // Register the support library as a binderized AIDL service.

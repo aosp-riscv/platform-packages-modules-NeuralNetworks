@@ -90,41 +90,28 @@ const ShimPreparedModel* castToShimPreparedModel(IPreparedModel* preparedModel) 
     return static_cast<const ShimPreparedModel*>(preparedModel);
 }
 
-Capabilities shimToHALCapabilities(const ShimDeviceCapabilities& shimCapabilities) {
-    auto conv = [](const ANeuralNetworksShimPerformanceInfo& pinfo) {
-        return PerformanceInfo{.execTime = pinfo.execTime, .powerUsage = pinfo.powerUsage};
+Capabilities getCapabilities() {
+    constexpr PerformanceInfo kPerf = {.execTime = 0.5f, .powerUsage = 0.5f};
+    return {
+            .relaxedFloat32toFloat16PerformanceScalar = kPerf,
+            .relaxedFloat32toFloat16PerformanceTensor = kPerf,
+            .operandPerformance = {},
+            .ifPerformance = kPerf,
+            .whilePerformance = kPerf,
     };
-
-    Capabilities result;
-    result.ifPerformance = conv(shimCapabilities.ifPerformance);
-    result.whilePerformance = conv(shimCapabilities.whilePerformance);
-    result.relaxedFloat32toFloat16PerformanceScalar =
-            conv(shimCapabilities.relaxedFloat32toFloat16PerformanceScalar);
-    result.relaxedFloat32toFloat16PerformanceTensor =
-            conv(shimCapabilities.relaxedFloat32toFloat16PerformanceTensor);
-
-    auto opCount = shimCapabilities.operandPerformance.size();
-    result.operandPerformance.reserve(opCount);
-    for (auto i = 0; i < opCount; ++i) {
-        result.operandPerformance.push_back(OperandPerformance{
-                .type = static_cast<OperandType>(
-                        shimCapabilities.operandPerformance[i].operandType),
-                .info = conv(shimCapabilities.operandPerformance[i].performanceInfo)});
-    }
-
-    return result;
 }
 
 }  // namespace
 
 ShimDevice::ShimDevice(std::shared_ptr<const NnApiSupportLibrary> nnapi,
-                       ANeuralNetworksDevice* device, const ShimDeviceInfo& deviceInfo)
+                       ANeuralNetworksDevice* device, std::string serviceName)
     : mNnapi(std::move(nnapi)),
       mBufferTracker(ShimBufferTracker::create()),
-      mServiceName(deviceInfo.serviceName),
+      mServiceName(std::move(serviceName)),
       mDevice(device),
-      mDeviceAdditionalData(deviceInfo.additionalData),
-      mCapabilities(shimToHALCapabilities(deviceInfo.capabilities)) {}
+      mCapabilities(neuralnetworks::getCapabilities()),
+      mNumberOfCacheFiles(),
+      mExtensions() {}
 
 // Manages the data buffer for an operand.
 class ShimBuffer : public BnBuffer {
@@ -401,28 +388,13 @@ ndk::ScopedAStatus ShimDevice::getCapabilities(Capabilities* capabilities) {
     return ndk::ScopedAStatus::ok();
 }
 
-ndk::ScopedAStatus ShimDevice::getNumberOfCacheFilesNeeded(NumberOfCacheFiles* nocf) {
-    nocf->numDataCache = mDeviceAdditionalData.numDataCacheFiles;
-    nocf->numModelCache = mDeviceAdditionalData.numModelCacheFiles;
+ndk::ScopedAStatus ShimDevice::getNumberOfCacheFilesNeeded(NumberOfCacheFiles* numberOfCacheFiles) {
+    *numberOfCacheFiles = mNumberOfCacheFiles;
     return ndk::ScopedAStatus::ok();
 }
 
 ndk::ScopedAStatus ShimDevice::getSupportedExtensions(std::vector<Extension>* extensions) {
-    extensions->clear();
-    extensions->reserve(mDeviceAdditionalData.vendorExtensions.size());
-    for (const auto& extension : mDeviceAdditionalData.vendorExtensions) {
-        Extension aidlExtension{.name = extension.extensionName, .operandTypes = {}};
-        aidlExtension.operandTypes.reserve(extension.operandTypeInformation.size());
-        for (const auto& operand : extension.operandTypeInformation) {
-            aidlExtension.operandTypes.push_back(ExtensionOperandTypeInformation{
-                    .type = operand.type,
-                    .isTensor = operand.isTensor,
-                    .byteSize = static_cast<int32_t>(operand.byteSize),
-            });
-        }
-        extensions->push_back(std::move(aidlExtension));
-    }
-    // We should consider caching results.
+    *extensions = mExtensions;
     return ndk::ScopedAStatus::ok();
 }
 

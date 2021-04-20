@@ -79,34 +79,6 @@ typedef enum {
 } ANeuralNetworksShimResultCode;
 
 /**
- * Information about expected time and power usage.
- * See NNAPI HAL IDevice::getCapabilities for more information
- */
-typedef struct {
-    float execTime;
-    float powerUsage;
-} ANeuralNetworksShimPerformanceInfo;
-
-/**
- * Information about expected time and power usage for a datatype.
- * See NNAPI HAL IDevice::getCapabilities for more information
- */
-typedef struct {
-    int32_t operandType;
-    ANeuralNetworksShimPerformanceInfo performanceInfo;
-} ANeuralNetworksShimOperandPerformanceInfo;
-
-/**
- * Information about NNAPI Vendor extension operand type.
- * See NNAPI HAL ExtensionOperandTypeInformation for more information
- */
-typedef struct {
-    uint32_t byteSize;
-    uint16_t type;
-    bool isTensor;
-} ANeuralNetworksShimExtensionOperandTypeInformation;
-
-/**
  * Supplementary information required to expose NNAPI HAL Service on top of
  * a NNAPI SL Driver.
  */
@@ -144,83 +116,6 @@ int ANeuralNetworksShimDeviceInfo_create(
  */
 void ANeuralNetworksShimDeviceInfo_free(ANeuralNetworksShimDeviceInfo* _Nonnull deviceInfo)
         __INTRODUCED_IN(31);
-
-/**
- * Set NNAPI Device compilation caching Information.
- * See NNAPI HAL IDevice::getNumberOfCacheFilesNeeded for more information.
- *
- * Available since API level 31.
- *
- * @param deviceInfo The NNAPI shim device info to be modified.
- * @param numDataCacheFiles Value returned in NNAPI HAL IDevice::getNumberOfCacheFilesNeeded for
- *                          data files.
- * @param numModelCacheFiles Value returned in NNAPI HAL IDevice::getNumberOfCacheFilesNeeded for
- *                           model files.
- * @return {@link ANeuralNetworksShimResultCode} enum values.
- *         Returns ANNSHIM_NO_ERROR if successful.
- *         Returns ANNSHIM_INVALID_ARGUMENT if any num param set to more than NNAPI HAL
- *         IDevice::MAX_NUMBER_OF_CACHE_FILES (32).
- */
-int ANeuralNetworksShimDeviceInfo_setNumberOfCacheFilesNeeded(
-        ANeuralNetworksShimDeviceInfo* _Nonnull deviceInfo, uint32_t numDataCacheFiles,
-        uint32_t numModelCacheFiles) __INTRODUCED_IN(31);
-
-/**
- * Set NNAPI Device performance/power capabilities.
- * See NNAPI HAL IDevice::getCapabilities for more information
- *
- * Available since API level 31.
- *
- * @param deviceInfo The NNAPI shim device info to be modified.
- * @param ifPerformanced Value returned in NNAPI HAL IDevice::getCapabilities()->ifPerformance.
- * @param whilePerformanced Value returned in NNAPI HAL
- *                          IDevice::getCapabilities()c->whilePerformance.
- * @param relaxedFloat32toFloat16PerformanceScalar
- *        Value returned in NNAPI HAL IDevice::getCapabilities()
- *        relaxedFloat32toFloat16PerformanceScalar.
- * @param relaxedFloat32toFloat16PerformanceTensor
- *        Value returned in NNAPI HAL IDevice::getCapabilities()
- *        relaxedFloat32toFloat16PerformanceTensor.
- * @param operandPerformanceCount Number of entries in operandPerformance param
- * @param operandPerformance Sorted array (by ascending operandType in
- *                           ANeuralNetworksShimOperandPerformanceInfo) with values to be
- *                           returned in NNAPI HAL IDevice::getCapabilities()
- *                           operandPerformance. It's illegal to use operandType with
- *                           ANEURALNETWORKS_MODEL value.
- * @return {@link ANeuralNetworksShimResultCode} enum values.
- *         Returns ANNSHIM_NO_ERROR if successful.
- *         Returns ANNSHIM_INVALID_ARGUMENT if operandPerformance is ill-ordered or with illegal
- *         operandType values.
- */
-int ANeuralNetworksShimDeviceInfo_setCapabilities(
-        ANeuralNetworksShimDeviceInfo* _Nonnull deviceInfo,
-        ANeuralNetworksShimPerformanceInfo ifPerformance,
-        ANeuralNetworksShimPerformanceInfo whilePerformance,
-        ANeuralNetworksShimPerformanceInfo relaxedFloat32toFloat16PerformanceScalar,
-        ANeuralNetworksShimPerformanceInfo relaxedFloat32toFloat16PerformanceTensor,
-        uint32_t operandPerformanceCount,
-        const ANeuralNetworksShimOperandPerformanceInfo operandPerformance[_Nonnull])
-        __INTRODUCED_IN(31);
-
-/**
- * Add NNAPI Device vendor extension to be exposed by the shim.
- * See NNAPI HAL IDevice::getSupportedExtensions for more information
- *
- * Available since API level 31.
- *
- * @param deviceInfo The NNAPI shim device info to be modified.
- * @param extensionName Value set in NNAPI HAL Extension .name field.
- * @param extensionOperandTypeInformationCount Number of entries in extensionOperandTypeInformation
- *                                             array.
- * @param extensionOperandTypeInformation Value set in NNAPI HAL Extension .operandTypes field.
- * @return {@link ANeuralNetworksShimResultCode} enum values.
- *         Returns ANNSHIM_NO_ERROR if successful.
- */
-int ANeuralNetworksShimDeviceInfo_addVendorExtension(
-        ANeuralNetworksShimDeviceInfo* _Nonnull deviceInfo, const char* _Nonnull extensionName,
-        uint32_t extensionOperandTypeInformationCount,
-        const ANeuralNetworksShimExtensionOperandTypeInformation
-                extensionOperandTypeInformation[_Nonnull]) __INTRODUCED_IN(31);
 
 /**
  * Allocate ANeuralNetworksShimRegistrationParams struct.

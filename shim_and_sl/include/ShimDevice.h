@@ -36,38 +36,6 @@
 namespace aidl::android::hardware::neuralnetworks {
 
 /**
- * Information about an NNAPI Device capabilities.
- * See NNAPI HAL IDevice::getCapabilities for more information.
- */
-struct ShimDeviceCapabilities {
-    std::vector<ANeuralNetworksShimOperandPerformanceInfo> operandPerformance;
-    ANeuralNetworksShimPerformanceInfo ifPerformance{0.0f, 0.0f};
-    ANeuralNetworksShimPerformanceInfo whilePerformance{0.0f, 0.0f};
-    ANeuralNetworksShimPerformanceInfo relaxedFloat32toFloat16PerformanceScalar{0.0f, 0.0f};
-    ANeuralNetworksShimPerformanceInfo relaxedFloat32toFloat16PerformanceTensor{0.0f, 0.0f};
-};
-
-/**
- * Information about an NNAPI Device Vendor extension.
- * See NNAPI HAL IDevice::getSupportedExtensions for more information.
- */
-struct ShimDeviceVendorExtension {
-    std::string extensionName;
-    std::vector<ANeuralNetworksShimExtensionOperandTypeInformation> operandTypeInformation;
-};
-
-/**
- * Supplementary information needed for NNAPI service implementation.
- * See NNAPI HAL IDevice::getNumberOfCacheFilesNeeded for more information.
- */
-struct ShimDeviceAdditionalData {
-    uint32_t numDataCacheFiles = 0;
-    uint32_t numModelCacheFiles = 0;
-
-    std::vector<ShimDeviceVendorExtension> vendorExtensions;
-};
-
-/**
  * Information about an NNAPI Device to register.
  */
 struct ShimDeviceInfo {
@@ -80,20 +48,12 @@ struct ShimDeviceInfo {
      * Name of HAL AIDL service backed by this SL NNAPI Driver device.
      */
     std::string serviceName;
-
-    /**
-     * Capabilities information, to be returned from NNAPI HAL.
-     * See NNAPI HAL IDevice::getCapabilities for more information.
-     */
-    ShimDeviceCapabilities capabilities;
-
-    ShimDeviceAdditionalData additionalData;
 };
 
 class ShimDevice : public BnDevice {
    public:
     ShimDevice(std::shared_ptr<const NnApiSupportLibrary>, ANeuralNetworksDevice*,
-               const ShimDeviceInfo& deviceInfo);
+               std::string serviceName);
     ::ndk::ScopedAStatus allocate(const BufferDesc& desc,
                                   const std::vector<IPreparedModelParcel>& preparedModels,
                                   const std::vector<BufferRole>& inputRoles,
@@ -124,8 +84,9 @@ class ShimDevice : public BnDevice {
     std::shared_ptr<ShimBufferTracker> mBufferTracker;
     std::string mServiceName;
     ANeuralNetworksDevice* mDevice;
-    ShimDeviceAdditionalData mDeviceAdditionalData;
     Capabilities mCapabilities;
+    NumberOfCacheFiles mNumberOfCacheFiles;
+    std::vector<Extension> mExtensions;
 };
 
 }  // namespace aidl::android::hardware::neuralnetworks

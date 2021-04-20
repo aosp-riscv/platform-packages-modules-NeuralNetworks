@@ -2230,6 +2230,41 @@ int ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput(
 int ANeuralNetworksExecution_setReusable(ANeuralNetworksExecution* execution, bool reusable)
         __NNAPI_INTRODUCED_IN(31);
 
+#ifdef NN_COMPATIBILITY_LIBRARY_BUILD
+/**
+ * Sets the compilation caching signature and file descriptors.
+ *
+ * Provides optional caching information to the support library driver for
+ * faster repeated compilation.
+ *
+ * See {@link ANeuralNetworksCompilation} for information on multithreaded usage.
+ *
+ * @param compilation The compilation to be modified.
+ * @param modelCacheFds An array of file descriptors for the security-sensitive cache.
+ *                      The file descriptors will be duplicated.
+ * @param numModelCacheFiles The number of the model cache files.
+ * @param dataCacheFds An array of file descriptors for the constants' cache.
+ *                     The file descriptors will be duplicated.
+ * @param numDataCacheFiles The number of the data cache files.
+ * @param token The token provided by the user to specify a model must be of length
+ *              ANEURALNETWORKS_BYTE_SIZE_OF_CACHE_TOKEN. The user should ensure that
+ *              the token is unique to a model within the application. The NNAPI
+ *              runtime cannot detect token collisions; a collision will result in a
+ *              failed execution or in a successful execution that produces incorrect
+ *              output values.
+ *
+ * @return ANEURALNETWORKS_NO_ERROR if successful.
+ *
+ * Available in the compabibility library build only.
+ */
+int ANeuralNetworksCompilation_setCachingFromFds(ANeuralNetworksCompilation* compilation,
+                                                 const int* modelCacheFds,
+                                                 const uint32_t numModelCacheFiles,
+                                                 const int* dataCacheFds,
+                                                 const uint32_t numDataCacheFiles,
+                                                 const uint8_t* token);
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
+
 __END_DECLS
 
 #endif  // ANDROID_FRAMEWORKS_ML_NN_RUNTIME_NEURAL_NETWORKS_H

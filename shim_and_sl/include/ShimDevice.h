@@ -108,13 +108,13 @@ class ShimDevice : public BnDevice {
     ::ndk::ScopedAStatus getType(DeviceType* deviceType) override;
     ::ndk::ScopedAStatus getVersionString(std::string* versionString) override;
     ::ndk::ScopedAStatus prepareModel(
-            const Model& model, ExecutionPreference preference, Priority priority, int64_t deadline,
-            const std::vector<::ndk::ScopedFileDescriptor>& modelCache,
+            const Model& model, ExecutionPreference preference, Priority priority,
+            int64_t deadlineNs, const std::vector<::ndk::ScopedFileDescriptor>& modelCache,
             const std::vector<::ndk::ScopedFileDescriptor>& dataCache,
             const std::vector<uint8_t>& token,
             const std::shared_ptr<IPreparedModelCallback>& callback) override;
     ::ndk::ScopedAStatus prepareModelFromCache(
-            int64_t deadline, const std::vector<::ndk::ScopedFileDescriptor>& modelCache,
+            int64_t deadlineNs, const std::vector<::ndk::ScopedFileDescriptor>& modelCache,
             const std::vector<::ndk::ScopedFileDescriptor>& dataCache,
             const std::vector<uint8_t>& token,
             const std::shared_ptr<IPreparedModelCallback>& callback) override;

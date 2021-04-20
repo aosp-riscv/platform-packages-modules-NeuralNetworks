@@ -15,17 +15,6 @@
  */
 
 #include "ShimPreparedModel.h"
-#include "ShimConverter.h"
-#include "ShimUtils.h"
-
-#include <android-base/scopeguard.h>
-#include <algorithm>
-#include <chrono>
-#include <limits>
-#include <memory>
-#include <thread>
-#include <utility>
-#include <vector>
 
 #include <aidl/android/hardware/neuralnetworks/BnBurst.h>
 #include <aidl/android/hardware/neuralnetworks/BnFencedExecutionCallback.h>
@@ -34,15 +23,26 @@
 #include <aidl/android/hardware/neuralnetworks/RequestMemoryPool.h>
 #include <android-base/chrono_utils.h>
 #include <android-base/logging.h>
+#include <android-base/scopeguard.h>
 #include <android/binder_auto_utils.h>
+#include <nnapi/TypeUtils.h>
 #include <nnapi/hal/aidl/Conversions.h>
 
-#include <nnapi/TypeUtils.h>
+#include <algorithm>
+#include <chrono>
+#include <limits>
+#include <memory>
+#include <thread>
+#include <utility>
+#include <vector>
+
+#include "ShimConverter.h"
+#include "ShimUtils.h"
 
 namespace aidl::android::hardware::neuralnetworks {
 
 ErrorStatus ShimPreparedModel::parseInputs(
-        const Request& request, bool measure, int64_t deadline, int64_t loopTimeoutDuration,
+        const Request& request, bool measure, int64_t deadlineNs, int64_t loopTimeoutDurationNs,
         ::android::nn::sl_wrapper::Execution* execution,
         std::vector<std::shared_ptr<::android::nn::sl_wrapper::Memory>>* requestMemoryPools) {
     for (const auto& requestPool : request.pools) {
@@ -124,9 +124,9 @@ ErrorStatus ShimPreparedModel::parseInputs(
         execution->setMeasureTiming(true);
     }
 
-    if (deadline > -1) {
+    if (deadlineNs > -1) {
         std::chrono::time_point<::android::base::boot_clock> deadlinePoint(
-                std::chrono::nanoseconds{deadline});
+                std::chrono::nanoseconds{deadlineNs});
         const auto currentTime = ::android::base::boot_clock::now();
         const auto timeoutDuration = std::chrono::nanoseconds(deadlinePoint - currentTime);
         if (timeoutDuration <= std::chrono::nanoseconds::zero()) {
@@ -139,8 +139,8 @@ ErrorStatus ShimPreparedModel::parseInputs(
         }
     }
 
-    if (loopTimeoutDuration > 0) {
-        execution->setLoopTimeout(loopTimeoutDuration);
+    if (loopTimeoutDurationNs > 0) {
+        execution->setLoopTimeout(loopTimeoutDurationNs);
     }
     return ErrorStatus::NONE;
 }
@@ -168,36 +168,36 @@ class ShimFencedExecutionCallback : public BnFencedExecutionCallback {
             constexpr uint64_t uint64cap = std::numeric_limits<uint64_t>::max();
             auto result = mExecution.getDuration(Duration::ON_HARDWARE, &duration);
             SLW2SAS_RETURN_IF_ERROR(result);
-            timingLaunched->timeOnDevice =
+            timingLaunched->timeOnDeviceNs =
                     (duration == uint64cap)
                             ? -1
                             : (duration > int64cap) ? int64cap : static_cast<int64_t>(duration);
 
             result = mExecution.getDuration(Duration::IN_DRIVER, &duration);
             SLW2SAS_RETURN_IF_ERROR(result);
-            timingLaunched->timeInDriver =
+            timingLaunched->timeInDriverNs =
                     (duration == uint64cap)
                             ? -1
                             : (duration > int64cap) ? int64cap : static_cast<int64_t>(duration);
 
             result = mExecution.getDuration(Duration::FENCED_ON_HARDWARE, &duration);
             SLW2SAS_RETURN_IF_ERROR(result);
-            timingFenced->timeOnDevice =
+            timingFenced->timeOnDeviceNs =
                     (duration == uint64cap)
                             ? -1
                             : (duration > int64cap) ? int64cap : static_cast<int64_t>(duration);
 
             result = mExecution.getDuration(Duration::FENCED_IN_DRIVER, &duration);
             SLW2SAS_RETURN_IF_ERROR(result);
-            timingFenced->timeInDriver =
+            timingFenced->timeInDriverNs =
                     (duration == uint64cap)
                             ? -1
                             : (duration > int64cap) ? int64cap : static_cast<int64_t>(duration);
         } else {
-            timingFenced->timeOnDevice = -1;
-            timingFenced->timeInDriver = -1;
-            timingLaunched->timeOnDevice = -1;
-            timingLaunched->timeInDriver = -1;
+            timingFenced->timeOnDeviceNs = -1;
+            timingFenced->timeInDriverNs = -1;
+            timingLaunched->timeOnDeviceNs = -1;
+            timingLaunched->timeInDriverNs = -1;
         }
 
         return ndk::ScopedAStatus::ok();
@@ -213,16 +213,16 @@ class ShimFencedExecutionCallback : public BnFencedExecutionCallback {
 ::ndk::ScopedAStatus ShimPreparedModel::executeFenced(
         const ::aidl::android::hardware::neuralnetworks::Request& request,
         const std::vector<::ndk::ScopedFileDescriptor>& waitFor, bool measureTiming,
-        int64_t deadline, int64_t loopTimeoutDuration, int64_t duration,
+        int64_t deadlineNs, int64_t loopTimeoutDurationNs, int64_t durationNs,
         FencedExecutionResult* fencedExecutionResult) {
-    if (deadline < -1) {
+    if (deadlineNs < -1) {
         LOG(ERROR) << "Invalid deadline value, must be >= -1";
         return ndk::ScopedAStatus::fromServiceSpecificError(
                 static_cast<int>(ErrorStatus::INVALID_ARGUMENT));
     }
     auto execution = ::android::nn::sl_wrapper::Execution(mNnapi.get(), &mCompilation);
     std::vector<std::shared_ptr<::android::nn::sl_wrapper::Memory>> requestMemoryPools;
-    auto errorStatus = parseInputs(request, measureTiming, deadline, loopTimeoutDuration,
+    auto errorStatus = parseInputs(request, measureTiming, deadlineNs, loopTimeoutDurationNs,
                                    &execution, &requestMemoryPools);
     if (errorStatus != ErrorStatus::NONE) {
         return toAStatus(errorStatus);
@@ -243,7 +243,7 @@ class ShimFencedExecutionCallback : public BnFencedExecutionCallback {
     SLW2SAS_RETURN_IF_ERROR(createResult);
 
     Event e(mNnapi.get());
-    auto result = execution.startComputeWithDependencies(deps, duration, &e);
+    auto result = execution.startComputeWithDependencies(deps, durationNs, &e);
     SLW2SAS_RETURN_IF_ERROR(result);
 
     int syncFence = -1;
@@ -256,9 +256,10 @@ class ShimFencedExecutionCallback : public BnFencedExecutionCallback {
 }
 
 ::ndk::ScopedAStatus ShimPreparedModel::executeSynchronously(
-        const Request& request, bool measureTiming, int64_t deadline, int64_t loopTimeoutDuration,
+        const Request& request, bool measureTiming, int64_t deadlineNs,
+        int64_t loopTimeoutDurationNs,
         ::aidl::android::hardware::neuralnetworks::ExecutionResult* executionResult) {
-    if (deadline < -1) {
+    if (deadlineNs < -1) {
         LOG(ERROR) << "Invalid deadline value, must be >= -1";
         return ndk::ScopedAStatus::fromServiceSpecificError(
                 static_cast<int>(ErrorStatus::INVALID_ARGUMENT));
@@ -267,7 +268,7 @@ class ShimFencedExecutionCallback : public BnFencedExecutionCallback {
     auto execution =
             std::make_unique<::android::nn::sl_wrapper::Execution>(mNnapi.get(), &mCompilation);
     std::vector<std::shared_ptr<::android::nn::sl_wrapper::Memory>> requestMemoryPools;
-    auto errorStatus = parseInputs(request, measureTiming, deadline, loopTimeoutDuration,
+    auto errorStatus = parseInputs(request, measureTiming, deadlineNs, loopTimeoutDurationNs,
                                    execution.get(), &requestMemoryPools);
     if (errorStatus != ErrorStatus::NONE) {
         return toAStatus(errorStatus);
@@ -299,8 +300,8 @@ class ShimFencedExecutionCallback : public BnFencedExecutionCallback {
         outputShapes.push_back(std::move(outputShape));
     }
 
-    int64_t timeOnDevice = -1;
-    int64_t timeInDriver = -1;
+    int64_t timeOnDeviceNs = -1;
+    int64_t timeInDriverNs = -1;
     if (measureTiming && errorStatus == ErrorStatus::NONE) {
         uint64_t duration;
         constexpr int64_t int64cap = std::numeric_limits<int64_t>::max();
@@ -308,21 +309,23 @@ class ShimFencedExecutionCallback : public BnFencedExecutionCallback {
         constexpr uint64_t uint64cap = std::numeric_limits<uint64_t>::max();
         auto result = execution->getDuration(Duration::ON_HARDWARE, &duration);
         SLW2SAS_RETURN_IF_ERROR(result);
-        timeOnDevice = (duration == uint64cap)
-                               ? -1
-                               : (duration > int64cap) ? int64cap : static_cast<int64_t>(duration);
+        timeOnDeviceNs =
+                (duration == uint64cap)
+                        ? -1
+                        : (duration > int64cap) ? int64cap : static_cast<int64_t>(duration);
 
         result = execution->getDuration(Duration::IN_DRIVER, &duration);
         SLW2SAS_RETURN_IF_ERROR(result);
-        timeInDriver = (duration == uint64cap)
-                               ? -1
-                               : (duration > int64cap) ? int64cap : static_cast<int64_t>(duration);
+        timeInDriverNs =
+                (duration == uint64cap)
+                        ? -1
+                        : (duration > int64cap) ? int64cap : static_cast<int64_t>(duration);
     }
 
     *executionResult =
             ExecutionResult{sufficientSize,
                             std::move(outputShapes),
-                            {.timeOnDevice = timeOnDevice, .timeInDriver = timeInDriver}};
+                            {.timeOnDeviceNs = timeOnDeviceNs, .timeInDriverNs = timeInDriverNs}};
     if (errorStatus == ErrorStatus::NONE || errorStatus == ErrorStatus::OUTPUT_INSUFFICIENT_SIZE) {
         return ndk::ScopedAStatus::ok();
     }
@@ -337,8 +340,8 @@ class ShimBurst : public BnBurst {
 
     ndk::ScopedAStatus executeSynchronously(const Request& request,
                                             const std::vector<int64_t>& memoryIdentifierTokens,
-                                            bool measureTiming, int64_t deadline,
-                                            int64_t loopTimeoutDuration,
+                                            bool measureTiming, int64_t deadlineNs,
+                                            int64_t loopTimeoutDurationNs,
                                             ExecutionResult* executionResult) override;
     ndk::ScopedAStatus releaseMemoryResource(int64_t memoryIdentifierToken) override;
 
@@ -360,7 +363,7 @@ ShimBurst::ShimBurst(std::shared_ptr<ShimPreparedModel> preparedModel)
 
 ndk::ScopedAStatus ShimBurst::executeSynchronously(
         const Request& request, const std::vector<int64_t>& memoryIdentifierTokens,
-        bool measureTiming, int64_t deadline, int64_t loopTimeoutDuration,
+        bool measureTiming, int64_t deadlineNs, int64_t loopTimeoutDurationNs,
         ExecutionResult* executionResult) {
     if (request.pools.size() != memoryIdentifierTokens.size()) {
         return toAStatus(ErrorStatus::INVALID_ARGUMENT,
@@ -379,8 +382,8 @@ ndk::ScopedAStatus ShimBurst::executeSynchronously(
     }
     const auto guard = ::android::base::make_scope_guard([this] { mExecutionInFlight.clear(); });
 
-    return kPreparedModel->executeSynchronously(request, measureTiming, deadline,
-                                                loopTimeoutDuration, executionResult);
+    return kPreparedModel->executeSynchronously(request, measureTiming, deadlineNs,
+                                                loopTimeoutDurationNs, executionResult);
 }
 
 ndk::ScopedAStatus ShimBurst::releaseMemoryResource(int64_t memoryIdentifierToken) {

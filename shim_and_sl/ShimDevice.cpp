@@ -469,7 +469,7 @@ ndk::ScopedAStatus ShimDevice::getVersionString(std::string* versionString) {
 }
 
 ndk::ScopedAStatus ShimDevice::prepareModel(
-        const Model& model, ExecutionPreference preference, Priority priority, int64_t deadline,
+        const Model& model, ExecutionPreference preference, Priority priority, int64_t deadlineNs,
         const std::vector<::ndk::ScopedFileDescriptor>& modelCache,
         const std::vector<::ndk::ScopedFileDescriptor>& dataCache,
         const std::vector<uint8_t>& token,
@@ -524,7 +524,7 @@ ndk::ScopedAStatus ShimDevice::prepareModel(
     callback->notify(ErrorStatus::NONE, preparedModel);
 
     // TODO(170375075): support caching and deadline
-    (void)deadline;
+    (void)deadlineNs;
     (void)modelCache;
     (void)dataCache;
     (void)token;
@@ -532,13 +532,13 @@ ndk::ScopedAStatus ShimDevice::prepareModel(
 }
 
 ndk::ScopedAStatus ShimDevice::prepareModelFromCache(
-        int64_t deadline, const std::vector<::ndk::ScopedFileDescriptor>& modelCache,
+        int64_t deadlineNs, const std::vector<::ndk::ScopedFileDescriptor>& modelCache,
         const std::vector<::ndk::ScopedFileDescriptor>& dataCache,
         const std::vector<uint8_t>& token,
         const std::shared_ptr<IPreparedModelCallback>& callback) {
     const auto ret = callback->notify(ErrorStatus::GENERAL_FAILURE, nullptr);
 
-    (void)deadline;
+    (void)deadlineNs;
     (void)modelCache;
     (void)dataCache;
     (void)token;

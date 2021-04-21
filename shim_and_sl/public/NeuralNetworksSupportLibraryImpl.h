@@ -723,9 +723,19 @@ struct NnApiSLDriverImplFL5 {
     int64_t (*ANeuralNetworks_getRuntimeFeatureLevel)();
 
     /**
-     * 72nd pointer required to align to 8 bytes on 32bit archs.
+     * SL Driver implementation of a function similar to
+     * {@link ANeuralNetworksCompilation_setCaching} that takes file descriptors
+     * instead of a cache directory.
+     * Behavior and outputs match NNAPI Runtime function
+     * {@link ANeuralNetworksCompilation_setCaching},
+     * at the feature level of this NnApiSLDriver struct.
      */
-    void (*reserved_placeholder1)();
+    int (*ANeuralNetworksCompilation_setCachingFromFds)(ANeuralNetworksCompilation* compilation,
+                                                        const int* modelCacheFds,
+                                                        const uint32_t numModelCacheFiles,
+                                                        const int* dataCacheFds,
+                                                        const uint32_t numDataCacheFiles,
+                                                        const uint8_t* token);
 };
 
 __END_DECLS

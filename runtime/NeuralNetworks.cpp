@@ -1655,6 +1655,22 @@ int ANeuralNetworksExecution_setReusable(ANeuralNetworksExecution* execution, bo
 
 #ifdef NN_COMPATIBILITY_LIBRARY_BUILD
 
+int ANeuralNetworksCompilation_setCachingFromFds(ANeuralNetworksCompilation* compilation,
+                                                 const int* modelCacheFds,
+                                                 const uint32_t numModelCacheFiles,
+                                                 const int* dataCacheFds,
+                                                 const uint32_t numDataCacheFiles,
+                                                 const uint8_t* token) {
+    NNTRACE_RT(NNTRACE_PHASE_COMPILATION, "ANeuralNetworksCompilation_setCachingFromFds");
+    if (!compilation || (numModelCacheFiles != 0 && !modelCacheFds) ||
+        (numDataCacheFiles != 0 && !dataCacheFds) || !token) {
+        LOG(ERROR) << "ANeuralNetworksCompilation_setCachingFromFds passed a nullptr";
+        return ANEURALNETWORKS_UNEXPECTED_NULL;
+    }
+    LOG(ERROR) << "Unimplemented";
+    return ANEURALNETWORKS_BAD_STATE;
+}
+
 #define NNCL_FUNC(symbol) .symbol = symbol
 
 NnApiSLDriverImplFL5 slDriverImpl{
@@ -1729,6 +1745,7 @@ NnApiSLDriverImplFL5 slDriverImpl{
         NNCL_FUNC(ANeuralNetworks_getDeviceCount),
         NNCL_FUNC(ANeuralNetworks_getMaximumLoopTimeout),
         NNCL_FUNC(ANeuralNetworks_getRuntimeFeatureLevel),
+        NNCL_FUNC(ANeuralNetworksCompilation_setCachingFromFds),
 };
 
 #undef NNCL_FUNC

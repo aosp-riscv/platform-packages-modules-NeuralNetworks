@@ -18,11 +18,6 @@
 
 #include <NeuralNetworksShim.h>
 #include <aidl/android/hardware/neuralnetworks/BnDevice.h>
-#include <aidl/android/hardware/neuralnetworks/Capabilities.h>
-#include <aidl/android/hardware/neuralnetworks/Extension.h>
-#include <aidl/android/hardware/neuralnetworks/ExtensionOperandTypeInformation.h>
-#include <aidl/android/hardware/neuralnetworks/NumberOfCacheFiles.h>
-#include <aidl/android/hardware/neuralnetworks/OperandType.h>
 #include <android-base/logging.h>
 #include <android-base/scopeguard.h>
 #include <android/binder_enums.h>
@@ -44,56 +39,10 @@ typedef struct NnApiSLDriverImpl NnApiSLDriverImpl;
 namespace aidl::android::hardware::neuralnetworks {
 namespace {
 
-constexpr auto kPerf = PerformanceInfo{.execTime = 0.5f, .powerUsage = 0.5f};
-
 struct Names {
     std::string driverName;
     std::string serviceName;
 };
-
-struct Metadata {
-    Capabilities capabilities;
-    NumberOfCacheFiles numberOfCacheFiles;
-    std::vector<Extension> vendorExtensions;
-};
-
-Metadata generateFakeMetadata() {
-    Metadata metadata;
-
-    std::vector<OperandPerformance> operandPerformance;
-    constexpr auto operandTypes = ndk::enum_range<OperandType>{};
-    operandPerformance.reserve(std::distance(operandTypes.begin(), operandTypes.end()));
-    for (auto operandType : operandTypes) {
-        if (operandType != OperandType::SUBGRAPH) {
-            operandPerformance.push_back(OperandPerformance{.type = operandType, .info = kPerf});
-        }
-    }
-    std::sort(operandPerformance.begin(), operandPerformance.end(),
-              [](const OperandPerformance& lhs, const OperandPerformance& rhs) {
-                  return lhs.type < rhs.type;
-              });
-
-    metadata.capabilities = Capabilities{
-            .relaxedFloat32toFloat16PerformanceScalar = kPerf,
-            .relaxedFloat32toFloat16PerformanceTensor = kPerf,
-            .operandPerformance = std::move(operandPerformance),
-            .ifPerformance = kPerf,
-            .whilePerformance = kPerf,
-    };
-
-    metadata.numberOfCacheFiles = NumberOfCacheFiles{.numModelCache = 0, .numDataCache = 0};
-
-    metadata.vendorExtensions = {};
-
-    return metadata;
-}
-
-std::unordered_map<std::string, Metadata> readMetadataTable(const std::string& /*metadataPath*/) {
-    // TODO: load this from a text file that resides alongside the support library.
-    std::unordered_map<std::string, Metadata> metadata;
-    metadata.emplace("nnapi-sample_sl", generateFakeMetadata());
-    return metadata;
-}
 
 void registerInvalidDevices(const std::vector<Names>& names) {
     for (const auto& [_, name] : names) {
@@ -112,8 +61,7 @@ void registerInvalidDevices(const std::vector<Names>& names) {
     ABinderProcess_joinThreadPool();
 }
 
-int registerDevices(const std::string& driverPath, const std::string& metadataPath,
-                    const std::vector<Names>& devices) {
+int registerDevices(const std::string& driverPath, const std::vector<Names>& devices) {
     // Load support library.
     void* libHandle = dlopen(driverPath.c_str(), RTLD_LAZY | RTLD_LOCAL);
     if (libHandle == nullptr) {
@@ -138,17 +86,6 @@ int registerDevices(const std::string& driverPath, const std::string& metadataPa
         LOG(ERROR) << "ANeuralNetworks_getSLDriverImpl returned nullptr: " << driverPath;
         registerInvalidDevices(devices);
         return EXIT_FAILURE;
-    }
-
-    // Populate metadata information.
-    const auto metadataTable = readMetadataTable(metadataPath);
-
-    // Ensure all devices to be registered are included in the metadata table.
-    for (const auto& device : devices) {
-        if (metadataTable.count(device.driverName) == 0) {
-            registerInvalidDevices(devices);
-            return EXIT_FAILURE;
-        }
     }
 
     ANeuralNetworksShimRegistrationParams* params;
@@ -188,12 +125,9 @@ using aidl::android::hardware::neuralnetworks::registerDevices;
 int main() {
     const std::string driverPath = "/vendor/lib64/neuralnetworks_sample_sl_driver_prebuilt.so";
 
-    // TODO: use a real path when loading the configuration is implemented.
-    const std::string metadataPath = "/path/to/support/library/package/config.xml";
-
     const std::vector<Names> devicesToRegister = {
             {.driverName = "nnapi-sample_sl", .serviceName = "nnapi-sample_sl_updatable"},
     };
 
-    return registerDevices(driverPath, metadataPath, devicesToRegister);
+    return registerDevices(driverPath, devicesToRegister);
 }

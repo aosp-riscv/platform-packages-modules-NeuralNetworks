@@ -621,6 +621,27 @@ static_assert(ANEURALNETWORKS_FEATURE_LEVEL_3 == 29, "ANEURALNETWORKS_FEATURE_LE
 static_assert(ANEURALNETWORKS_FEATURE_LEVEL_4 == 30, "ANEURALNETWORKS_FEATURE_LEVEL_4 has changed");
 static_assert(ANEURALNETWORKS_FEATURE_LEVEL_5 == 31, "ANEURALNETWORKS_FEATURE_LEVEL_5 has changed");
 
+#ifdef NN_COMPATIBILITY_LIBRARY_BUILD
+
+static_assert(sizeof(SL_ANeuralNetworksPerformanceInfo) == sizeof(float) * 2,
+              "SL_ANeuralNetworksPerformanceInfo size changed");
+static_assert(sizeof(SL_ANeuralNetworksOperandPerformanceInfo) ==
+                      sizeof(float) * 2 + sizeof(int32_t),
+              "SL_ANeuralNetworksOperandPerformanceInfo size changed");
+static_assert(sizeof(SL_ANeuralNetworksExtensionOperandTypeInformation) == 8,
+              "SL_ANeuralNetworksExtensionOperandTypeInformation size changed");
+
+static_assert(SL_ANEURALNETWORKS_CAPABILITIES_PERFORMANCE_RELAXED_SCALAR == 0,
+              "SL_ANEURALNETWORKS_CAPABILITIES_PERFORMANCE_RELAXED_SCALAR has changed");
+static_assert(SL_ANEURALNETWORKS_CAPABILITIES_PERFORMANCE_RELAXED_TENSOR == 1,
+              "SL_ANEURALNETWORKS_CAPABILITIES_PERFORMANCE_RELAXED_TENSOR has changed");
+static_assert(SL_ANEURALNETWORKS_CAPABILITIES_PERFORMANCE_IF == 2,
+              "SL_ANEURALNETWORKS_CAPABILITIES_PERFORMANCE_IF has changed");
+static_assert(SL_ANEURALNETWORKS_CAPABILITIES_PERFORMANCE_WHILE == 3,
+              "SL_ANEURALNETWORKS_CAPABILITIES_PERFORMANCE_WHILE has changed");
+
+#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
+
 int ANeuralNetworks_getDeviceCount(uint32_t* numDevices) {
     if (numDevices == nullptr) {
         LOG(ERROR) << "ANeuralNetworks_getDeviceCount passed a nullptr";
@@ -1655,19 +1676,134 @@ int ANeuralNetworksExecution_setReusable(ANeuralNetworksExecution* execution, bo
 
 #ifdef NN_COMPATIBILITY_LIBRARY_BUILD
 
-int ANeuralNetworksCompilation_setCachingFromFds(ANeuralNetworksCompilation* compilation,
-                                                 const int* modelCacheFds,
-                                                 const uint32_t numModelCacheFiles,
-                                                 const int* dataCacheFds,
-                                                 const uint32_t numDataCacheFiles,
-                                                 const uint8_t* token) {
-    NNTRACE_RT(NNTRACE_PHASE_COMPILATION, "ANeuralNetworksCompilation_setCachingFromFds");
+int SL_ANeuralNetworksCompilation_setCachingFromFds(ANeuralNetworksCompilation* compilation,
+                                                    const int* modelCacheFds,
+                                                    const uint32_t numModelCacheFiles,
+                                                    const int* dataCacheFds,
+                                                    const uint32_t numDataCacheFiles,
+                                                    const uint8_t* token) {
+    NNTRACE_RT(NNTRACE_PHASE_COMPILATION, "SL_ANeuralNetworksCompilation_setCachingFromFds");
     if (!compilation || (numModelCacheFiles != 0 && !modelCacheFds) ||
         (numDataCacheFiles != 0 && !dataCacheFds) || !token) {
-        LOG(ERROR) << "ANeuralNetworksCompilation_setCachingFromFds passed a nullptr";
+        LOG(ERROR) << "SL_ANeuralNetworksCompilation_setCachingFromFds passed a nullptr";
         return ANEURALNETWORKS_UNEXPECTED_NULL;
     }
     LOG(ERROR) << "Unimplemented";
+    return ANEURALNETWORKS_BAD_STATE;
+}
+
+int SL_ANeuralNetworksDevice_getNumberOfCacheFilesNeeded(const ANeuralNetworksDevice* device,
+                                                         uint32_t* numModelCacheFiles,
+                                                         uint32_t* numDataCacheFiles) {
+    if (numModelCacheFiles) *numModelCacheFiles = 0;
+    if (numDataCacheFiles) *numDataCacheFiles = 0;
+
+    if (device == nullptr || numModelCacheFiles == nullptr || numDataCacheFiles == nullptr) {
+        LOG(ERROR) << "SL_ANeuralNetworksDevice_getNumberOfCacheFilesNeeded passed a nullptr";
+        return ANEURALNETWORKS_UNEXPECTED_NULL;
+    }
+
+    LOG(ERROR) << "SL_ANeuralNetworksDevice_getNumberOfCacheFilesNeeded not yet implemented";
+    return ANEURALNETWORKS_BAD_STATE;
+}
+
+int SL_ANeuralNetworksDevice_getPerformanceInfo(
+        const ANeuralNetworksDevice* device, int32_t performanceInfoKind,
+        SL_ANeuralNetworksPerformanceInfo* performanceInfo) {
+    if (performanceInfo) *performanceInfo = {.execTime = 0.0f, .powerUsage = 0.0f};
+
+    if (device == nullptr || performanceInfo == nullptr) {
+        LOG(ERROR) << "SL_ANeuralNetworksDevice_getPerformanceInfo passed a nullptr";
+        return ANEURALNETWORKS_UNEXPECTED_NULL;
+    }
+
+    switch (performanceInfoKind) {
+        case SL_ANEURALNETWORKS_CAPABILITIES_PERFORMANCE_RELAXED_SCALAR:
+        case SL_ANEURALNETWORKS_CAPABILITIES_PERFORMANCE_RELAXED_TENSOR:
+        case SL_ANEURALNETWORKS_CAPABILITIES_PERFORMANCE_IF:
+        case SL_ANEURALNETWORKS_CAPABILITIES_PERFORMANCE_WHILE: {
+            LOG(ERROR) << "SL_ANeuralNetworksDevice_getPerformanceInfo passed unknown "
+                          "performanceInfoKind "
+                       << performanceInfoKind;
+            return ANEURALNETWORKS_BAD_DATA;
+        }
+    }
+
+    LOG(ERROR) << "SL_ANeuralNetworksDevice_getPerformanceInfo not yet implemented";
+    return ANEURALNETWORKS_BAD_STATE;
+}
+
+int SL_ANeuralNetworksDevice_forEachOperandPerformanceInfo(
+        const ANeuralNetworksDevice* device, void* context,
+        void (*callback)(SL_ANeuralNetworksOperandPerformanceInfo, void*)) {
+    if (device == nullptr || context == nullptr || callback == nullptr) {
+        LOG(ERROR) << "SL_ANeuralNetworksDevice_forEachOperandPerformanceInfo passed a nullptr";
+        return ANEURALNETWORKS_UNEXPECTED_NULL;
+    }
+
+    LOG(ERROR) << "SL_ANeuralNetworksDevice_forEachOperandPerformanceInfo not yet implemented";
+    return ANEURALNETWORKS_BAD_STATE;
+}
+
+int SL_ANeuralNetworksDevice_getVendorExtensionCount(const ANeuralNetworksDevice* device,
+                                                     uint32_t* vendorExtensionCount) {
+    if (vendorExtensionCount) *vendorExtensionCount = 0;
+
+    if (device == nullptr || vendorExtensionCount == nullptr) {
+        LOG(ERROR) << "SL_ANeuralNetworksDevice_getVendorExtensionCount passed a nullptr";
+        return ANEURALNETWORKS_UNEXPECTED_NULL;
+    }
+
+    LOG(ERROR) << "SL_ANeuralNetworksDevice_getVendorExtensionCount not yet implemented";
+    return ANEURALNETWORKS_BAD_STATE;
+}
+
+int SL_ANeuralNetworksDevice_getVendorExtensionName(const ANeuralNetworksDevice* device,
+                                                    uint32_t vendorExtensionIndex,
+                                                    const char** extensionName) {
+    if (extensionName) *extensionName = nullptr;
+
+    if (device == nullptr || extensionName == nullptr) {
+        LOG(ERROR) << "SL_ANeuralNetworksDevice_getVendorExtensionName passed a nullptr";
+        return ANEURALNETWORKS_UNEXPECTED_NULL;
+    }
+
+    const Device* d = reinterpret_cast<const Device*>(device);
+    const auto& extensions = d->getSupportedExtensions();
+
+    if (vendorExtensionIndex >= extensions.size()) {
+        LOG(ERROR)
+                << "SL_ANeuralNetworksDevice_getVendorExtensionName passed a vendorExtensionIndex "
+                   "that is out of range";
+        return ANEURALNETWORKS_BAD_DATA;
+    }
+
+    LOG(ERROR) << "SL_ANeuralNetworksDevice_getVendorExtensionName not yet implemented";
+    return ANEURALNETWORKS_BAD_STATE;
+}
+
+int SL_ANeuralNetworksDevice_forEachVendorExtensionOperandTypeInformation(
+        const ANeuralNetworksDevice* device, uint32_t vendorExtensionIndex, void* context,
+        void (*callback)(SL_ANeuralNetworksExtensionOperandTypeInformation, void*)) {
+    if (device == nullptr || context == nullptr || callback == nullptr) {
+        LOG(ERROR)
+                << "SL_ANeuralNetworksDevice_forEachVendorExtensionOperandTypeInformation passed a "
+                   "nullptr";
+        return ANEURALNETWORKS_UNEXPECTED_NULL;
+    }
+
+    const Device* d = reinterpret_cast<const Device*>(device);
+    const auto& extensions = d->getSupportedExtensions();
+
+    if (vendorExtensionIndex >= extensions.size()) {
+        LOG(ERROR)
+                << "SL_ANeuralNetworksDevice_forEachVendorExtensionOperandTypeInformation passed a "
+                   "vendorExtensionIndex that is out of range";
+        return ANEURALNETWORKS_BAD_DATA;
+    }
+
+    LOG(ERROR) << "SL_ANeuralNetworksDevice_forEachVendorExtensionOperandTypeInformation not yet "
+                  "implemented";
     return ANEURALNETWORKS_BAD_STATE;
 }
 
@@ -1745,7 +1881,13 @@ NnApiSLDriverImplFL5 slDriverImpl{
         NNCL_FUNC(ANeuralNetworks_getDeviceCount),
         NNCL_FUNC(ANeuralNetworks_getMaximumLoopTimeout),
         NNCL_FUNC(ANeuralNetworks_getRuntimeFeatureLevel),
-        NNCL_FUNC(ANeuralNetworksCompilation_setCachingFromFds),
+        NNCL_FUNC(SL_ANeuralNetworksCompilation_setCachingFromFds),
+        NNCL_FUNC(SL_ANeuralNetworksDevice_getNumberOfCacheFilesNeeded),
+        NNCL_FUNC(SL_ANeuralNetworksDevice_getPerformanceInfo),
+        NNCL_FUNC(SL_ANeuralNetworksDevice_forEachOperandPerformanceInfo),
+        NNCL_FUNC(SL_ANeuralNetworksDevice_getVendorExtensionCount),
+        NNCL_FUNC(SL_ANeuralNetworksDevice_getVendorExtensionName),
+        NNCL_FUNC(SL_ANeuralNetworksDevice_forEachVendorExtensionOperandTypeInformation),
 };
 
 #undef NNCL_FUNC

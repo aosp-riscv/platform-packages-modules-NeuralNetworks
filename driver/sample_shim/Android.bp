@@ -55,6 +55,9 @@ cc_defaults {
     header_libs: [
         "libneuralnetworks_headers",
     ],
+    cflags: [
+        "-DNN_COMPATIBILITY_LIBRARY_BUILD",
+    ],
     static_libs: [
         "android.hardware.common-V2-ndk_platform",
         "android.hardware.graphics.common-V2-ndk_platform",
@@ -99,6 +102,9 @@ cc_binary {
     name: "android.hardware.neuralnetworks-shell-service-sample",
     defaults: ["neuralnetworks_defaults"],
     srcs: ["ShellServiceSample.cpp"],
+    cflags: [
+        "-DNN_COMPATIBILITY_LIBRARY_BUILD",
+    ],
     header_libs: [
         "libnativewindow_headers",
         "libneuralnetworks_headers",

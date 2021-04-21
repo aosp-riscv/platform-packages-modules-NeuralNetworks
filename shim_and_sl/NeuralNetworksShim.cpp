@@ -37,7 +37,7 @@ static_assert(offsetof(NnApiSLDriverImpl, implFeatureLevel) == 0,
 static_assert(sizeof(NnApiSLDriverImpl) == sizeof(int64_t), "NnApiSLDriverImpl size changed");
 
 // 71 real ones and 1 synthetic placeholder to algin to 8 bytes on 32 bit archs
-static_assert(sizeof(NnApiSLDriverImplFL5) == sizeof(int64_t) + 72 * sizeof(void*),
+static_assert(sizeof(NnApiSLDriverImplFL5) == sizeof(int64_t) + 78 * sizeof(void*),
               "NnApiSLDriverImplFL5 size changed");
 
 static_assert(ANNSHIM_NO_ERROR == 0, "ANNSHIM_NO_ERROR has changed");
@@ -47,9 +47,9 @@ static_assert(ANNSHIM_FAILED_TO_REGISTER_SERVICE == 2,
 static_assert(ANNSHIM_GENERAL_ERROR == 3, "ANNSHIM_GENERAL_ERROR has changed");
 static_assert(ANNSHIM_INVALID_ARGUMENT == 4, "ANNSHIM_INVALID_ARGUMENT has changed");
 
-using namespace aidl::android::hardware::neuralnetworks;
 using android::neuralnetworks::shim::registerDevices;
 using android::neuralnetworks::shim::RegistrationParams;
+using android::neuralnetworks::shim::ShimDeviceInfo;
 
 int ANeuralNetworksShim_registerSupportLibraryService(
         const ANeuralNetworksShimRegistrationParams* registrationParams) {

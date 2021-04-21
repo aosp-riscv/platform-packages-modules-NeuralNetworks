@@ -35,21 +35,6 @@
 
 namespace aidl::android::hardware::neuralnetworks {
 
-/**
- * Information about an NNAPI Device to register.
- */
-struct ShimDeviceInfo {
-    /**
-     * Name of the target device, as returned by SL ANeuralNetworksDevice_getName
-     */
-    std::string deviceName;
-
-    /**
-     * Name of HAL AIDL service backed by this SL NNAPI Driver device.
-     */
-    std::string serviceName;
-};
-
 class ShimDevice : public BnDevice {
    public:
     ShimDevice(std::shared_ptr<const NnApiSupportLibrary>, ANeuralNetworksDevice*,

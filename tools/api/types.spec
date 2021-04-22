@@ -1,6 +1,6 @@
 %% -*-Fundamental-*-
 
-%define-kinds ndk hal_1.0 hal_1.1 hal_1.2 hal_1.3
+%define-kinds canonical ndk hal_1.0 hal_1.1 hal_1.2 hal_1.3
 
 %kind ndk
 %define ANN ANEURALNETWORKS_
@@ -53,7 +53,7 @@
 %/section
 %/kind
 
-%kind hal*
+%kind canonical hal*
 %define ANN
 %define Ann
 %define FusedActivationFunc FusedActivationFunc
@@ -101,7 +101,7 @@
 %define DeclareOperation_1.3 @@@NOT_DEFINED@@@
 %/kind
 
-%kind hal_1.2 hal_1.3
+%kind canonical hal_1.2 hal_1.3
 %define BeforeNNAPILevel3For Before HAL version 1.2, for
 %define or_1.2 or {@link OperandType::%{1}}
 %/kind
@@ -118,7 +118,52 @@
 %define DeclareOperation_1.3 %{1} = %{2}
 %/kind
 
-%kind ndk hal_1.2 hal_1.3
+%kind canonical
+%define DeclareOperation %{1} = %{2}
+%define DeclareOperation_1.2 %{1} = %{2}
+%define DeclareOperation_1.3 %{1} = %{2}
+%define DeclareEnumValue %{1} = %{2}
+%define OperandLifeTime Operand::LifeTime
+%define :: ::
+%define vec std::vector
+%define string std::string
+%define init_bool  = false
+%define init_float  = 0.0f
+%define init_int  = 0
+%define init_pod {}
+%define Dimensions Dimensions
+%define concat_or_skip_first %{2}
+%/kind
+
+%kind hal*
+%define DeclareEnumValue %{1}
+%define OperandLifeTime OperandLifeTime
+%define :: .
+%define vec vec
+%define string string
+%define init_bool
+%define init_float
+%define init_int
+%define init_pod
+%define Dimensions vec<uint32_t>
+%define concat_or_skip_first %{1}%{2}
+%/kind
+
+%kind ndk
+%define DeclareEnumValue @@@NOT_DEFINED@@@
+%define OperandLifeTime @@@NOT_DEFINED@@@
+%define :: @@@NOT_DEFINED@@@
+%define vec @@@NOT_DEFINED@@@
+%define string @@@NOT_DEFINED@@@
+%define init_bool @@@NOT_DEFINED@@@
+%define init_float @@@NOT_DEFINED@@@
+%define init_int @@@NOT_DEFINED@@@
+%define init_pod @@@NOT_DEFINED@@@
+%define Dimensions @@@NOT_DEFINED@@@
+%define concat_or_skip_first @@@NOT_DEFINED@@@
+%/kind
+
+%kind canonical ndk hal_1.2 hal_1.3
 %section NHWC_NCHW
      * Supported tensor rank: 4, with "NHWC" or "NCHW" data layout.
      * With the default data layout NHWC, the data is stored in the order of:
@@ -137,7 +182,7 @@
 %/section
 %/kind
 
-%kind ndk hal_1.3
+%kind canonical ndk hal_1.3
 %define AndQuant8Signed
 %/kind
 %kind hal_1.0 hal_1.1 hal_1.2
@@ -150,18 +195,31 @@
 %define the_model_or_a_subgraph the model
 %/kind
 
-%kind hal_1.3+
+%kind canonical hal_1.3+
 %define model_or_subgraph subgraph
 %define MODEL_or_SUBGRAPH SUBGRAPH
 %define the_model_or_a_subgraph a subgraph
 %/kind
 
+%% Declaring enums that work across all kinds:
+%%
+%%     %{enum X underlying_hal_type} {
+%%         %{DeclareX ...},
+%%         ...
+%%     }%{ndk_enum_name X};
+%%
+%% Note that %{ndk_enum_name X} can be omitted for non-NDK enums because the
+%% macro definition is empty for all other kinds.
+%kind canonical
+%define enum enum class %{1}
+%define ndk_enum_name
+%define DeclarePriority %{1} = %{2}
+%/kind
 %kind ndk
 %define enum typedef enum
 %define ndk_enum_name  %{1}
-%define DeclarePriority ANEURALNETWORKS_PRIORITY_%{1} = %{2}
+%define DeclarePriority ANEURALNETWORKS_PRIORITY_%{1} = %{3}
 %/kind
-
 %kind hal*
 %define enum enum %{1} : %{2}
 %define ndk_enum_name
@@ -198,6 +256,12 @@
 %% HAL OperandType for 1.0
 %% NDK OperandCode for API 27
 
+%section canonical_empty_line
+%kind canonical
+
+%/kind
+%/section
+
 %section Operand_1.0_Comment
 /**
  * Operand types.
@@ -219,14 +283,19 @@
 %section Operand_1.0
     /** A 32 bit floating point scalar value. */
     %{ANN}FLOAT32 = 0,
+%insert canonical_empty_line
     /** A signed 32 bit integer scalar value. */
     %{ANN}INT32 = 1,
+%insert canonical_empty_line
     /** An unsigned 32 bit integer scalar value. */
     %{ANN}UINT32 = 2,
+%insert canonical_empty_line
     /** A tensor of 32 bit floating point values. */
     %{ANN}TENSOR_FLOAT32 = 3,
+%insert canonical_empty_line
     /** A tensor of 32 bit integer values. */
     %{ANN}TENSOR_INT32 = 4,
+%insert canonical_empty_line
     /**
      * A tensor of 8 bit unsigned integers that represent real numbers.
      *
@@ -279,12 +348,12 @@
      *
 %insert GenericZero
      * Supported tensor {@link %{OperandType}}:
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
 %/kind
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
      * * {@link %{OperandTypeLinkPfx}TENSOR_INT32} (since %{NNAPILevel4})
 %/kind
@@ -295,7 +364,7 @@
      * * 0: A tensor.
      * * 1: A tensor of the same {@link %{OperandType}}, and compatible dimensions
      *      as input0.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
      *      the scales and zeroPoint can be different from input0 scale and zeroPoint.
@@ -306,14 +375,14 @@
      * * 2: An {@link %{OperandTypeLinkPfx}INT32} scalar, and has to be one of the
      *      {@link %{FusedActivationFunc}} values. Specifies the activation to
      *      invoke on the result.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_INT32} tensor,
      *      the {@link %{FusedActivationFunc}} must be "NONE".
 %/kind
      *
      * Outputs:
      * * 0: The sum, a tensor of the same {@link %{OperandType}} as input0.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
      *      the scale and zeroPoint can be different from inputs' scale and zeroPoint.
@@ -339,12 +408,12 @@
      *         ) / sum(1)
      *
      * Supported tensor {@link %{OperandType}}:
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
 %/kind
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -375,7 +444,7 @@
      * * 9: An {@link %{OperandTypeLinkPfx}INT32} scalar, and has to be one of the
      *      {@link %{FusedActivationFunc}} values. Specifies the activation to
      *      invoke on the result.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * 10: An optional {@link %{OperandTypeLinkPfx}BOOL} scalar, default to false.
      *       Set to true to specify NCHW data layout for input0 and output0.
      *       Available since %{NNAPILevel3}.
@@ -399,7 +468,7 @@
      * * 6: An {@link %{OperandTypeLinkPfx}INT32} scalar, and has to be one of the
      *      {@link %{FusedActivationFunc}} values. Specifies the activation to
      *      invoke on the result.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * 7: An optional {@link %{OperandTypeLinkPfx}BOOL} scalar, default to false.
      *      Set to true to specify NCHW data layout for input0 and output0.
      *      Available since %{NNAPILevel3}.
@@ -408,7 +477,7 @@
      * Outputs:
      * * 0: The output 4-D tensor, of shape
      *      [batches, out_height, out_width, depth].
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
      *      the scale and zeroPoint must be the same as input0.
@@ -427,15 +496,15 @@
      * dimensions except the dimension along the concatenation axis.
      *
      * Supported tensor {@link %{OperandType}}:
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
 %/kind
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      *   (full support since %{NNAPILevel3}, see the input section)
 %/kind
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -444,19 +513,19 @@
      * Inputs:
      * * 0 ~ n-1: The list of n input tensors, of shape
      *            [D0, D1, ..., Daxis(i), ..., Dm].
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      *            Before %{NNAPILevel3}, all input tensors of
 %else
      *            All input tensors of
 %/kind
      *            {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
      *            must have the same scale and zeroPoint as the output tensor.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *            Input tensors of
      *            {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED}
      *            are allowed to have different scale and zeroPoint.
 %/kind
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      *            Since %{NNAPILevel3}, zero-sized tensors are supported.
 %/kind
      * * n: An {@link %{OperandTypeLinkPfx}INT32} scalar, specifying the
@@ -465,7 +534,7 @@
      * Outputs:
      * * 0: The output, a tensor of the same {@link %{OperandType}} as the input
      *      tensors. The output shape is [D0, D1, ..., sum(Daxis(i)), ..., Dm].
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      *      Since %{NNAPILevel3}, for a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
      *      the scale and zeroPoint values can be different from
      *      input tensors. Before %{NNAPILevel3} they have to be the same as for the
@@ -474,7 +543,7 @@
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor, the scale and zeroPoint
      *      values must be the same as the input tensors'.
 %/kind
-%kind hal_1.3+
+%kind canonical hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
      *      the scale and zeroPoint values can be different from input tensors.
 %/kind
@@ -509,7 +578,7 @@
      * * * {@link %{OperandTypeLinkPfx}TENSOR_INT32} for bias (with scale set to
      * * * input.scale * filter.scale).
      *
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * Available since %{NNAPILevel3}:
      * * 16 bit floating point:
      * * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} for input, filter, output, and bias.
@@ -547,7 +616,7 @@
      * * 1: A 4-D tensor, of shape
      *      [depth_out, filter_height, filter_width, depth_in], specifying the
      *      filter.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      *      For tensor of type {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_SYMM_PER_CHANNEL}
      *      the channel dimension (%{Ann}SymmPerChannelQuantParams::channelDim)
      *      must be set to 0.
@@ -555,7 +624,7 @@
      * * 2: A 1-D tensor, of shape [depth_out], specifying the bias. For input
      *      tensor of type {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      *      %{or_1.2 TENSOR_FLOAT16} the bias must be of the same type.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For filter tensor of {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
      *      and {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED},
 %else
@@ -563,7 +632,7 @@
 %/kind
      *      the bias should be of {@link %{OperandTypeLinkPfx}TENSOR_INT32}, with zeroPoint
      *      of 0 and bias_scale == input_scale * filter_scale.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      *      For filter tensor of {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_SYMM_PER_CHANNEL},
      *      the bias should be of {@link %{OperandTypeLinkPfx}TENSOR_INT32}, with zeroPoint of 0
      *      and bias_scale of 0. The actual scale of each value 'i' is equal to
@@ -584,7 +653,7 @@
      * * 9: An {@link %{OperandTypeLinkPfx}INT32} scalar, and has to be one of the
      *      {@link %{FusedActivationFunc}} values. Specifies the activation to
      *      invoke on the result.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * 10: An optional {@link %{OperandTypeLinkPfx}BOOL} scalar, default to false.
      *      Set to true to specify NCHW data layout for input0 and output0.
      *      Available since %{NNAPILevel3}.
@@ -607,7 +676,7 @@
      * * 1: A 4-D tensor, of shape
      *      [depth_out, filter_height, filter_width, depth_in], specifying the
      *      filter.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      *      For tensor of type {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_SYMM_PER_CHANNEL}
      *      the channel dimension (%{Ann}SymmPerChannelQuantParams::channelDim)
      *      must be set to 0.
@@ -616,7 +685,7 @@
      *      tensor of type {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      *      %{or_1.2 TENSOR_FLOAT16} the bias must be of the same
      *      type.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For filter tensor of {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
      *      and {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED},
 %else
@@ -624,7 +693,7 @@
 %/kind
      *      the bias should be of {@link %{OperandTypeLinkPfx}TENSOR_INT32}, with zeroPoint
      *      of 0 and bias_scale == input_scale * filter_scale.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      *      For filter tensor of {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_SYMM_PER_CHANNEL},
      *      the bias should be of {@link %{OperandTypeLinkPfx}TENSOR_INT32}, with zeroPoint of 0
      *      and bias_scale of 0. The actual scale of each value 'i' is equal to
@@ -640,7 +709,7 @@
      * * 6: An {@link %{OperandTypeLinkPfx}INT32} scalar, and has to be one of the
      *      {@link %{FusedActivationFunc}} values. Specifies the activation to
      *      invoke on the result.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * 7: An optional {@link %{OperandTypeLinkPfx}BOOL} scalar, default to false.
      *      Set to true to specify NCHW data layout for input0 and output0.
      *      Available since %{NNAPILevel3}.
@@ -697,7 +766,7 @@
      * * * {@link %{OperandTypeLinkPfx}TENSOR_INT32} for bias (with scale set to
      * * * input.scale * filter.scale).
      *
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * Available since %{NNAPILevel3}:
      * * 16 bit floating point:
      * * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} for input, filter, output, and bias.
@@ -709,7 +778,7 @@
      * * * each value scaling is separate and equal to input.scale * filter.scales[channel]).
      *
 %/kind
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * Available since %{NNAPILevel4}:
      * * Quantized signed (since %{NNAPILevel4}):
      * * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} for input, filter, and output.
@@ -733,7 +802,7 @@
      *      specifying the input.
      * * 1: A 4-D tensor, of shape [1, filter_height, filter_width, depth_out],
      *      specifying the filter.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      *      For tensor of type {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_SYMM_PER_CHANNEL}
      *      the channel dimension (%{Ann}SymmPerChannelQuantParams::channelDim)
      *      must be set to 3.
@@ -741,7 +810,7 @@
      * * 2: A 1-D tensor, of shape [depth_out], specifying the bias. For input
      *      tensor of type {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      *      %{or_1.2 TENSOR_FLOAT16} the bias must be of the same type.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For filter tensor of {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
      *      and {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED},
 %else
@@ -749,7 +818,7 @@
 %/kind
      *      the bias should be of {@link %{OperandTypeLinkPfx}TENSOR_INT32}, with zeroPoint
      *      of 0 and bias_scale == input_scale * filter_scale.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      *      For filter tensor of {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_SYMM_PER_CHANNEL},
      *      the bias should be of {@link %{OperandTypeLinkPfx}TENSOR_INT32}, with zeroPoint of 0
      *      and bias_scale of 0. The actual scale of each value 'i' is equal to
@@ -772,7 +841,7 @@
      * * 10: An {@link %{OperandTypeLinkPfx}INT32} scalar, and has to be one of the
      *       {@link %{FusedActivationFunc}} values. Specifies the activation to
      *       invoke on the result.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * 11: An optional {@link %{OperandTypeLinkPfx}BOOL} scalar, default to false.
      *       Set to true to specify NCHW data layout for input0 and output0.
      *       Available since %{NNAPILevel3}.
@@ -796,7 +865,7 @@
      * * 2: A 1-D tensor, of shape [depth_out], specifying the bias. For input
      *      tensor of type {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      *      %{or_1.2 TENSOR_FLOAT16} the bias must be of the same type.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For filter tensor of {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
      *      and {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED},
 %else
@@ -804,7 +873,7 @@
 %/kind
      *      the bias should be of {@link %{OperandTypeLinkPfx}TENSOR_INT32}, with zeroPoint
      *      of 0 and bias_scale == input_scale * filter_scale.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      *      For filter tensor of {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_SYMM_PER_CHANNEL},
      *      the bias should be of {@link %{OperandTypeLinkPfx}TENSOR_INT32}, with zeroPoint of 0
      *      and bias_scale of 0. The actual scale of each value 'i' is equal to
@@ -822,7 +891,7 @@
      * * 7: An {@link %{OperandTypeLinkPfx}INT32} scalar, and has to be one of the
      *      {@link %{FusedActivationFunc}} values. Specifies the activation to
      *      invoke on the result.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * 8: An optional {@link %{OperandTypeLinkPfx}BOOL} scalar, default to false.
      *      Set to true to specify NCHW data layout for input0 and output0.
      *      Available since %{NNAPILevel3}.
@@ -864,12 +933,12 @@
      * be divisible by block_size * block_size
      *
      * Supported tensor {@link %{OperandType}}:
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
 %/kind
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -881,7 +950,7 @@
      * * 1: An {@link %{OperandTypeLinkPfx}INT32} scalar, specifying the block_size.
      *      block_size must be >=1 and block_size * block_size must be a divisor
      *      of the input depth.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * 2: An optional {@link %{OperandTypeLinkPfx}BOOL} scalar, default to false.
      *      Set to true to specify NCHW data layout for input0 and output0.
      *      Available since %{NNAPILevel3}.
@@ -890,7 +959,7 @@
      * Outputs:
      * * 0: The output 4-D tensor, of shape [batch, height*block_size,
      *      width*block_size, depth/(block_size*block_size)].
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
      *      the scale and zeroPoint must be the same as input0.
@@ -911,16 +980,16 @@
      *
      * Supported input tensor {@link %{OperandType}}:
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_SYMM} (since %{NNAPILevel3})
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_SYMM_PER_CHANNEL} (since %{NNAPILevel3})
 %/kind
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
      * Supported output tensor {@link %{OperandType}}:
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
 %/kind
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}.
@@ -929,7 +998,7 @@
      *
      * Inputs:
      * * 0: A tensor.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      *      Since %{NNAPILevel3}, this tensor may be zero-sized.
 %/kind
      *
@@ -960,15 +1029,15 @@
      * and an error must be reported.
      *
      * Supported value tensor {@link %{OperandType}}:
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel4})
 %/kind
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_INT32} (since %{NNAPILevel3})
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} (since %{NNAPILevel3})
 %/kind
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -984,7 +1053,7 @@
      * * 0: A n-D tensor with the same rank and shape as the Values
      *      tensor, except for the first dimension which has the same size
      *      as Lookups' only dimension.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
 %else
@@ -999,7 +1068,7 @@
      * Computes element-wise floor() on the input tensor.
      *
      * Supported tensor {@link %{OperandType}}:
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
 %/kind
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
@@ -1025,12 +1094,12 @@
      *     outputs = activation(inputs * weights’ + bias)
      *
      * Supported tensor {@link %{OperandType}}:
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
 %/kind
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -1044,7 +1113,7 @@
      *      number of inputs to the layer, matching the second dimension of
      *      weights, and "batch_size" is calculated by dividing the number of
      *      elements by "input_size".
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      *      Since %{NNAPILevel3}, zero batch_size is supported for this tensor.
 %/kind
      * * 1: A 2-D tensor, specifying the weights, of shape
@@ -1053,7 +1122,7 @@
      * * 2: A 1-D tensor, of shape [num_units], specifying the bias. For input
      *      tensor of {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}, the bias should
      *      also be of {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For input tensor of {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
      *      and {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED},
 %else
@@ -1140,23 +1209,23 @@
      *         input[batch, row, col, channel] /
      *         sqrt(sum_{c} pow(input[batch, row, col, c], 2))
      *
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * By default the axis dimension is the last dimension of the input tensor.
      *
 %/kind
      * Supported tensor {@link %{OperandType}}:
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
 %/kind
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} (since %{NNAPILevel3})
 %/kind
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * Supported tensor rank: up to 4
      * Tensors with rank less than 4 are only supported since %{NNAPILevel3}.
 %else
@@ -1165,12 +1234,12 @@
 %/kind
      *
      * Inputs:
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * 0: An n-D tensor, specifying the tensor to be normalized.
 %else
      * * 0: A 4-D tensor, specifying the tensor to be normalized.
 %/kind
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * 1: An optional {@link %{OperandTypeLinkPfx}INT32} scalar, default to -1,
      *      specifying the dimension normalization would be performed on.
      *      Negative index is used to specify axis from the end (e.g. -1 for
@@ -1180,11 +1249,11 @@
      *
      * Outputs:
      * * 0: A tensor of the same {@link %{OperandType}} and same shape as input0.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      *      For {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM},
      *      the scale must be 1.f / 128 and the zeroPoint must be 128.
 %/kind
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED},
      *      the scale must be 1.f / 128 and the zeroPoint must be 0.
      *
@@ -1209,7 +1278,7 @@
      *              sum(1))
      *
      * Supported tensor {@link %{OperandType}}:
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
 %/kind
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
@@ -1241,7 +1310,7 @@
      * * 9: An {@link %{OperandTypeLinkPfx}INT32} scalar, and has to be one of the
      *      {@link %{FusedActivationFunc}} values. Specifies the activation to
      *      invoke on the result.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * 10: An optional {@link %{OperandTypeLinkPfx}BOOL} scalar, default to false.
      *       Set to true to specify NCHW data layout for input0 and output0.
      *       Available since %{NNAPILevel3}.
@@ -1265,7 +1334,7 @@
      * * 6: An {@link %{OperandTypeLinkPfx}INT32} scalar, and has to be one of the
      *      {@link %{FusedActivationFunc}} values. Specifies the activation to
      *      invoke on the result.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * 7: An optional {@link %{OperandTypeLinkPfx}BOOL} scalar, default to false.
      *      Set to true to specify NCHW data layout for input0 and output0.
      *      Available since %{NNAPILevel3}.
@@ -1292,18 +1361,18 @@
      *         pow(input[a, b, c, d - depth_radius : d + depth_radius + 1], 2))
      *     output = input / pow((bias + alpha * sqr_sum), beta)
      *
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * For input tensor with rank less than 4, independently normalizes each
      * 1-D slice along specified dimension.
      *
 %/kind
      * Supported tensor {@link %{OperandType}}:
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
 %/kind
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      *
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * Supported tensor rank: up to 4
      * Tensors with rank less than 4 are only supported since %{NNAPILevel3}.
 %else
@@ -1316,27 +1385,27 @@
      * * 1: An {@link %{OperandTypeLinkPfx}INT32} scalar, specifying the radius of
      *      the normalization window.
      * * 2: A scalar, specifying the bias, must not be zero.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      *      For input tensor of {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16}, the bias
      *      value must be of {@link %{OperandTypeLinkPfx}FLOAT16}.
 %/kind
      *      For input tensor of {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}, the bias
      *      value must be of {@link %{OperandTypeLinkPfx}FLOAT32}.
      * * 3: A scalar, specifying the scale factor, alpha.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      *      For input tensor of {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16}, the
      *      alpha value must be of {@link %{OperandTypeLinkPfx}FLOAT16}.
 %/kind
      *      For input tensor of {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}, the
      *      alpha value must be of {@link %{OperandTypeLinkPfx}FLOAT32}.
      * * 4: A scalar, specifying the exponent, beta.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      *      For input tensor of {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16}, the beta
      *      value must be of {@link %{OperandTypeLinkPfx}FLOAT16}.
 %/kind
      *      For input tensor of {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}, the beta
      *      value must be of {@link %{OperandTypeLinkPfx}FLOAT32}.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * 5: An optional {@link %{OperandTypeLinkPfx}INT32} scalar, default to -1,
      *      specifying the dimension normalization would be performed on.
      *      Negative index is used to specify axis from the end (e.g. -1 for
@@ -1358,12 +1427,12 @@
      *     output = 1 / (1 + exp(-input))
      *
      * Supported tensor {@link %{OperandType}}:
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
 %/kind
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -1371,7 +1440,7 @@
      *
      * Inputs:
      * * 0: A tensor, specifying the input.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      *      Since %{NNAPILevel3}, this tensor may be zero-sized.
 %/kind
      *
@@ -1379,7 +1448,7 @@
      * * 0: The output tensor of same shape as input0.
      *      For {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM},
      *      the scale must be 1.f / 256 and the zeroPoint must be 0.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED},
      *      the scale must be 1.f / 256 and the zeroPoint must be -128.
 %/kind
@@ -1391,7 +1460,7 @@
      * Projects an input to a bit vector via locality senstive hashing.
      *
      * Supported input tensor {@link %{OperandType}}:
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
 %/kind
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
@@ -1415,7 +1484,7 @@
      *      Tensor[1].Dim[0] == Tensor[2].Dim[0]
      * * 3: Type:
      *        Sparse:
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      *          Value LSHProjectionType_SPARSE(=3) (since %{NNAPILevel3}).
 %else
      *          Value LSHProjectionType_SPARSE(=1).
@@ -1424,7 +1493,7 @@
      *          Each output element is an int32 made up of multiple bits
      *          computed from hash functions.
      *
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      *          NOTE: To avoid collisions across hash functions, an offset value
      *          of k * (1 << Tensor[0].Dim[1]) will be added to each signature,
      *          where k is the index of the hash function.
@@ -1448,7 +1517,7 @@
      *      Output.Dim == { Tensor[0].Dim[0] * Tensor[0].Dim[1] }
      *      A flattened tensor that represents projected bit vectors.
 %insert AVAIL1
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * The offset value for sparse projections was added in %{NNAPILevel3}.
 %/kind
      */
@@ -1506,7 +1575,7 @@
      *   matrix, each element of which is the product of the corresponding
      *   elements of the input matrices.
      *
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * Since %{NNAPILevel3} LSTM supports layer normalization.
      * In case layer normalization is used, the inputs to internal activation
      * functions (sigmoid and \f$g\f$) are normalized, rescaled and recentered
@@ -1535,7 +1604,7 @@
      * * The projection bias (\f$b_{proj}\f$) may (but not required to) have a
      *   value if the recurrent projection layer exists, and should otherwise
      *   have no value.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * (%{NNAPILevel3} or later) The four layer normalization weights either all have
      *   values or none of them have values. Additionally, if CIFG is used,
      *   input layer normalization weights tensor is omitted and the other layer
@@ -1563,14 +1632,14 @@
      * http://arxiv.org/pdf/1503.04069.pdf
      * Greff et al. "LSTM: A Search Space Odyssey"
      *
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * The layer normalization is based on:
      * https://arxiv.org/pdf/1607.06450.pdf
      * Jimmy Ba et al. "Layer Normalization"
      *
 %/kind
      * Supported tensor {@link %{OperandType}}:
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
 %/kind
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
@@ -1635,7 +1704,7 @@
      * * 21:The clipping threshold (\f$t_{cell}\f$) for the cell state, such
      *      that values are bound within [-cell_clip, cell_clip]. If set to 0.0
      *      then clipping is disabled.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      *      Until %{NNAPILevel3} this scalar must be of type {@link
      *      %{OperandTypeLinkPfx}FLOAT32}. Since %{NNAPILevel3}, if all the input
      *      tensors have type {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}, this
@@ -1647,7 +1716,7 @@
      * * 22:The clipping threshold (\f$t_{proj}\f$) for the output from the
      *      projection layer, such that values are bound within
      *      [-proj_clip, proj_clip]. If set to 0.0 then clipping is disabled.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      *      Until %{NNAPILevel3} this scalar must be of type {@link
      *      %{OperandTypeLinkPfx}FLOAT32}. Since %{NNAPILevel3}, if all the input
      *      tensors have type {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}, this
@@ -1699,12 +1768,12 @@
      *         )
      *
      * Supported tensor {@link %{OperandType}}:
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
 %/kind
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -1735,7 +1804,7 @@
      * * 9: An {@link %{OperandTypeLinkPfx}INT32} scalar, and has to be one of the
      *      {@link %{FusedActivationFunc}} values. Specifies the activation to
      *      invoke on the result.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * 10: An optional {@link %{OperandTypeLinkPfx}BOOL} scalar, default to false.
      *       Set to true to specify NCHW data layout for input0 and output0.
      *       Available since %{NNAPILevel3}.
@@ -1759,7 +1828,7 @@
      * * 6: An {@link %{OperandTypeLinkPfx}INT32} scalar, and has to be one of the
      *      {@link %{FusedActivationFunc}} values. Specifies the activation to
      *      invoke on the result.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * 7: An optional {@link %{OperandTypeLinkPfx}BOOL} scalar, default to false.
      *      Set to true to specify NCHW data layout for input0 and output0.
      *      Available since %{NNAPILevel3}.
@@ -1768,7 +1837,7 @@
      * Outputs:
      * * 0: The output 4-D tensor, of shape
      *      [batches, out_height, out_width, depth].
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
      *      the scale and zeroPoint must be the same as input0.
@@ -1797,12 +1866,12 @@
      *
 %insert GenericZero
      * Supported tensor {@link %{OperandType}}:
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
 %/kind
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
      * * {@link %{OperandTypeLinkPfx}TENSOR_INT32} (since %{NNAPILevel4})
 %/kind
@@ -1816,14 +1885,14 @@
      * * 2: An {@link %{OperandTypeLinkPfx}INT32} scalar, and has to be one of the
      *      {@link %{FusedActivationFunc}} values. Specifies the activation to
      *      invoke on the result.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_INT32} tensor,
      *      the {@link %{FusedActivationFunc}} must be "NONE".
 %/kind
      *
      * Outputs:
      * * 0: The product, a tensor of the same {@link %{OperandType}} as input0.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For output tensor of {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
      *      and {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED},
      *      the following condition must be satisfied:
@@ -1845,12 +1914,12 @@
      *     output = max(0, input)
      *
      * Supported tensor {@link %{OperandType}}:
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
 %/kind
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -1858,13 +1927,13 @@
      *
      * Inputs:
      * * 0: A tensor, specifying the input.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      *      Since %{NNAPILevel3}, this tensor may be zero-sized.
 %/kind
      *
      * Outputs:
      * * 0: The output tensor of same shape as input0.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
      *      the scale and zeroPoint must be the same as input0.
@@ -1884,12 +1953,12 @@
      *     output = min(1.f, max(-1.f, input))
      *
      * Supported tensor {@link %{OperandType}}:
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
 %/kind
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -1897,13 +1966,13 @@
      *
      * Inputs:
      * * 0: A tensor, specifying the input.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      *      Since %{NNAPILevel3}, this tensor may be zero-sized.
 %/kind
      *
      * Outputs:
      * * 0: The output tensor of the same shape as input0.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
      *      the scale and zeroPoint must be the same as input0.
@@ -1923,12 +1992,12 @@
      *     output = min(6, max(0, input))
      *
      * Supported tensor {@link %{OperandType}}:
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
 %/kind
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -1936,13 +2005,13 @@
      *
      * Inputs:
      * * 0: A tensor, specifying the input.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      *      Since %{NNAPILevel3}, this tensor may be zero-sized.
 %/kind
      *
      * Outputs:
      * * 0: The output tensor of same shape as input0.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
      *      the scale and zeroPoint must be the same as input0.
@@ -1961,12 +2030,12 @@
      * tensor, but with a newly specified shape.
      *
      * Supported tensor {@link %{OperandType}}:
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
 %/kind
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -1985,7 +2054,7 @@
      *
      * Outputs:
      * * 0: The output tensor, of shape specified by the input shape.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
      *      the scale and zeroPoint must be the same as input0.
@@ -2005,20 +2074,20 @@
      * same as corner pixels of input.
      *
      * Supported tensor {@link %{OperandType}}:
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
 %/kind
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} (since %{NNAPILevel3})
 %/kind
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
 %insert NHWC_NCHW
      *
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * Both resizing by shape and resizing by scale are supported.
      *
 %/kind
@@ -2030,12 +2099,12 @@
      *      width of the output tensor.
      * * 2: An {@link %{OperandTypeLinkPfx}INT32} scalar, specifying the output
      *      height of the output tensor.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * 3: An optional {@link %{OperandTypeLinkPfx}BOOL} scalar, default to false.
      *      Set to true to specify NCHW data layout for input0 and output0.
      *      Available since %{NNAPILevel3}.
 %/kind
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * 4: Align corners. An optional {@link %{OperandTypeLinkPfx}BOOL}
      *      scalar, default to false.  If True, the centers of the 4 corner
      *      pixels of the input and output tensors are aligned, preserving the
@@ -2048,7 +2117,7 @@
      *      must be False.
      *      Available since %{NNAPILevel4}.
 %/kind
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      *
      * Inputs (resizing by scale, since %{NNAPILevel3}):
      * * 0: A 4-D tensor, of shape [batches, height, width, depth], specifying
@@ -2068,7 +2137,7 @@
      * * 3: An optional {@link %{OperandTypeLinkPfx}BOOL} scalar, default to false.
      *      Set to true to specify NCHW data layout for input0 and output0.
 %/kind
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * 4: Align corners. An optional {@link %{OperandTypeLinkPfx}BOOL}
      *      scalar, default to false.  If True, the centers of the 4 corner
      *      pixels of the input and output tensors are aligned, preserving the
@@ -2085,12 +2154,12 @@
      * Outputs:
      * * 0: The output 4-D tensor, of shape
      *      [batches, new_height, new_width, depth].
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
      *      the scale and zeroPoint must be the same as input0.
 %/kind
-%kind ndk hal_1.2
+%kind canonical ndk hal_1.2
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
      *      the scale and zeroPoint must be the same as input0.
 %/kind
@@ -2115,7 +2184,7 @@
      *   argument (if not “NONE”).
      *
      * Supported tensor {@link %{OperandType}}:
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
 %/kind
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
@@ -2168,29 +2237,29 @@
      * independently on each 1-D slice along specified dimension.
      *
      * Supported tensor {@link %{OperandType}}:
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
 %/kind
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
 %kind hal_1.0 hal_1.1
      * Supported tensor rank: 2 or 4.
 %/kind
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * Supported tensor rank: up to 4.
      * Tensors with rank other than 2 or 4 are only supported since %{NNAPILevel3}.
 %/kind
      *
      * Inputs:
      * * 0: A 2-D or 4-D tensor, specifying the tensor to be reshaped.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      *      Since %{NNAPILevel3}, this tensor may be zero-sized.
 %/kind
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * 1: A scalar, specifying the positive scaling factor for the exponent,
      *      beta. If input0 is of {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32},
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} or
@@ -2202,11 +2271,11 @@
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}, the scalar must be of
      *      {@link %{OperandTypeLinkPfx}FLOAT32}.
 %/kind
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      *      If input0 is of {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16}, then the
      *      scalar must be of {@link %{OperandTypeLinkPfx}FLOAT16}.
 %/kind
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * 2: An optional {@link %{OperandTypeLinkPfx}INT32} scalar, default to -1,
      *      specifying the dimension the activation would be performed on.
      *      Negative index is used to specify axis from the end (e.g. -1 for
@@ -2218,7 +2287,7 @@
      * * 0: The output tensor of same shape as input0.
      *      For {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM},
      *      the scale must be 1.f / 256 and the zeroPoint must be 0.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED},
      *      the scale must be 1.f / 256 and the zeroPoint must be -128.
 %/kind
@@ -2241,12 +2310,12 @@
      * The input tensor's height and width must be divisible by block_size.
      *
      * Supported tensor {@link %{OperandType}}:
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
 %/kind
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -2258,7 +2327,7 @@
      * * 1: An {@link %{OperandTypeLinkPfx}INT32} scalar, specifying the block_size.
      *      block_size must be >=1 and block_size must be a divisor of both the
      *      input height and width.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * 2: An optional {@link %{OperandTypeLinkPfx}BOOL} scalar, default to false.
      *      Set to true to specify NCHW data layout for input0 and output0.
      *      Available since %{NNAPILevel3}.
@@ -2267,7 +2336,7 @@
      * Outputs:
      * * 0: The output 4-D tensor, of shape [batches, height/block_size,
      *      width/block_size, depth_in*block_size*block_size].
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
      *      the scale and zeroPoint must be the same as input0.
@@ -2319,7 +2388,7 @@
      * the filters.
      *
      * Supported tensor {@link %{OperandType}}:
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
 %/kind
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
@@ -2367,14 +2436,14 @@
      *     output = tanh(input)
      *
      * Supported tensor {@link %{OperandType}}:
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
 %/kind
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} (since %{NNAPILevel3})
 %/kind
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -2382,17 +2451,17 @@
      *
      * Inputs:
      * * 0: A tensor, specifying the input.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      *      Since %{NNAPILevel3}, this tensor may be zero-sized.
 %/kind
      *
      * Outputs:
      * * 0: The output tensor of same shape as input0.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      *      For {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM},
      *      the scale must be 1.f / 128 and the zeroPoint must be 128.
 %/kind
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED},
      *      the scale must be 1.f / 128 and the zeroPoint must be 0.
 %/kind
@@ -2418,12 +2487,12 @@
      * This is the reverse of SpaceToBatch.
      *
      * Supported tensor {@link %{OperandType}}:
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
 %/kind
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -2434,7 +2503,7 @@
      * * 1: A 1-D Tensor of {@link %{OperandTypeLinkPfx}TENSOR_INT32}, the block
      *      sizes for each spatial dimension of the input tensor. All values
      *      must be >= 1.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * 2: An optional {@link %{OperandTypeLinkPfx}BOOL} scalar, default to false.
      *      Set to true to specify NCHW data layout for input0 and output0.
      *      Available since API level 29.
@@ -2442,7 +2511,7 @@
      *
      * Outputs:
      * * 0: A tensor of the same {@link %{OperandType}} as input0.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
      *      the scale and zeroPoint must be the same as input0.
@@ -2461,7 +2530,7 @@
      * dimensions. The output is the result of dividing the first input tensor
      * by the second, optionally modified by an activation function.
      *
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * For inputs of {@link %{OperandTypeLinkPfx}TENSOR_INT32}, performs
      * "floor division" ("//" in Python). For example,
      *     5 // 2 = 2
@@ -2483,11 +2552,11 @@
      *
 %insert GenericZero
      * Supported tensor {@link %{OperandType}}:
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
 %/kind
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_INT32} (since %{NNAPILevel4})
 %/kind
      *
@@ -2500,7 +2569,7 @@
      * * 2: An {@link %{OperandTypeLinkPfx}INT32} scalar, and has to be one of the
      *      {@link %{FusedActivationFunc}} values. Specifies the activation to
      *      invoke on the result.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_INT32} tensor,
      *      the {@link %{FusedActivationFunc}} must be "NONE".
 %/kind
@@ -2520,12 +2589,12 @@
      * length 1.
      *
      * Supported tensor {@link %{OperandType}}:
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
 %/kind
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -2547,7 +2616,7 @@
      *
      * Outputs:
      * * 0: A tensor of the same {@link %{OperandType}} as input0.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
      *      the scale and zeroPoint must be the same as input0.
@@ -2567,15 +2636,15 @@
      * This operation pads a tensor according to the specified paddings.
      *
      * Supported tensor {@link %{OperandType}}:
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
 %/kind
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      *   (full support since %{NNAPILevel3}, see the output section)
 %else
      *   (the pad value is undefined)
@@ -2601,7 +2670,7 @@
      *      of the padding:
      *          output0.dimension[i] =
      *              padding[i, 0] + input0.dimension[i] + padding[i, 1]
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
      *      the scale and zeroPoint must be the same as input0.
@@ -2609,7 +2678,7 @@
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
      *      the scale and zeroPoint must be the same as input0.
 %/kind
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      *
      *      NOTE: Before %{NNAPILevel3}, the pad value for
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} is undefined.
@@ -2631,15 +2700,15 @@
      * dimensions of the input are optionally zero padded according to paddings.
      *
      * Supported tensor {@link %{OperandType}}:
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
 %/kind
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      *   (full support since %{NNAPILevel3}, see the output section)
 %else
      *   (the pad value is undefined)
@@ -2660,7 +2729,7 @@
      *      front of dimension i.
      *      padding[i, 1] specifies the number of element to be padded after the
      *      end of dimension i.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * 3: An optional {@link %{OperandTypeLinkPfx}BOOL} scalar, default to false.
      *      Set to true to specify NCHW data layout for input0 and output0.
      *      Available since %{NNAPILevel3}.
@@ -2668,7 +2737,7 @@
      *
      * Outputs:
      * * 0: A tensor of the same {@link %{OperandType}} as input0.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
      *      the scale and zeroPoint must be the same as input0.
@@ -2676,7 +2745,7 @@
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
      *      the scale and zeroPoint must be the same as input0.
 %/kind
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      *
      *      NOTE: Before %{NNAPILevel3}, the pad value for
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} is undefined.
@@ -2695,12 +2764,12 @@
      * dimensions by specifying the axes (input1).
      *
      * Supported tensor {@link %{OperandType}}:
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
 %/kind
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -2718,7 +2787,7 @@
      * * 0: A tensor of the same {@link %{OperandType}} as input0. Contains the
      *      same data as input, but has one or more dimensions of size 1
      *      removed.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
      *      the scale and zeroPoint must be the same as input0.
@@ -2742,12 +2811,12 @@
      * reverse slice.
      *
      * Supported tensor {@link %{OperandType}}:
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
 %/kind
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -2779,7 +2848,7 @@
      * Outputs:
      * * 0: A tensor of the same {@link %{OperandType}} as input0 and rank (n - k),
      *      where k is the number of bits set in shrink_axis_mask.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
      *      the scale and zeroPoint must be the same as input0.
@@ -2815,14 +2884,14 @@
      *
 %insert GenericZero
      * Supported tensor {@link %{OperandType}}:
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
 %/kind
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} (since %{NNAPILevel3})
 %/kind
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
      * * {@link %{OperandTypeLinkPfx}TENSOR_INT32} (since %{NNAPILevel4})
 %/kind
@@ -2836,7 +2905,7 @@
      * * 2: An {@link %{OperandTypeLinkPfx}INT32} scalar, and has to be one of the
      *      {@link %{FusedActivationFunc}} values. Specifies the activation to
      *      invoke on the result.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_INT32} tensor,
      *      the {@link %{FusedActivationFunc}} must be "NONE".
 %/kind
@@ -2847,7 +2916,7 @@
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
      *      the scale and zeroPoint can be different from inputs' scale and zeroPoint.
 %/kind
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
      *      the scale and zeroPoint can be different from inputs' scale and zeroPoint.
@@ -2866,12 +2935,12 @@
      * regular matrix transpose on 2-D input Tensors.
      *
      * Supported tensor {@link %{OperandType}}:
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16} (since %{NNAPILevel3})
 %/kind
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -2879,7 +2948,7 @@
      *
      * Inputs:
      * * 0: An n-D tensor, specifying the tensor to be transposed.
-%kind ndk hal_1.2+
+%kind canonical ndk hal_1.2+
      *      Since %{NNAPILevel3}, this tensor may be zero-sized.
 %/kind
      * * 1: An optional 1-D Tensor of {@link %{OperandTypeLinkPfx}TENSOR_INT32},
@@ -2887,7 +2956,7 @@
      *
      * Outputs:
      * * 0: A tensor of the same {@link %{OperandType}} as input0.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
      *      the scale and zeroPoint must be the same as input0.
@@ -2914,6 +2983,7 @@
 %insert AVAIL3
      */
     %{ANN}BOOL = 6,
+%insert canonical_empty_line
     /**
      * A tensor of 16 bit signed integers that represent real numbers.
      *
@@ -2925,11 +2995,13 @@
 %insert AVAIL3
      */
     %{ANN}TENSOR_QUANT16_SYMM = 7,
+%insert canonical_empty_line
     /**
      * A tensor of IEEE 754 16 bit floating point values.
 %insert AVAIL3
      */
     %{ANN}TENSOR_FLOAT16 = 8,
+%insert canonical_empty_line
     /**
      * A tensor of 8 bit boolean values.
      *
@@ -2938,11 +3010,13 @@
 %insert AVAIL3
      */
     %{ANN}TENSOR_BOOL8 = 9,
+%insert canonical_empty_line
     /**
      * An IEEE 754 16 bit floating point scalar value.
 %insert AVAIL3
      */
     %{ANN}FLOAT16 = 10,
+%insert canonical_empty_line
     /**
      * A tensor of 8 bit signed integers that represent real numbers.
      *
@@ -2958,7 +3032,7 @@
      * to set the parameters for an Operand of this type.
      *
 %/kind
-%kind hal_1.2+
+%kind canonical hal_1.2+
      *{@link %{Ann}SymmPerChannelQuantParams} must hold the parameters for an Operand of this type.
 %/kind
      * The channel dimension of this tensor must not be unknown (dimensions[channelDim] != 0).
@@ -2970,6 +3044,7 @@
 %insert AVAIL3
      */
     %{ANN}TENSOR_QUANT8_SYMM_PER_CHANNEL = 11,
+%insert canonical_empty_line
     /**
      * A tensor of 16 bit unsigned integers that represent real numbers.
      *
@@ -2983,6 +3058,7 @@
 %insert AVAIL3
      */
     %{ANN}TENSOR_QUANT16_ASYMM = 12,
+%insert canonical_empty_line
     /**
      * A tensor of 8 bit signed integers that represent real numbers.
      *
@@ -3012,7 +3088,7 @@
      * Supported tensor {@link %{OperandType}}:
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16}
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_INT32} (since %{NNAPILevel4})
 %/kind
      *
@@ -3035,7 +3111,7 @@
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_INT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -3064,7 +3140,7 @@
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_INT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -3110,7 +3186,7 @@
      *      and height, dw and dh is the log-scale relative correction factor
      *      for the width and height. For input0 of type
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT16_ASYMM}, this tensor should be
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      of {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} or
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED}. Zero num_rois is
 %else
@@ -3169,7 +3245,7 @@
      * allows to connect both forward and backward outputs from previous cell
      * to the next cell's input.
      *
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * Since %{NNAPILevel4} parallel linking mode is supported. The mode is
      * enabled if auxiliary input is present but auxiliary weights are omitted.
      * In this case, the cell feeds inputs into the RNN in the following way:
@@ -3285,7 +3361,7 @@
      *       A 2-D tensor of shape [batch_size, bw_output_size].
      * * 38: The backward input cell state.
      *       A 2-D tensor of shape [batch_size, bw_num_units].
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * 39: The auxiliary input. Optional.
      *       A 3-D tensor of shape [max_time, batch_size, aux_input_size],
      *       where “batch_size” corresponds to the batching dimension, and
@@ -3408,7 +3484,7 @@
      *      A 3-D tensor of shape:
      *        If time-major: [max_time, batch_size, bw_output_size]
      *        If batch-major: [batch_size, max_time, bw_output_size]
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * 2: The forward activation state output.
      *      A 2-D tensor of shape [batch_size, fw_output_size] containing an
      *      activation state from the last time step in the sequence. This
@@ -3493,7 +3569,7 @@
      * allows to connect both forward and backward outputs from previous cell
      * to the next cell's input.
      *
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * Since %{NNAPILevel4} parallel linking mode is supported. The mode is
      * enabled if auxiliary input is present but auxiliary weights are omitted.
      * In this case, the cell feeds inputs into the RNN in the following way:
@@ -3541,7 +3617,7 @@
      * * 8: bwHiddenState
      *      A 2-D tensor of shape [batchSize, bwNumUnits]. Specifies a hidden
      *      state input for the first time step of the computation.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * 9: auxInput.
      *      A 3-D tensor. The shape is defined by the input 6 (timeMajor). If
      *      it is set to true, then the input has a shape [maxTime, batchSize,
@@ -3587,7 +3663,7 @@
      *      (timeMajor). If it is set to true, then the shape is set to
      *      [maxTime, batchSize, bwNumUnits], otherwise the shape is set to
      *      [batchSize, maxTime, bwNumUnits].
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * 2: The forward hidden state output.
      *      A 2-D tensor of shape [batchSize, fwNumUnits] containing a hidden
      *      state from the last time step in the sequence. This output is
@@ -3629,7 +3705,7 @@
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16}
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -3644,7 +3720,7 @@
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}, this tensor should be of
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT16_ASYMM}, with zeroPoint of 0 and
      *      scale of 0.125.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For input0 of type {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED},
      *      this tensor should be of {@link %{OperandTypeLinkPfx}TENSOR_QUANT16_ASYMM},
      *      with zeroPoint of -128 and scale of 0.125.
@@ -3676,7 +3752,7 @@
      *      [num_output_rois], specifying the score of each output box. The boxes
      *      are grouped by batches, but the sequential order in each batch is not
      *      guaranteed. For type of {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM},
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      guaranteed. For type of {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
      *      or {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED},
 %else
@@ -3711,7 +3787,7 @@
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_INT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * Since %{NNAPILevel4}, casting tensors of the following
      * {@link %{OperandType}} to the same {@link %{OperandType}} is supported:
      * * {@link %{OperandTypeLinkPfx}TENSOR_BOOL8}
@@ -3752,7 +3828,7 @@
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16}
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -3769,7 +3845,7 @@
      *
      * Outputs:
      * * 0: A tensor of the same {@link %{OperandType}} and same shape as input0.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
      *      the scale and zeroPoint must be the same as input0.
@@ -3871,7 +3947,7 @@
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_INT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -3921,7 +3997,7 @@
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_INT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -3935,7 +4011,7 @@
      * Outputs:
      * * 0: An (n + 1)-D tensor with the same {@link %{OperandType}} and data as
      *      input0.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
 %else
@@ -3965,7 +4041,7 @@
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_INT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -3982,7 +4058,7 @@
      *
      * Outputs:
      * * 0: An (n + k - 1)-D tensor with the same {@link %{OperandType}} as input0.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
 %else
@@ -4009,7 +4085,7 @@
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16}
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -4029,7 +4105,7 @@
      *      dimensions is the channel dimension.
      * * 2: A 2-D Tensor of shape [num_anchors, 4], specifying the shape of each
      *      predefined anchor, with format [x1, y1, x2, y2]. For input0 of type
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} or
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED}, this tensor should be of
 %else
@@ -4038,7 +4114,7 @@
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT16_SYMM}, with scale of 0.125.
      * * 3: A 2-D Tensor of shape [batches, 2], specifying the size of
      *      each image in the batch, with format [image_height, image_width].
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For input0 of type {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} or
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED}, this
 %else
@@ -4070,7 +4146,7 @@
      *      [num_output_rois], specifying the score of each output box.
      *      The boxes are grouped by batches, but the sequential order in
      *      each batch is not guaranteed. For type of
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} or
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED}, the scale and zero
 %else
@@ -4099,7 +4175,7 @@
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_INT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -4126,7 +4202,7 @@
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_INT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -4185,7 +4261,7 @@
      * * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} for input, filter, and output.
      * * * {@link %{OperandTypeLinkPfx}TENSOR_INT32} for bias (with scale set to
      * * * input.scale * filter.scale).
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *
      * * Quantized signed (since %{NNAPILevel4}):
      * * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} for input, filter, and output.
@@ -4198,7 +4274,7 @@
      * * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_SYMM_PER_CHANNEL} for filter.
      * * * {@link %{OperandTypeLinkPfx}TENSOR_INT32} for bias (scale set to 0.0,
      * * * each value scaling is separate and equal to input.scale * filter.scales[channel]).
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *
      * * Quantized signed with filter symmetric per channel quantization
      *   (since %{NNAPILevel4}):
@@ -4227,7 +4303,7 @@
      * * 2: A 1-D tensor, of shape [depth_out], specifying the bias. For input
      *      tensor of type {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32} or
      *      {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16}, the bias must be of the same type.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For filter tensor of {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED}
 %else
@@ -4272,7 +4348,7 @@
      *      tensor of type {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32} or
      *      {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16}, the bias must be of the same
      *      {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16}, the bias must be of the same type.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For filter tensor of {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED}
 %else
@@ -4302,7 +4378,7 @@
      * Outputs:
      * * 0: The output 4-D tensor, of shape
      *      [batches, out_height, out_width, depth_out].
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
      *      the scale and zeroPoint can be different from inputs' scale and zeroPoint.
@@ -4329,7 +4405,7 @@
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16}
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -4348,7 +4424,7 @@
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}, this tensor should
      *      be of {@link %{OperandTypeLinkPfx}TENSOR_QUANT16_ASYMM}, with zeroPoint
      *      of 0 and scale of 0.125.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For input0 of type
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED}, this tensor
      *      should be of {@link %{OperandTypeLinkPfx}TENSOR_QUANT16_ASYMM}, with
@@ -4360,7 +4436,7 @@
      * Outputs:
      * * 0: A tensor of the same {@link %{OperandType}} as input0, with shape
      *      [num_boxes, num_keypoints], specifying score of the keypoints.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} or
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
      *      the scale and zeroPoint can be different from input0 scale and zeroPoint.
@@ -4439,7 +4515,7 @@
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_INT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -4467,7 +4543,7 @@
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_INT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -4603,7 +4679,7 @@
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_INT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -4618,7 +4694,7 @@
      *
      * Outputs:
      * * 0: A tensor of the same {@link %{OperandType}} as input0.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
      *      the scale and zeroPoint can be different from inputs' scale and zeroPoint.
@@ -4638,7 +4714,7 @@
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_INT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -4653,7 +4729,7 @@
      *
      * Outputs:
      * * 0: A tensor of the same {@link %{OperandType}} as input0.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} tensor,
      *      the scale and zeroPoint can be different from inputs' scale and zeroPoint.
@@ -4693,7 +4769,7 @@
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_INT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -4720,7 +4796,7 @@
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16}
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -4740,7 +4816,7 @@
      *      pad value must be of {@link %{OperandTypeLinkPfx}FLOAT16}.
      *      For input tensor of {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}, the
      *      pad value must be of {@link %{OperandTypeLinkPfx}FLOAT32}.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For input tensor of {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED},
 %else
@@ -4757,7 +4833,7 @@
      *      of the padding:
      *          output0.dimension[i] =
      *              padding[i, 0] + input0.dimension[i] + padding[i, 1]
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
      *      the scale and zeroPoint must be the same as input0.
@@ -4824,7 +4900,7 @@
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16}
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -4837,7 +4913,7 @@
      *
      * Outputs:
      * * 0: A tensor of the same {@link %{OperandType}} as input0.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
      *      the scales and zeroPoint can be different from input0 scale and zeroPoint.
@@ -4856,7 +4932,7 @@
      *
      *     output = max(0, min(255, round(input / scale) + zeroPoint)
      *
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * The formula for {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} output
      * tensor is:
      *
@@ -4869,7 +4945,7 @@
      *
      * Supported output tensor {@link %{OperandType}}:
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -4880,7 +4956,7 @@
      *
      * Outputs:
      * * 0: The output tensor of same shape as input0, but with
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} or.
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED}.
 %else
@@ -5085,7 +5161,7 @@
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16}
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -5102,7 +5178,7 @@
      * * 0: A tensor of the same {@link %{OperandType}} as input0.
      *      If all dimensions are reduced and keep_dims is false, the output
      *      shape is [1].
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
      *      the scale and zeroPoint must be the same as input0.
@@ -5126,7 +5202,7 @@
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16}
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -5143,7 +5219,7 @@
      * * 0: A tensor of the same {@link %{OperandType}} as input0.
      *      If all dimensions are reduced and keep_dims is false, the output
      *      shape is [1].
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
      *      the scale and zeroPoint must be the same as input0.
@@ -5228,7 +5304,7 @@
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16}
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -5269,7 +5345,7 @@
      * Outputs:
      * * 0: A tensor of the same {@link %{OperandType}} as input0. The output
      *      shape is [num_rois, out_height, out_width, depth].
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
 %else
@@ -5296,7 +5372,7 @@
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16}
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -5309,7 +5385,7 @@
      * * 0: A 4-D tensor, specifying the feature map.
      * * 1: A 2-D Tensor of shape [num_rois, 4], specifying the locations of
      *      the regions of interest, each line with format [x1, y1, x2, y2].
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For input0 of type {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
 %else
@@ -5334,7 +5410,7 @@
      * Outputs:
      * * 0: A tensor of the same {@link %{OperandType}} as input0. The output
      *      shape is [num_rois, out_height, out_width, depth].
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For input0 of type {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
 %else
@@ -5374,7 +5450,7 @@
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_INT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3
+%kind canonical ndk hal_1.3
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -5440,7 +5516,7 @@
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_INT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -5455,7 +5531,7 @@
      *
      * Outputs:
      * * 0: An n-D tensor of the same type as the input containing the slice.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
 %else
@@ -5474,7 +5550,7 @@
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_INT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -5489,7 +5565,7 @@
      *
      * Outputs:
      * * 0 ~ (num_splits - 1): Resulting subtensors.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
      *      the scale and zeroPoint must be the same as input0.
@@ -5533,7 +5609,7 @@
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_INT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -5546,7 +5622,7 @@
      *
      * Outputs:
      * * 0: A tiled tensor of the same {@link %{OperandType}} and rank as `input`.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
      *      the scale and zeroPoint must be the same as input0.
@@ -5569,7 +5645,7 @@
      * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_INT32}
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
 %/kind
      *
@@ -5583,7 +5659,7 @@
      * Outputs:
      * * 0: An n-D tensor of the same type as the input, containing the k
      *      largest elements along each last dimensional slice.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
      *      the scale and zeroPoint must be the same as input0.
@@ -5624,7 +5700,7 @@
      * * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_SYMM_PER_CHANNEL} for filter.
      * * * {@link %{OperandTypeLinkPfx}TENSOR_INT32} for bias (scale set to 0.0,
      * * * each value scaling is separate and equal to input.scale * filter.scales[channel]).
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *
      * Available since %{NNAPILevel4}:
      * * Quantized signed (since %{NNAPILevel4}):
@@ -5662,7 +5738,7 @@
      *      tensor of type {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32} or
      *      {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16}, the bias must be of the
      *      same type.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For filter tensor of {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
      *      and {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED},
 %else
@@ -5707,7 +5783,7 @@
      *      tensor of type {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32} or
      *      {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16}, the bias should be of the
      *      same type.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For filter tensor of {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
      *      and {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED},
 %else
@@ -5737,7 +5813,7 @@
      * Outputs:
      * * 0: The output 4-D tensor, of shape
      *      [batches, out_height, out_width, depth_out].
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
 %else
@@ -5854,7 +5930,7 @@
      *      A 3-D tensor of shape:
      *        If time-major: [max_time, batch_size, output_size]
      *        If batch-major: [batch_size, max_time, output_size]
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * 1: A tensor of shape [batch_size, output_size] containing a hidden
      *      state from the last time step in the sequence. This output is
      *      optional and can be omitted. If this output is present then
@@ -5964,7 +6040,7 @@
      *      height of the output tensor.
      * * 3: An {@link %{OperandTypeLinkPfx}BOOL} scalar, default to false.
      *      Set to true to specify NCHW data layout for input0 and output0.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * 4: Align corners. An optional {@link %{OperandTypeLinkPfx}BOOL}
      *      scalar, default to false.  If True, the centers of the 4 corner
      *      pixels of the input and output tensors are aligned, preserving the
@@ -5995,7 +6071,7 @@
      *      {@link %{OperandTypeLinkPfx}FLOAT32} otherwise.
      * * 3: An {@link %{OperandTypeLinkPfx}BOOL} scalar, default to false.
      *      Set to true to specify NCHW data layout for input0 and output0.
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      * * 4: Align corners. An optional {@link %{OperandTypeLinkPfx}BOOL}
      *      scalar, default to false.  If True, the centers of the 4 corner
      *      pixels of the input and output tensors are aligned, preserving the
@@ -6012,7 +6088,7 @@
      * Outputs:
      * * 0: The output 4-D tensor, of shape
      *      [batches, new_height, new_width, depth].
-%kind ndk hal_1.3+
+%kind canonical ndk hal_1.3+
      *      For a {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
      *      {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensor,
      *      the scale and zeroPoint must be the same as input0.
@@ -6056,9 +6132,9 @@
      * {@link ANeuralNetworksModel_setOperandValueFromModel} must be used to set
      * the value for an Operand of this type.
 %/kind
-%kind hal*
+%kind canonical hal*
      *
-     * Must have the lifetime {@link OperandLifeTime::SUBGRAPH}.
+     * Must have the lifetime {@link %{OperandLifeTime}::SUBGRAPH}.
 %/kind
 %insert AVAIL4
      */
@@ -6215,7 +6291,7 @@
      * types, ranks%{NDK_if_specified}, dimensions%{NDK_if_specified}, scales,
      * zeroPoints, and %{otherOperandParameters} as the corresponding operation
      * inputs and outputs.
-%kind hal*
+%kind canonical hal*
      * All of the operands mentioned must have fully specified dimensions.
 %/kind
      *
@@ -6295,7 +6371,7 @@
 %kind ndk
      *      The output operand must have fully specified dimensions.
 %/kind
-%kind hal*
+%kind canonical hal*
      *      All of the operands mentioned must have fully specified dimensions.
 %/kind
      * * 1: A {@link %{OperandTypeLinkPfx}%{MODEL_or_SUBGRAPH}} reference to the body %{model_or_subgraph}.
@@ -6303,7 +6379,7 @@
      *      the same types, ranks%{NDK_if_specified}, dimensions%{NDK_if_specified},
      *      scales, zeroPoints, and %{otherOperandParameters} as the
      *      corresponding inputs and outputs of the WHILE operation.
-%kind hal*
+%kind canonical hal*
      *      All of the operands mentioned must have fully specified dimensions.
 %/kind
      * * (m inputs): Initial values for input-output operands.
@@ -6441,13 +6517,17 @@
 /**
  * How an operand is used.
  */
+%kind canonical
+enum class LifeTime {
+%else
 %{enum OperandLifeTime int32_t} {
+%/kind
     /**
      * The operand is internal to the model. It's created by an operation and
      * consumed by other operations. It must be an output operand of
      * exactly one operation.
      */
-    TEMPORARY_VARIABLE,
+    %{DeclareEnumValue TEMPORARY_VARIABLE 0},
 
     /**
      * The operand is an input of %{the_model_or_a_subgraph}. It must not be an output
@@ -6456,9 +6536,9 @@
      * An operand can't be both input and output of a %{model_or_subgraph}.
      */
 %kind hal_1.0
-    MODEL_INPUT,
+    %{DeclareEnumValue MODEL_INPUT 1},
 %else
-    SUBGRAPH_INPUT,
+    %{DeclareEnumValue SUBGRAPH_INPUT 1},
 %/kind
 
     /**
@@ -6468,36 +6548,44 @@
      * An operand can't be both input and output of a %{model_or_subgraph}.
      */
 %kind hal_1.0
-    MODEL_OUTPUT,
+    %{DeclareEnumValue MODEL_OUTPUT 2},
 %else
-    SUBGRAPH_OUTPUT,
+    %{DeclareEnumValue SUBGRAPH_OUTPUT 2},
 %/kind
 
     /**
-     * The operand is a constant found in Model.operandValues. It must
+     * The operand is a constant found in Model%{::}operandValues. It must
      * not be an output operand of any operation.
      */
-    CONSTANT_COPY,
+    %{DeclareEnumValue CONSTANT_COPY 3},
 
     /**
      * The operand is a constant that was specified via a Memory
      * object. It must not be an output operand of any operation.
      */
-    CONSTANT_REFERENCE,
+    %{DeclareEnumValue CONSTANT_REFERENCE 4},
 
     /**
      * The operand does not have a value. This is valid only for optional
      * arguments of operations.
      */
-    NO_VALUE,
-%kind hal_1.3+
+    %{DeclareEnumValue NO_VALUE 5},
+%kind canonical hal_1.3+
 
     /**
      * The operand is a reference to a subgraph. It must be an input to one
      * or more {@link OperationType::IF} or {@link OperationType::WHILE}
      * operations.
      */
-    SUBGRAPH,
+    %{DeclareEnumValue SUBGRAPH 6},
+%/kind
+%kind canonical
+
+    /**
+     * This operand is a constant found in a user buffer. It must not be an
+     * output operand of any operation.
+     */
+    %{DeclareEnumValue POINTER 7},
 %/kind
 };
 %/section
@@ -6507,12 +6595,20 @@
  * Status of a device.
  */
 %{enum DeviceStatus int32_t} {
-    AVAILABLE,
-    BUSY,
-    OFFLINE,
-    UNKNOWN,
+    %{DeclareEnumValue AVAILABLE 0},
+    %{DeclareEnumValue BUSY 1},
+    %{DeclareEnumValue OFFLINE 2},
+    %{DeclareEnumValue UNKNOWN 3},
 };
 %/section
+
+%kind canonical
+%define init_execTime  = kDefaultExecTime
+%define init_powerUsage  = kDefaultPowerUsage
+%else
+%define init_execTime
+%define init_powerUsage
+%/kind
 
 %section PerformanceInfo
 /**
@@ -6526,14 +6622,14 @@ struct PerformanceInfo {
      * workload compared to the time the CPU would take for the
      * same workload. A lower number is better.
      */
-    float execTime;
+    float execTime%{init_execTime};
 
     /**
      * Ratio of the energy used by the driver compared to what
      * the CPU would use for doing the same workload. A lower number
      * is better.
      */
-    float powerUsage;
+    float powerUsage%{init_powerUsage};
 };
 %/section
 
@@ -6545,12 +6641,12 @@ struct OutputShape {
     /**
      * Dimensions of the operand.
      */
-    vec<uint32_t> dimensions;
+    %{vec}<uint32_t> dimensions;
 
     /**
      * Whether the provided buffer size is sufficient for the output.
      */
-    bool isSufficient;
+    bool isSufficient%{init_bool};
 };
 %/section
 
@@ -6585,6 +6681,9 @@ struct OutputShape {
      * processing successive frames coming from the camera.
      */
     %{DeclareExecutionPreference SUSTAINED_SPEED 2},
+%kind canonical
+    DEFAULT = FAST_SINGLE_ANSWER,
+%/kind
 }%{ndk_enum_name PreferenceCode};
 %/section
 
@@ -6627,14 +6726,20 @@ struct OutputShape {
 %/kind
  */
 %{enum Priority int32_t} {
-    %{DeclarePriority LOW 90},
-    %{DeclarePriority MEDIUM 100},
-    %{DeclarePriority HIGH 110},
-%kind ndk
-    %{DeclarePriority DEFAULT ANEURALNETWORKS_PRIORITY_MEDIUM},
+    %{DeclarePriority LOW 0 90},
+    %{DeclarePriority MEDIUM 1 100},
+    %{DeclarePriority HIGH 2 110},
+%kind canonical ndk
+    %{DeclarePriority DEFAULT MEDIUM ANEURALNETWORKS_PRIORITY_MEDIUM},
 %/kind
 }%{ndk_enum_name PriorityCode};
 %/section
+
+%kind canonical
+%define OptionalDuration OptionalDuration
+%else
+%define OptionalDuration uint64_t
+%/kind
 
 %section Timing
 /**
@@ -6655,9 +6760,9 @@ struct OutputShape {
  */
 struct Timing {
     /** Execution time on device (not driver, which runs on host processor). */
-    uint64_t timeOnDevice;
+    %{OptionalDuration} timeOnDevice;
     /** Execution time in driver (including time on device). */
-    uint64_t timeInDriver;
+    %{OptionalDuration} timeInDriver;
 };
 %/section
 
@@ -6672,6 +6777,12 @@ struct Timing {
      */
     PerformanceInfo quantized8Performance;
 %/section
+
+%kind canonical
+%define OperandPerformanceTable OperandPerformanceTable
+%else
+%define OperandPerformanceTable vec<OperandPerformance>
+%/kind
 
 %section Capabilities_relaxedPerformance
     /**
@@ -6703,7 +6814,7 @@ struct Timing {
      * must not report operand performance for {@link OperandType::SUBGRAPH}.
 %/kind
      */
-    vec<OperandPerformance> operandPerformance;
+    %{OperandPerformanceTable} operandPerformance;
 %/section
 
 %section Capabilities_if_while_performance
@@ -6732,7 +6843,7 @@ struct Timing {
  * are not relaxed.
  */
 struct OperandPerformance {
-    OperandType type;
+    OperandType type%{init_pod};
     PerformanceInfo info;
 };
 %/section
@@ -6745,7 +6856,7 @@ struct OperandPerformance {
  * Performance of an operation comes from the type of its first operand.
  * This represents performance for non extension operand types.
 %/kind
-%kind hal_1.3+
+%kind canonical hal_1.3+
  *
  * This represents performance of non-extension operations.
  *
@@ -6754,6 +6865,30 @@ struct OperandPerformance {
 %/kind
  */
 struct Capabilities {
+%kind canonical
+%insert-indented 4 PerformanceInfo
+
+%insert-indented 4 OperandPerformance
+
+    class OperandPerformanceTable {
+       public:
+        static Result<OperandPerformanceTable> create(
+                std::vector<OperandPerformance> operandPerformances);
+
+        PerformanceInfo lookup(OperandType type) const;
+        const std::vector<OperandPerformance>& asVector() const;
+
+       private:
+        explicit OperandPerformanceTable(std::vector<OperandPerformance> operandPerformances);
+        std::vector<OperandPerformance> mSorted;
+    };
+
+%insert Capabilities_relaxedPerformance
+
+%insert Capabilities_operandPerformance
+
+%insert Capabilities_if_while_performance
+%/kind
 %kind hal_1.0
 %insert Capabilities_float_quant_performance
 %/kind
@@ -6786,20 +6921,36 @@ struct Capabilities {
  * Describes the location of a data object.
  */
 struct DataLocation {
+%kind canonical
+    /**
+     * The address of the memory where the data is found.
+     *
+     * This field is only active when lifetime is POINTER.
+     */
+    std::variant<const void*, void*> pointer;
+
+%/kind
     /**
      * The index of the memory pool where this location is found.
      */
-    uint32_t poolIndex;
+    uint32_t poolIndex%{init_int};
 
     /**
      * Offset in bytes from the start of the pool.
      */
-    uint32_t offset;
+    uint32_t offset%{init_int};
 
     /**
      * The length of the data in bytes.
      */
-    uint32_t length;
+    uint32_t length%{init_int};
+%kind canonical
+
+    /**
+     * The end padding of the specified memory region in bytes.
+     */
+    uint32_t padding%{init_int};
+%/kind
 };
 %/section
 
@@ -6814,7 +6965,7 @@ struct DataLocation {
      *
      * Example: com.google.test_extension
      */
-    string name;
+    %{string} name;
 %/section
 
 %section Extension
@@ -6833,25 +6984,29 @@ struct Extension {
         /**
          * The extension operand type.
          */
-        uint16_t type;
+        uint16_t type%{init_int};
 
         /**
          * Indicates whether the extension operand type represents a tensor or
          * a scalar.
          */
-        bool isTensor;
+        bool isTensor%{init_bool};
 
         /**
          * The byte size of the operand (if scalar) or of a single element (if
          * tensor).
          */
-        uint32_t byteSize;
+        uint32_t byteSize%{init_int};
     };
 
+%kind canonical
+%insert Extension_name
+
+%/kind
     /**
      * Information about operand types defined by the extension.
      */
-    vec<OperandTypeInformation> operandTypes;
+    %{vec}<OperandTypeInformation> operandTypes;
 };
 %/section
 
@@ -6869,19 +7024,19 @@ struct Operation {
      * as an extension type according to {@link Model::extensionNameToPrefix}.
 %/kind
      */
-    OperationType type;
+    OperationType type%{init_pod};
 
     /**
      * Describes the table that contains the indexes of the inputs of the
      * operation. The offset is the index in the operandIndexes table.
      */
-    vec<uint32_t> inputs;
+    %{vec}<uint32_t> inputs;
 
     /**
      * Describes the table that contains the indexes of the outputs of the
      * operation. The offset is the index in the operandIndexes table.
      */
-    vec<uint32_t> outputs;
+    %{vec}<uint32_t> outputs;
 };
 %/section
 
@@ -6890,7 +7045,11 @@ struct Operation {
  * Fused activation function types.
 %insert AVAIL1Short
  */
+%kind canonical
+enum class FusedActivationFunc : int32_t {
+%else
 %{enum FusedActivationFunc int32_t} {
+%/kind
     /** NO fused activation function. */
     %{DeclareFusedActivationFunc NONE 0},
     /** Fused ReLU activation function. */
@@ -6941,18 +7100,56 @@ struct Operation {
 %insert SymmPerChannelQuantParams_Comment
 struct SymmPerChannelQuantParams {
     /** Array of scaling values for each channel. Each value must be greater than zero. */
-    vec<float> scales;
+    %{vec}<float> scales;
     /** Index of the channel dimension */
-    uint32_t channelDim;
+    uint32_t channelDim%{init_int};
 };
 %/section
+
+%kind canonical
+%section location_pointer_is_null
+     * - location.pointer is null.
+%/section
+%else
+%section location_pointer_is_null
+%/section
+%/kind
+
+%% List item symbol
+%kind hal*
+%define li     .
+%else
+%define li     -
+%/kind
 
 %section Operand
 /**
  * Describes one operand of the model's graph.
  */
 struct Operand {
+%kind canonical
+%insert-indented 4 OperandLifeTime
+
+%insert-indented 4 ExtraParams_none_Comment
+    using NoParams = std::monostate;
+
+%insert-indented 4 SymmPerChannelQuantParams
+
+%insert-indented 4 ExtraParams_extension_Comment
+    using ExtensionParams = std::vector<uint8_t>;
+
+%insert-indented 4 ExtraParams_Comment
+    using ExtraParams = std::variant<NoParams, SymmPerChannelQuantParams, ExtensionParams>;
+
+%/kind
     /**
+%kind canonical
+     * The data type.
+     *
+     * Besides the values listed in {@link OperationType}, any value equal or over
+     * (1 << kExtensionTypeBits) is possible and should be interpreted
+     * as an extension type according to {@link Model::extensionNameToPrefix}.
+%/kind
 %kind hal_1.2+
      * The data type.
      *
@@ -6964,7 +7161,7 @@ struct Operand {
      * Data type of the operand.
 %/kind
      */
-    OperandType type;
+    OperandType type%{init_pod};
 
     /**
      * Dimensions of the operand.
@@ -6997,19 +7194,24 @@ struct Operand {
      * In the following situations, a tensor operand's dimensions must
      * be fully specified:
      *
-     *     . The operand has lifetime CONSTANT_COPY or
+%kind canonical
+     * %{li} The operand has lifetime CONSTANT_COPY, CONSTANT_REFERENCE, or
+     *       POINTER.
+%else
+     * %{li} The operand has lifetime CONSTANT_COPY or
      *       CONSTANT_REFERENCE.
+%/kind
      *
 %kind hal_1.0
-     *     . The operand has lifetime MODEL_INPUT or MODEL_OUTPUT. Fully
+     * %{li} The operand has lifetime MODEL_INPUT or MODEL_OUTPUT. Fully
      *       specified dimensions must either be present in the
 %/kind
 %kind hal_1.2
-     *     . The operand has lifetime MODEL_INPUT. Fully
+     * %{li} The operand has lifetime MODEL_INPUT. Fully
      *       specified dimensions must either be present in the
 %/kind
-%kind hal_1.3+
-     *     . The operand has lifetime SUBGRAPH_INPUT and belongs to the main
+%kind canonical hal_1.3+
+     * %{li} The operand has lifetime SUBGRAPH_INPUT and belongs to the main
      *       subgraph. Fully specified dimensions must either be present in the
 %/kind
      *       Operand or they must be provided in the corresponding
@@ -7025,13 +7227,13 @@ struct Operand {
      *
      * A tensor operand with some number of unspecified dimensions is
      * represented by setting each unspecified dimension to 0.
-%kind hal_1.2+
+%kind canonical hal_1.2+
      *
      * A tensor operand with unspecified rank is represented by providing
      * an empty dimensions vector.
 %/kind
      */
-    vec<uint32_t> dimensions;
+    %{Dimensions} dimensions;
 %kind hal*
 
     /**
@@ -7056,7 +7258,7 @@ struct Operand {
      * See {@link OperandType}.
 %/kind
      */
-    float scale;
+    float scale%{init_float};
 
     /**
      * Quantized zero-point offset of the operand.
@@ -7069,12 +7271,12 @@ struct Operand {
      * See {@link OperandType}.
 %/kind
      */
-    int32_t zeroPoint;
+    int32_t zeroPoint%{init_int};
 
     /**
      * How the operand is used.
      */
-    OperandLifeTime lifetime;
+    %{concat_or_skip_first Operand LifeTime} lifetime%{init_pod};
 
     /**
      * Where to find the data for this operand.
@@ -7087,19 +7289,39 @@ struct Operand {
 %/kind
      * - All the fields must be 0.
      * If the lifetime is CONSTANT_COPY:
+%insert location_pointer_is_null
      * - location.poolIndex is 0.
-     * - location.offset is the offset in bytes into Model.operandValues.
+     * - location.offset is the offset in bytes into Model%{::}operandValues.
      * - location.length is set.
+%kind canonical
+     * - location.padding is 0.
+%/kind
      * If the lifetime is CONSTANT_REFERENCE:
+%insert location_pointer_is_null
      * - location.poolIndex is set.
      * - location.offset is the offset in bytes into the specified pool.
      * - location.length is set.
-%kind hal_1.3+
+%kind canonical
+     * - location.padding is set.
+%/kind
+%kind canonical hal_1.3+
      * If the lifetime is SUBGRAPH:
+%insert location_pointer_is_null
      * - location.poolIndex is 0.
      * - location.offset is the index of the referenced subgraph in
      *   {@link Model::referenced}.
      * - location.length is 0.
+%/kind
+%kind canonical
+     * - location.padding is 0.
+%/kind
+%kind canonical
+     * If the lifetime is POINTER:
+     * - location.pointer is non-null.
+     * - location.poolIndex is 0.
+     * - location.offset is 0.
+     * - location.length is set.
+     * - location.padding is 0.
 %/kind
      */
     DataLocation location;
@@ -7117,30 +7339,38 @@ struct Operand {
         vec<uint8_t> extension;
     } extraParams;
 %/kind
-%kind hal_1.3
+%kind canonical hal_1.3
 
 %insert-indented 4 ExtraParams_Comment
-    @1.2::Operand.ExtraParams extraParams;
+    %{concat_or_skip_first @1.2::Operand. ExtraParams} extraParams;
 %/kind
 };
 %/section
+
+%kind canonical
+%define OperandValues OperandValues
+%define SharedMemory SharedMemory
+%else
+%define OperandValues vec<uint8_t>
+%define SharedMemory memory
+%/kind
 
 %section Model_1.0
     /**
      * A byte buffer containing operand data that were copied into the model.
      *
      * An operand's value must be located here if and only if Operand::lifetime
-     * equals OperandLifeTime::CONSTANT_COPY.
+     * equals %{OperandLifeTime}::CONSTANT_COPY.
      */
-    vec<uint8_t> operandValues;
+    %{OperandValues} operandValues;
 
     /**
      * A collection of shared memory pools containing operand values.
      *
      * An operand's value must be located here if and only if Operand::lifetime
-     * equals OperandLifeTime::CONSTANT_REFERENCE.
+     * equals %{OperandLifeTime}::CONSTANT_REFERENCE.
      */
-    vec<memory> pools;
+    %{vec}<%{SharedMemory}> pools;
 %/section
 
 %section Model_1.1
@@ -7150,7 +7380,7 @@ struct Operand {
      * 'false' indicates TENSOR_FLOAT32 must be calculated using at least the
      * range and precision of the IEEE 754 32-bit floating-point format.
      */
-    bool relaxComputationFloat32toFloat16;
+    bool relaxComputationFloat32toFloat16%{init_bool};
 %/section
 
 %section Model_1.2
@@ -7158,6 +7388,10 @@ struct Operand {
      * The mapping between extension names and prefixes of operand and
      * operation type values.
      *
+%kind canonical
+     * An operand or operation whose numeric type value is equal to or greater
+     * than (1 << kExtensionTypeBits) should be interpreted
+%/kind
 %kind hal*
      * An operand or operation whose numeric type value is above
      * {@link OperandTypeRange::BASE_MAX} or
@@ -7174,6 +7408,10 @@ struct Operand {
      * value correspond to the type ID within the extension and the high
      * {@link @1.2::Model::ExtensionTypeEncoding::HIGH_BITS_PREFIX} bits encode
 %/kind
+%kind canonical
+     * {@link kExtensionTypeBits} bits of the value correspond to the type ID
+     * within the extension and the high {@link kExtensionPrefixBits} bits encode
+%/kind
      * the "prefix", which maps uniquely to the extension name.
      *
      * For example, if a model contains an operation whose value is
@@ -7187,9 +7425,9 @@ struct Operand {
      * name corresponding to each prefix.
      */
 %kind hal_1.3
-    vec<@1.2::Model.ExtensionNameAndPrefix> extensionNameToPrefix;
+    %{vec}<@1.2::Model.ExtensionNameAndPrefix> extensionNameToPrefix;
 %else
-    vec<ExtensionNameAndPrefix> extensionNameToPrefix;
+    %{vec}<ExtensionNameAndPrefix> extensionNameToPrefix;
 %/kind
 %/section
 
@@ -7207,14 +7445,14 @@ struct Operand {
      *
      * There must be no reference cycles.
      */
-    vec<Subgraph> referenced;
+    %{vec}<Subgraph> referenced;
 %/section
 
 %section Subgraph_fields
     /**
      * All operands included in the %{model_or_subgraph}.
      */
-    vec<Operand> operands;
+    %{vec}<Operand> operands;
 
     /**
      * All operations included in the %{model_or_subgraph}.
@@ -7223,21 +7461,21 @@ struct Operand {
      * with lifetime %{MODEL_or_SUBGRAPH}_OUTPUT or TEMPORARY_VARIABLE must be
      * written before it is read.
      */
-    vec<Operation> operations;
+    %{vec}<Operation> operations;
 
     /**
      * Input indexes of the %{model_or_subgraph}. There must be at least one.
      *
      * Each value corresponds to the index of the operand in "operands".
      */
-    vec<uint32_t> inputIndexes;
+    %{vec}<uint32_t> inputIndexes;
 
     /**
      * Output indexes of the %{model_or_subgraph}. There must be at least one.
      *
      * Each value corresponds to the index of the operand in "operands".
      */
-    vec<uint32_t> outputIndexes;
+    %{vec}<uint32_t> outputIndexes;
 %/section
 
 %section Subgraph
@@ -7260,15 +7498,34 @@ struct ExtensionNameAndPrefix {
      *
      * See {@link Extension::name} for the format specification.
      */
-    string name;
+    %{string} name;
 
     /**
      * The unique extension identifier within the model.
      *
      * See {@link Model::extensionNameToPrefix}.
      */
-    uint16_t prefix;
+    uint16_t prefix%{init_int};
 };
+%/section
+
+%section ExtensionTypeEncoding
+/**
+ * Numeric values of extension operand and operation types have the
+ * following structure:
+ * - 16 high bits represent the "prefix", which corresponds uniquely to the
+ *   extension name.
+ * - 16 low bits represent the type ID within the extension.
+ */
+%kind canonical
+constexpr uint8_t kExtensionTypeBits = 16;
+constexpr uint8_t kExtensionPrefixBits = 16;
+%else
+enum ExtensionTypeEncoding : uint8_t {
+    HIGH_BITS_PREFIX = 16,
+    LOW_BITS_TYPE = 16,
+};
+%/kind
 %/section
 
 %section Model
@@ -7284,6 +7541,33 @@ struct ExtensionNameAndPrefix {
 %/kind
  */
 struct Model {
+%kind canonical
+%insert-indented 4 Subgraph
+
+    class OperandValues {
+       public:
+        OperandValues();
+        OperandValues(const uint8_t* data, size_t length);
+
+        DataLocation append(const uint8_t* data, size_t length);
+
+        const uint8_t* data() const;
+        size_t size() const;
+
+       private:
+        std::vector<AlignedData> mData;
+    };
+
+%insert-indented 4 ExtensionNameAndPrefix
+
+%insert Model_1.3_main_and_referenced_subgraphs
+
+%insert Model_1.0
+
+%insert Model_1.1
+
+%insert Model_1.2
+%/kind
 %kind hal_1.0
 %insert Subgraph_fields
 
@@ -7307,17 +7591,7 @@ struct Model {
 
 %insert-indented 4 ExtensionNameAndPrefix
 
-    /**
-     * Numeric values of extension operand and operation types have the
-     * following structure:
-     * - 16 high bits represent the "prefix", which corresponds uniquely to the
-     *   extension name.
-     * - 16 low bits represent the type ID within the extension.
-     */
-    enum ExtensionTypeEncoding : uint8_t {
-        HIGH_BITS_PREFIX = 16,
-        LOW_BITS_TYPE = 16,
-    };
+%insert-indented 4 ExtensionTypeEncoding
 %/kind
 %kind hal_1.3
 %insert Model_1.3_main_and_referenced_subgraphs
@@ -7341,7 +7615,7 @@ struct BufferDesc {
      * of unspecified dimensions is represented by setting each unspecified dimension to 0. A
      * buffer with unspecified rank is represented by providing an empty dimensions vector.
      */
-    vec<uint32_t> dimensions;
+    %{Dimensions} dimensions;
 };
 %/section
 
@@ -7354,12 +7628,12 @@ struct BufferRole {
      * The index of the IPreparedModel within the "preparedModel" argument passed in
      * IDevice::allocate.
      */
-    uint32_t modelIndex;
+    uint32_t modelIndex%{init_int};
 
     /**
      * The index of the input or output operand.
      */
-    uint32_t ioIndex;
+    uint32_t ioIndex%{init_int};
 
     /**
      * A floating-point value within the range (0.0, 1.0]. Describes how likely the
@@ -7367,38 +7641,57 @@ struct BufferRole {
      * optimize the case when multiple roles prefer different buffer locations or data
      * layouts.
      */
-    float frequency;
+%kind canonical
+    float probability%{init_float};
+%else
+    float frequency%{init_float};
+%/kind
 };
 %/section
+
+%kind canonical
+%define inputIndexes Model::main::inputIndexes
+%define outputIndexes Model::main::outputIndexes
+%/kind
+%kind hal_1.3
+%define inputIndexes Model.main.inputIndexes
+%define outputIndexes Model.main.outputIndexes
+%/kind
+%kind hal_1.0 hal_1.1 hal_1.2
+%define inputIndexes Model.inputIndexes
+%define outputIndexes Model.outputIndexes
+%/kind
+%kind ndk
+%define inputIndexes @@@NOT_DEFINED@@@
+%define outputIndexes @@@NOT_DEFINED@@@
+%/kind
+
+%kind canonical
+%define inputs inputs
+%define outputs outputs
+%else
+%define inputs input
+%define outputs output
+%/kind
 
 %section Request_inputs_and_outputs
     /**
      * Input data and information to be used in the execution of a prepared
      * model.
      *
-%kind hal_1.0 hal_1.1 hal_1.2
-     * The index of the input corresponds to the index in Model.inputIndexes.
-     *   E.g., input[i] corresponds to Model.inputIndexes[i].
-%else
-     * The index of the input corresponds to the index in Model.main.inputIndexes.
-     *   E.g., input[i] corresponds to Model.main.inputIndexes[i].
-%/kind
+     * The index of the input corresponds to the index in %{inputIndexes}.
+     *   E.g., %{inputs}[i] corresponds to %{inputIndexes}[i].
      */
-    vec<RequestArgument> inputs;
+    %{vec}<%{concat_or_skip_first Request Argument}> inputs;
 
     /**
      * Output data and information to be used in the execution of a prepared
      * model.
      *
-%kind hal_1.0 hal_1.1 hal_1.2
-     * The index of the output corresponds to the index in Model.outputIndexes.
-     *   E.g., output[i] corresponds to Model.outputIndexes[i].
-%else
-     * The index of the output corresponds to the index in Model.main.outputIndexes.
-     *   E.g., output[i] corresponds to Model.main.outputIndexes[i].
-%/kind
+     * The index of the output corresponds to the index in %{outputIndexes}.
+     *   E.g., %{outputs}[i] corresponds to %{outputIndexes}[i].
      */
-    vec<RequestArgument> outputs;
+    %{vec}<%{concat_or_skip_first Request Argument}> outputs;
 %/section
 
 %section Request_pools
@@ -7413,7 +7706,7 @@ struct BufferRole {
 %kind hal_1.0
     vec<memory> pools;
 %else
-    vec<MemoryPool> pools;
+    %{vec}<MemoryPool> pools;
 %/kind
 %/section
 
@@ -7428,7 +7721,15 @@ struct BufferRole {
  * Metadata information specifying the location of the input or output data and
  * any updates to the input or output operand.
  */
-struct RequestArgument {
+struct %{concat_or_skip_first Request Argument} {
+%kind canonical
+    enum class LifeTime {
+        POOL = 0,
+        NO_VALUE = 1,
+        POINTER = 2,
+    };
+
+%/kind
 %kind hal_1.0
     /**
      * If true, the argument does not have a value. This can be used for
@@ -7436,6 +7737,9 @@ struct RequestArgument {
      * are set to 0 and the dimensions vector is left empty.
      */
     bool hasNoValue;
+%/kind
+%kind canonical
+    LifeTime lifetime%{init_pod};
 %/kind
 
     /**
@@ -7460,7 +7764,7 @@ struct RequestArgument {
      * either dimensions.size() may be 0, or the dimensions in the
      * model must be identical to the dimensions here.
      */
-    vec<uint32_t> dimensions;
+    %{Dimensions} dimensions;
 };
 %/section
 
@@ -7477,6 +7781,20 @@ struct RequestArgument {
  * with an operand of lifetime CONSTANT_REFERENCE.
  */
 struct Request {
+%kind canonical
+%insert-indented 4 RequestArgument
+
+    /**
+     * Specifies a driver-managed buffer. It is the token corresponding to an
+     * IBuffer returned from IDevice::allocate, and is specific to the IDevice
+     * object.
+     */
+    enum class MemoryDomainToken : uint32_t {};
+
+%insert-indented 4 Request_MemoryPool_Comment
+    using MemoryPool = std::variant<SharedMemory, MemoryDomainToken, SharedBuffer>;
+
+%/kind
 %insert Request_inputs_and_outputs
 %kind hal_1.3
 

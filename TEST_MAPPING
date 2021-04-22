@@ -1,4 +1,9 @@
 {
+  "mainline-presubmit": [
+    {
+      "name": "CtsNNAPITestCases[com.google.android.neuralnetworks.apex]"
+    }
+  ],
   "presubmit": [
     {
       "name": "NeuralNetworksTest_utils"

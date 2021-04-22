@@ -43,7 +43,6 @@ namespace {
 using aidl::android::hardware::neuralnetworks::IDevice;
 using aidl::android::hardware::neuralnetworks::InvalidDevice;
 using aidl::android::hardware::neuralnetworks::ShimDevice;
-using aidl::android::hardware::neuralnetworks::ShimDeviceInfo;
 
 ANeuralNetworksShimResultCode registerEagerService(const std::shared_ptr<IDevice>& device,
                                                    const std::string& name) {
@@ -111,12 +110,11 @@ std::unordered_map<std::string, ANeuralNetworksDevice*> getNamedDevices(
 
 }  // namespace
 
-ANeuralNetworksShimResultCode registerDevices(
-        NnApiSLDriverImpl* nnapiSLImpl,
-        const std::vector<aidl::android::hardware::neuralnetworks::ShimDeviceInfo>&
-                devicesToRegister,
-        uint32_t numberOfListenerThreads, bool registerAsLazyService,
-        bool fallbackToMinimumSupportDevice) {
+ANeuralNetworksShimResultCode registerDevices(NnApiSLDriverImpl* nnapiSLImpl,
+                                              const std::vector<ShimDeviceInfo>& devicesToRegister,
+                                              uint32_t numberOfListenerThreads,
+                                              bool registerAsLazyService,
+                                              bool fallbackToMinimumSupportDevice) {
     if (nnapiSLImpl == nullptr) {
         LOG(ERROR) << "Invalid arguments, nnapiSLImpl == nullptr ";
         return ANNSHIM_INVALID_ARGUMENT;
@@ -155,7 +153,7 @@ ANeuralNetworksShimResultCode registerDevices(
         if (const auto iter = nameToDevice.find(name); iter != nameToDevice.end()) {
             ANeuralNetworksDevice* device = iter->second;
 
-            auto shimDevice = ndk::SharedRefBase::make<ShimDevice>(nnapi, device, info);
+            auto shimDevice = ndk::SharedRefBase::make<ShimDevice>(nnapi, device, info.serviceName);
             devices.push_back(std::move(shimDevice));
             continue;
         }

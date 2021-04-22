@@ -41,6 +41,234 @@
 __BEGIN_DECLS
 
 /**
+ * Performance information for the reference workload.
+ *
+ * Used by a driver to report its performance characteristics.
+ */
+typedef struct {
+    /**
+     * Ratio of the time taken by the driver to execute the workload compared to the time the CPU
+     * would take for the same workload. A lower number is better.
+     */
+    float execTime;
+
+    /**
+     * Ratio of the energy used by the driver compared to what the CPU would use for doing the same
+     * workload. A lower number is better.
+     */
+    float powerUsage;
+} SL_ANeuralNetworksPerformanceInfo;
+
+/**
+ * Driver performance when operating on a particular data type. In the case of float32 data, this is
+ * used when the calculations are not relaxed.
+ */
+typedef struct {
+    int32_t operandType;
+    SL_ANeuralNetworksPerformanceInfo performanceInfo;
+} SL_ANeuralNetworksOperandPerformanceInfo;
+
+/**
+ * Information about NNAPI Vendor extension operand type.
+ */
+typedef struct {
+    /**
+     * The byte size of the operand (if scalar) or of a single element (if tensor).
+     */
+    uint32_t byteSize;
+
+    /**
+     * The extension operand type.
+     */
+    uint16_t type;
+
+    /**
+     * Indicates whether the extension operand type represents a tensor or a scalar.
+     */
+    bool isTensor;
+} SL_ANeuralNetworksExtensionOperandTypeInformation;
+
+/**
+ * The different performance info kinds.
+ */
+typedef enum {
+    /**
+     * Driver performance when operating on float32 data but performing calculations with range
+     * and/or precision as low as that of the IEEE 754 16-bit floating-point format.
+     */
+    SL_ANEURALNETWORKS_CAPABILITIES_PERFORMANCE_RELAXED_SCALAR = 0,
+
+    /**
+     * Driver performance when operating on float32 data but performing calculations with range
+     * and/or precision as low as that of the IEEE 754 16-bit floating-point format.
+     */
+    SL_ANEURALNETWORKS_CAPABILITIES_PERFORMANCE_RELAXED_TENSOR = 1,
+
+    /**
+     * Performance of an {@link ANEURALNETWORKS_IF} operation is the sum of {@link
+     * ANEURALNETWORKS_IF}'s performance and the mean of performance for the two branch subgraphs,
+     * where performance for a subgraph is the sum of the performance of all operations within the
+     * subgraph.
+     */
+    SL_ANEURALNETWORKS_CAPABILITIES_PERFORMANCE_IF = 2,
+
+    /**
+     * Performance of a {@link ANEURALNETWORKS_WHILE} operation is the sum of {@link
+     * ANEURALNETWORKS_WHILE}'s performance, performance for the condition subgraph and performance
+     * for the body subgraph, where performance for a subgraph is the sum of the performance of all
+     * operations within the subgraph.
+     */
+    SL_ANEURALNETWORKS_CAPABILITIES_PERFORMANCE_WHILE = 3,
+} SL_ANeuralNetworksPerformanceInfoCode;
+
+/**
+ * Sets the compilation caching signature and file descriptors.
+ *
+ * Provides optional caching information to the support library driver for
+ * faster repeated compilation.
+ *
+ * See {@link ANeuralNetworksCompilation} for information on multithreaded usage.
+ *
+ * @param compilation The compilation to be modified.
+ * @param modelCacheFds An array of file descriptors for the security-sensitive cache.
+ *                      The file descriptors will be duplicated.
+ * @param numModelCacheFiles The number of the model cache files.
+ * @param dataCacheFds An array of file descriptors for the constants' cache.
+ *                     The file descriptors will be duplicated.
+ * @param numDataCacheFiles The number of the data cache files.
+ * @param token The token provided by the user to specify a model must be of length
+ *              ANEURALNETWORKS_BYTE_SIZE_OF_CACHE_TOKEN. The user should ensure that
+ *              the token is unique to a model within the application. The NNAPI
+ *              runtime cannot detect token collisions; a collision will result in a
+ *              failed execution or in a successful execution that produces incorrect
+ *              output values.
+ *
+ * @return ANEURALNETWORKS_NO_ERROR if successful.
+ *
+ * Available in the compabibility library build only.
+ */
+int SL_ANeuralNetworksCompilation_setCachingFromFds(ANeuralNetworksCompilation* compilation,
+                                                    const int* modelCacheFds,
+                                                    const uint32_t numModelCacheFiles,
+                                                    const int* dataCacheFds,
+                                                    const uint32_t numDataCacheFiles,
+                                                    const uint8_t* token);
+
+/**
+ * Gets the caching requirements of the driver implementation.
+ *
+ * There are two types of cache file descriptors provided to the driver: model cache and data cache.
+ *
+ * The data cache is for caching constant data, possibly including preprocessed and transformed
+ * tensor buffers. Any modification to the data cache should have no worse effect than generating
+ * bad output values at execution time.
+ *
+ * The model cache is for caching security-sensitive data such as compiled executable machine code
+ * in the device's native binary format. A modification to the model cache may affect the driver's
+ * execution behavior, and a malicious client could make use of this to execute beyond the granted
+ * permission.
+ *
+ * ANeuralNetworksDevice_getNumberOfCacheFilesNeeded returns how many of each type of cache files
+ * the driver implementation needs to cache a single compilation. Returning 0 for both types
+ * indicates compilation caching is not supported by this driver. The driver may still choose not to
+ * cache certain compiled models even if it reports that caching is supported.
+ *
+ * @param device The representation of the specified device.
+ * @param numModelCacheFiles The number of the model cache files. A value of 0 is returned on error.
+ * @param numDataCacheFiles The number of the data cache files. A value of 0 is returned on error.
+ *
+ * @return ANEURALNETWORKS_NO_ERROR if successful.
+ *
+ * Available in the compabibility library build only.
+ */
+int SL_ANeuralNetworksDevice_getNumberOfCacheFilesNeeded(const ANeuralNetworksDevice* device,
+                                                         uint32_t* numModelCacheFiles,
+                                                         uint32_t* numDataCacheFiles);
+
+/**
+ * Get NNAPI Device performance/power capabilities.
+ *
+ * This returns performance of non-extension operations.
+ *
+ * Performance of an operation other than {@link ANEURALNETWORKS_IF} and {@link
+ * ANEURALNETWORKS_WHILE} comes from the type of its first operand.
+ *
+ * @param device The representation of the specified device.
+ * @param performanceInfoKind The kind of performance info to be queried. Must be one of the values
+ *                            from {@link SL_ANeuralNetworksPerformanceInfoCode}.
+ * @return ANEURALNETWORKS_NO_ERROR if successful.
+ *
+ * Available in the compabibility library build only.
+ */
+int SL_ANeuralNetworksDevice_getPerformanceInfo(const ANeuralNetworksDevice* device,
+                                                int32_t performanceInfoKind,
+                                                SL_ANeuralNetworksPerformanceInfo* performanceInfo);
+
+/**
+ * Get NNAPI Device operand performance/power capabilities.
+ *
+ * This returns performance of non-extension operations.
+ *
+ * Performance of an operation other than {@link ANEURALNETWORKS_IF} and {@link
+ * ANEURALNETWORKS_WHILE} comes from the type of its first operand.
+ *
+ * @param device The representation of the specified device.
+ * @param context Context to pass to the callback.
+ * @param callback Callback taking operand performance and context.
+ * @return ANEURALNETWORKS_NO_ERROR if successful.
+ *
+ * Available in the compabibility library build only.
+ */
+int SL_ANeuralNetworksDevice_forEachOperandPerformanceInfo(
+        const ANeuralNetworksDevice* device, void* context,
+        void (*callback)(SL_ANeuralNetworksOperandPerformanceInfo, void*));
+
+/**
+ * Get the number of extensions supported by the driver implementation.
+ *
+ * @param device The representation of the specified device.
+ * @param vendorExtensionCount The number of vendor extensions the device supports. To be used in
+ *                             {@link ANeuralNetworksDevice_getVendorExtensionName} and {@link
+ *                             ANeuralNetworksDevice_forEachVendorExtensionOperandTypeInformation}.
+ * @return ANEURALNETWORKS_NO_ERROR if successful.
+ *
+ * Available in the compabibility library build only.
+ */
+int SL_ANeuralNetworksDevice_getVendorExtensionCount(const ANeuralNetworksDevice* device,
+                                                     uint32_t* vendorExtensionCount);
+
+/**
+ * Gets information about a specified extension supported by the driver implementation.
+ *
+ * @param device The representation of the specified device.
+ * @param vendorExtensionIndex The index of the specified vendor extension. Must be less than the
+ *                             number of available vendor extensions.
+ * @param extensionName Name of the NNAPI HAL Extension.
+ * @return ANEURALNETWORKS_NO_ERROR if successful.
+ *
+ * Available in the compabibility library build only.
+ */
+int SL_ANeuralNetworksDevice_getVendorExtensionName(const ANeuralNetworksDevice* device,
+                                                    uint32_t vendorExtensionIndex,
+                                                    const char** extensionName);
+
+/**
+ * Gets a specified extension's operand type information supported by the driver implementation.
+ *
+ * @param device The representation of the specified device.
+ * @param vendorExtensionIndex The index of the specified vendor extension. Must be less than the
+ *                             number of available vendor extensions.
+ * @param context Context to pass to the callback.
+ * @param callback Callback taking operand type information and context.
+ * @return ANEURALNETWORKS_NO_ERROR if successful.
+ *
+ * Available in the compabibility library build only.
+ */
+int SL_ANeuralNetworksDevice_forEachVendorExtensionOperandTypeInformation(
+        const ANeuralNetworksDevice* device, uint32_t vendorExtensionIndex, void* context,
+        void (*callback)(SL_ANeuralNetworksExtensionOperandTypeInformation, void*));
+
+/**
  * Base version of NnApiSLDriverImpl with version information.
  *
  * NnApiSLDriverImpl is non-opaque, versioning struct to make it possible to pass
@@ -730,12 +958,73 @@ struct NnApiSLDriverImplFL5 {
      * {@link ANeuralNetworksCompilation_setCaching},
      * at the feature level of this NnApiSLDriver struct.
      */
-    int (*ANeuralNetworksCompilation_setCachingFromFds)(ANeuralNetworksCompilation* compilation,
-                                                        const int* modelCacheFds,
-                                                        const uint32_t numModelCacheFiles,
-                                                        const int* dataCacheFds,
-                                                        const uint32_t numDataCacheFiles,
-                                                        const uint8_t* token);
+    int (*SL_ANeuralNetworksCompilation_setCachingFromFds)(ANeuralNetworksCompilation* compilation,
+                                                           const int* modelCacheFds,
+                                                           const uint32_t numModelCacheFiles,
+                                                           const int* dataCacheFds,
+                                                           const uint32_t numDataCacheFiles,
+                                                           const uint8_t* token);
+
+    /**
+     * SL Driver implementation of {@link SL_ANeuralNetworksDevice_getNumberOfCacheFilesNeeded}.
+     * Behavior, arguments, and outputs match NNAPI Runtime function
+     * {@link SL_ANeuralNetworksDevice_getNumberOfCacheFilesNeeded},
+     * at the feature level of this NnApiSLDriver struct.
+     */
+    int (*SL_ANeuralNetworksDevice_getNumberOfCacheFilesNeeded)(const ANeuralNetworksDevice* device,
+                                                                uint32_t* numModelCacheFiles,
+                                                                uint32_t* numDataCacheFiles);
+
+    /**
+     * SL Driver implementation of {@link SL_ANeuralNetworksDevice_getPerformanceInfo}.
+     * Behavior, arguments, and outputs match NNAPI Runtime function
+     * {@link SL_ANeuralNetworksDevice_getPerformanceInfo},
+     * at the feature level of this NnApiSLDriver struct.
+     */
+    int (*SL_ANeuralNetworksDevice_getPerformanceInfo)(
+            const ANeuralNetworksDevice* device, int32_t performanceInfoKind,
+            SL_ANeuralNetworksPerformanceInfo* performanceInfo);
+
+    /**
+     * SL Driver implementation of {@link
+     * SL_ANeuralNetworksDevice_forEachOperandPerformanceInfo}. Behavior, arguments, and
+     * outputs match NNAPI Runtime function
+     * {@link SL_ANeuralNetworksDevice_forEachOperandPerformanceInfo},
+     * at the feature level of this NnApiSLDriver struct.
+     */
+    int (*SL_ANeuralNetworksDevice_forEachOperandPerformanceInfo)(
+            const ANeuralNetworksDevice* device, void* context,
+            void (*callback)(SL_ANeuralNetworksOperandPerformanceInfo, void*));
+
+    /**
+     * SL Driver implementation of {@link SL_ANeuralNetworksDevice_getVendorExtensionCount}.
+     * Behavior, arguments, and outputs match NNAPI Runtime function
+     * {@link SL_ANeuralNetworksDevice_getVendorExtensionCount},
+     * at the feature level of this NnApiSLDriver struct.
+     */
+    int (*SL_ANeuralNetworksDevice_getVendorExtensionCount)(const ANeuralNetworksDevice* device,
+                                                            uint32_t* vendorExtensionCount);
+
+    /**
+     * SL Driver implementation of {@link SL_ANeuralNetworksDevice_getVendorExtensionName}.
+     * Behavior, arguments, and outputs match NNAPI Runtime function
+     * {@link SL_ANeuralNetworksDevice_getVendorExtensionName},
+     * at the feature level of this NnApiSLDriver struct.
+     */
+    int (*SL_ANeuralNetworksDevice_getVendorExtensionName)(const ANeuralNetworksDevice* device,
+                                                           uint32_t vendorExtensionIndex,
+                                                           const char** extensionName);
+
+    /**
+     * SL Driver implementation of {@link
+     * SL_ANeuralNetworksDevice_forEachVendorExtensionOperandTypeInformation}. Behavior, arguments,
+     * and outputs match NNAPI Runtime function
+     * {@link SL_ANeuralNetworksDevice_forEachVendorExtensionOperandTypeInformation},
+     * at the feature level of this NnApiSLDriver struct.
+     */
+    int (*SL_ANeuralNetworksDevice_forEachVendorExtensionOperandTypeInformation)(
+            const ANeuralNetworksDevice* device, uint32_t vendorExtensionIndex, void* context,
+            void (*callback)(SL_ANeuralNetworksExtensionOperandTypeInformation, void*));
 };
 
 __END_DECLS

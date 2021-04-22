@@ -59,6 +59,7 @@ cc_library_static {
         // Needed by neuralnetworks_supportlibrary_loader
         // Should be removed after doing b/117845862
         "-DNNTEST_SLTS",
+        "-DNN_COMPATIBILITY_LIBRARY_BUILD",
         "-Wall",
         "-Werror",
     ],
@@ -158,6 +159,7 @@ cc_library_static {
         "-DNNTEST_COMPUTE_MODE",
         "-DNNTEST_ONLY_PUBLIC_API",
         "-DNNTEST_SLTS",
+        "-DNN_COMPATIBILITY_LIBRARY_BUILD",
         "-Wall",
         "-Werror",
     ],

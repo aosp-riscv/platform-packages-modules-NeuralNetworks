@@ -517,6 +517,7 @@ cc_test {
         "-DNNTEST_COMPUTE_MODE",
         "-DNNTEST_ONLY_PUBLIC_API",
         "-DNNTEST_SLTS",
+        "-DNN_COMPATIBILITY_LIBRARY_BUILD",
         "-Wall",
         "-Werror",
     ],

@@ -24,19 +24,33 @@
 
 namespace android::neuralnetworks::shim {
 
+/**
+ * Information about an NNAPI Device to register.
+ */
+struct ShimDeviceInfo {
+    /**
+     * Name of the target device, as returned by SL ANeuralNetworksDevice_getName
+     */
+    std::string deviceName;
+
+    /**
+     * Name of HAL AIDL service backed by this SL NNAPI Driver device.
+     */
+    std::string serviceName;
+};
+
 struct RegistrationParams {
     NnApiSLDriverImpl* nnapiSupportLibraryPackage = nullptr;
-    std::vector<aidl::android::hardware::neuralnetworks::ShimDeviceInfo> deviceInfos;
+    std::vector<ShimDeviceInfo> deviceInfos;
     uint32_t numberOfListenerThreads = 15;
     bool registerAsLazyService = false;
     bool fallbackToMinimumSupportDevice = false;
 };
 
-ANeuralNetworksShimResultCode registerDevices(
-        NnApiSLDriverImpl* nnapiSLImpl,
-        const std::vector<aidl::android::hardware::neuralnetworks::ShimDeviceInfo>&
-                devicesToRegister,
-        uint32_t numberOfListenerThreads, bool registerAsLazyService,
-        bool fallbackToMinimumSupportDevice);
+ANeuralNetworksShimResultCode registerDevices(NnApiSLDriverImpl* nnapiSLImpl,
+                                              const std::vector<ShimDeviceInfo>& devicesToRegister,
+                                              uint32_t numberOfListenerThreads,
+                                              bool registerAsLazyService,
+                                              bool fallbackToMinimumSupportDevice);
 
 }  // namespace android::neuralnetworks::shim

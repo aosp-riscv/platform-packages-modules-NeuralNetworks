@@ -46,12 +46,12 @@ class ShimPreparedModel : public BnPreparedModel {
     };
 
     ::ndk::ScopedAStatus executeSynchronously(const Request& request, bool measureTiming,
-                                              int64_t deadline, int64_t loopTimeoutDuration,
+                                              int64_t deadlineNs, int64_t loopTimeoutDurationNs,
                                               ExecutionResult* executionResults) override;
     ::ndk::ScopedAStatus executeFenced(const Request& request,
                                        const std::vector<::ndk::ScopedFileDescriptor>& waitFor,
-                                       bool measureTiming, int64_t deadline,
-                                       int64_t loopTimeoutDuration, int64_t duration,
+                                       bool measureTiming, int64_t deadlineNs,
+                                       int64_t loopTimeoutDurationNs, int64_t durationNs,
                                        FencedExecutionResult* fencedExecutionResult) override;
     ndk::ScopedAStatus configureExecutionBurst(std::shared_ptr<IBurst>* burst) override;
 
@@ -62,7 +62,7 @@ class ShimPreparedModel : public BnPreparedModel {
 
    private:
     ErrorStatus parseInputs(
-            const Request& request, bool measure, int64_t deadline, int64_t loopTimeoutDuration,
+            const Request& request, bool measure, int64_t deadlineNs, int64_t loopTimeoutDurationNs,
             ::android::nn::sl_wrapper::Execution* execution,
             std::vector<std::shared_ptr<::android::nn::sl_wrapper::Memory>>* requestMemoryPools);
 

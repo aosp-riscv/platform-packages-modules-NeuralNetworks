@@ -31,6 +31,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <iterator>
 #include <memory>
 #include <string>
 #include <tuple>
@@ -74,25 +75,28 @@ class DriverDevice : public Device {
         return kInterface->getSupportedExtensions();
     }
     std::vector<bool> getSupportedOperations(const MetaModel& metaModel) const override;
+    const Capabilities& getCapabilities() const override { return kInterface->getCapabilities(); }
     Capabilities::PerformanceInfo getPerformance(OperandType type) const override {
-        return kInterface->getCapabilities().operandPerformance.lookup(type);
+        return getCapabilities().operandPerformance.lookup(type);
     }
     Capabilities::PerformanceInfo getRelaxedFloat32toFloat16PerformanceScalar() const override {
-        return kInterface->getCapabilities().relaxedFloat32toFloat16PerformanceScalar;
+        return getCapabilities().relaxedFloat32toFloat16PerformanceScalar;
     }
     Capabilities::PerformanceInfo getRelaxedFloat32toFloat16PerformanceTensor() const override {
-        return kInterface->getCapabilities().relaxedFloat32toFloat16PerformanceTensor;
+        return getCapabilities().relaxedFloat32toFloat16PerformanceTensor;
     }
     Capabilities::PerformanceInfo getIfPerformance() const override {
-        return kInterface->getCapabilities().ifPerformance;
+        return getCapabilities().ifPerformance;
     }
     Capabilities::PerformanceInfo getWhilePerformance() const override {
-        return kInterface->getCapabilities().whilePerformance;
+        return getCapabilities().whilePerformance;
+    }
+    std::pair<uint32_t, uint32_t> getNumberOfCacheFilesNeeded() const override {
+        return kInterface->getNumberOfCacheFilesNeeded();
     }
     bool isCachingSupported() const override {
         // Caching is supported if either of numModelCache or numDataCache is greater than 0.
-        const auto [numModelCacheFiles, numDataCacheFiles] =
-                kInterface->getNumberOfCacheFilesNeeded();
+        const auto [numModelCacheFiles, numDataCacheFiles] = getNumberOfCacheFilesNeeded();
         return numModelCacheFiles > 0 || numDataCacheFiles > 0;
     }
     int wait() const override {
@@ -717,6 +721,45 @@ std::tuple<int, int, ExecuteFencedInfoCallback, Timing> DriverPreparedModel::exe
     return {ANEURALNETWORKS_NO_ERROR, syncFenceFd, executeFencedInfoCallback, timing};
 }
 
+static Capabilities createCpuCapabilities() {
+    constexpr Capabilities::PerformanceInfo kPerf = {.execTime = 1.0f, .powerUsage = 1.0f};
+    constexpr OperandType operandTypes[] = {
+            OperandType::FLOAT32,
+            OperandType::INT32,
+            OperandType::UINT32,
+            OperandType::TENSOR_FLOAT32,
+            OperandType::TENSOR_INT32,
+            OperandType::TENSOR_QUANT8_ASYMM,
+            OperandType::BOOL,
+            OperandType::TENSOR_QUANT16_SYMM,
+            OperandType::TENSOR_FLOAT16,
+            OperandType::TENSOR_BOOL8,
+            OperandType::FLOAT16,
+            OperandType::TENSOR_QUANT8_SYMM_PER_CHANNEL,
+            OperandType::TENSOR_QUANT16_ASYMM,
+            OperandType::TENSOR_QUANT8_SYMM,
+            OperandType::TENSOR_QUANT8_ASYMM_SIGNED,
+    };
+
+    std::vector<Capabilities::OperandPerformance> operandPerformance;
+    operandPerformance.reserve(std::size(operandTypes));
+    std::transform(std::begin(operandTypes), std::end(operandTypes),
+                   std::back_inserter(operandPerformance), [kPerf](OperandType type) {
+                       return Capabilities::OperandPerformance{.type = type, .info = kPerf};
+                   });
+
+    auto table =
+            Capabilities::OperandPerformanceTable::create(std::move(operandPerformance)).value();
+
+    return Capabilities{
+            .relaxedFloat32toFloat16PerformanceScalar = kPerf,
+            .relaxedFloat32toFloat16PerformanceTensor = kPerf,
+            .operandPerformance = std::move(table),
+            .ifPerformance = kPerf,
+            .whilePerformance = kPerf,
+    };
+}
+
 // A special abstracted device for the CPU. Only one instance of this class will exist.
 // Use get() to retrieve it.
 class CpuDevice : public Device {
@@ -736,6 +779,7 @@ class CpuDevice : public Device {
         return kSupportedExtensions;
     }
     std::vector<bool> getSupportedOperations(const MetaModel& metaModel) const override;
+    const Capabilities& getCapabilities() const override { return kCapabilities; }
     Capabilities::PerformanceInfo getPerformance(OperandType) const override {
         return kPerformance;
     }
@@ -747,6 +791,9 @@ class CpuDevice : public Device {
     }
     Capabilities::PerformanceInfo getIfPerformance() const override { return kPerformance; }
     Capabilities::PerformanceInfo getWhilePerformance() const override { return kPerformance; }
+    std::pair<uint32_t, uint32_t> getNumberOfCacheFilesNeeded() const override {
+        return {/*numModelCache=*/0, /*numDataCache=*/0};
+    }
     bool isCachingSupported() const override { return false; }
     int wait() const override { return ANEURALNETWORKS_NO_ERROR; }
 
@@ -770,6 +817,7 @@ class CpuDevice : public Device {
     // Since the performance is a ratio compared to the CPU performance,
     // by definition the performance of the CPU is 1.0.
     const Capabilities::PerformanceInfo kPerformance = {.execTime = 1.0f, .powerUsage = 1.0f};
+    const Capabilities kCapabilities = createCpuCapabilities();
     const std::vector<Extension> kSupportedExtensions{/* No extensions. */};
 };
 

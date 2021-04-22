@@ -92,13 +92,6 @@ class IDevice {
     virtual DeviceType getType() const = 0;
 
     /**
-     * Returns whether or not the driver can be updated between dessert releases.
-     *
-     * @return 'true' if the driver can be updated between dessert releases, 'false' otherwise.
-     */
-    virtual bool isUpdatable() const = 0;
-
-    /**
      * Gets information about extensions supported by the driver implementation.
      *
      * Extensions of category ExtensionCategory::BASE must not appear in the list.

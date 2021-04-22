@@ -61,16 +61,16 @@ class DriverDevice : public Device {
    public:
     // Create a DriverDevice from a name and a DeviceFactory function.
     // Returns nullptr on failure.
-    static std::shared_ptr<DriverDevice> create(SharedDevice device);
+    static std::shared_ptr<DriverDevice> create(SharedDevice device, bool isUpdatable = false);
 
     // Prefer using DriverDevice::create
-    explicit DriverDevice(SharedDevice device);
+    explicit DriverDevice(SharedDevice device, bool isUpdatable);
 
     const std::string& getName() const override { return kInterface->getName(); }
     const std::string& getVersionString() const override { return kInterface->getVersionString(); }
     int64_t getFeatureLevel() const override;
     int32_t getType() const override { return static_cast<int32_t>(kInterface->getType()); }
-    bool isUpdatable() const override { return kInterface->isUpdatable(); }
+    bool isUpdatable() const override { return kIsUpdatable; }
     const std::vector<Extension>& getSupportedExtensions() const override {
         return kInterface->getSupportedExtensions();
     }
@@ -118,6 +118,7 @@ class DriverDevice : public Device {
 
    private:
     const SharedDevice kInterface;
+    const bool kIsUpdatable;
 
     GeneralResult<std::vector<bool>> getSupportedOperationsImpl(const MetaModel& metaModel) const;
     GeneralResult<SharedPreparedModel> prepareModelFromCacheInternal(
@@ -177,7 +178,8 @@ class DriverPreparedModel : public RuntimePreparedModel {
     const SharedPreparedModel mPreparedModel;
 };
 
-DriverDevice::DriverDevice(SharedDevice device) : kInterface(std::move(device)) {
+DriverDevice::DriverDevice(SharedDevice device, bool isUpdatable)
+    : kInterface(std::move(device)), kIsUpdatable(isUpdatable) {
     CHECK(kInterface != nullptr);
 #ifdef NN_DEBUGGABLE
     static const char samplePrefix[] = "sample";
@@ -187,13 +189,13 @@ DriverDevice::DriverDevice(SharedDevice device) : kInterface(std::move(device)) 
 #endif  // NN_DEBUGGABLE
 }
 
-std::shared_ptr<DriverDevice> DriverDevice::create(SharedDevice device) {
+std::shared_ptr<DriverDevice> DriverDevice::create(SharedDevice device, bool isUpdatable) {
     if (device == nullptr) {
         LOG(ERROR) << "DriverDevice::create called with nullptr";
         return nullptr;
     }
 
-    return std::make_shared<DriverDevice>(std::move(device));
+    return std::make_shared<DriverDevice>(std::move(device), isUpdatable);
 }
 
 int64_t DriverDevice::getFeatureLevel() const {
@@ -1059,8 +1061,31 @@ std::shared_ptr<Device> DeviceManager::forTest_makeDriverDevice(const SharedDevi
 }
 
 #ifndef NN_COMPATIBILITY_LIBRARY_BUILD
-std::vector<SharedDevice> getDevices() {
-    return hal::getDevices();
+std::vector<std::shared_ptr<DriverDevice>> getDriverDevices() {
+    const auto& appInfo = AppInfoFetcher::get()->getAppInfo();
+    const bool currentProcessIsOnThePlatform =
+            appInfo.appIsSystemApp || appInfo.appIsOnVendorImage || appInfo.appIsOnProductImage;
+
+    const bool includeUpdatableDrivers = !currentProcessIsOnThePlatform;
+    auto devicesAndUpdatability =
+            hardware::neuralnetworks::service::getDevices(includeUpdatableDrivers);
+
+    std::vector<std::shared_ptr<DriverDevice>> driverDevices;
+    driverDevices.reserve(devicesAndUpdatability.size());
+    for (auto& [device, isDeviceUpdatable] : devicesAndUpdatability) {
+        driverDevices.push_back(DriverDevice::create(std::move(device), isDeviceUpdatable));
+    }
+    return driverDevices;
+}
+#else
+std::vector<std::shared_ptr<DriverDevice>> getDriverDevices() {
+    auto devices = getDevices();
+    std::vector<std::shared_ptr<DriverDevice>> driverDevices;
+    driverDevices.reserve(devices.size());
+    for (auto& device : devices) {
+        driverDevices.push_back(DriverDevice::create(std::move(device)));
+    }
+    return driverDevices;
 }
 #endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
@@ -1068,10 +1093,10 @@ void DeviceManager::findAvailableDevices() {
     VLOG(MANAGER) << "findAvailableDevices";
 
     // register driver devices
-    std::vector<SharedDevice> devices = getDevices();
-    for (const auto& device : devices) {
-        VLOG(MANAGER) << "Found interface " << device->getName();
-        registerDevice(device);
+    auto driverDevices = getDriverDevices();
+    for (auto& driverDevice : driverDevices) {
+        VLOG(MANAGER) << "Found interface " << driverDevice->getName();
+        mDevices.push_back(std::move(driverDevice));
     }
 
 #ifndef NN_COMPATIBILITY_LIBRARY_BUILD
@@ -1081,23 +1106,9 @@ void DeviceManager::findAvailableDevices() {
 #endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 }
 
-static bool updatableDriversAreAllowed() {
-#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
-    const auto& appInfo = AppInfoFetcher::get()->getAppInfo();
-    const bool currentProcessIsOnThePlatform =
-            appInfo.appIsSystemApp || appInfo.appIsOnVendorImage || appInfo.appIsOnProductImage;
-    return !currentProcessIsOnThePlatform;
-#else
-    // The concept does not exist in the compatibility library build.
-    return true;
-#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
-}
-
 void DeviceManager::registerDevice(const SharedDevice& device) {
     if (auto driverDevice = DriverDevice::create(device)) {
-        if (!driverDevice->isUpdatable() || updatableDriversAreAllowed()) {
-            mDevices.push_back(std::move(driverDevice));
-        }
+        mDevices.push_back(std::move(driverDevice));
     }
 }
 

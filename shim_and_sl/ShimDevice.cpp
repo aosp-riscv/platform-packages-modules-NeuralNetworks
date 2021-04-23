@@ -18,9 +18,13 @@
 
 #include "ShimDevice.h"
 
+#include <NeuralNetworks.h>
 #include <aidl/android/hardware/neuralnetworks/DataLocation.h>
 #include <aidl/android/hardware/neuralnetworks/ErrorStatus.h>
+#include <aidl/android/hardware/neuralnetworks/Extension.h>
+#include <aidl/android/hardware/neuralnetworks/ExtensionOperandTypeInformation.h>
 #include <aidl/android/hardware/neuralnetworks/Memory.h>
+#include <aidl/android/hardware/neuralnetworks/NumberOfCacheFiles.h>
 #include <aidl/android/hardware/neuralnetworks/OperandLifeTime.h>
 #include <aidl/android/hardware/neuralnetworks/OperandPerformance.h>
 #include <android-base/logging.h>
@@ -90,15 +94,86 @@ const ShimPreparedModel* castToShimPreparedModel(IPreparedModel* preparedModel) 
     return static_cast<const ShimPreparedModel*>(preparedModel);
 }
 
-Capabilities getCapabilities() {
-    constexpr PerformanceInfo kPerf = {.execTime = 0.5f, .powerUsage = 0.5f};
-    return {
-            .relaxedFloat32toFloat16PerformanceScalar = kPerf,
-            .relaxedFloat32toFloat16PerformanceTensor = kPerf,
-            .operandPerformance = {},
-            .ifPerformance = kPerf,
-            .whilePerformance = kPerf,
+static PerformanceInfo convertPerformanceInfo(const SL_ANeuralNetworksPerformanceInfo& info) {
+    return {.execTime = info.execTime, .powerUsage = info.powerUsage};
+}
+
+Capabilities getCapabilities(const NnApiSupportLibrary* nnapi, ANeuralNetworksDevice* device) {
+    Capabilities capabilities;
+    SL_ANeuralNetworksPerformanceInfo performanceInfo;
+
+    nnapi->SL_ANeuralNetworksDevice_getPerformanceInfo(
+            device, SL_ANEURALNETWORKS_CAPABILITIES_PERFORMANCE_RELAXED_SCALAR, &performanceInfo);
+    capabilities.relaxedFloat32toFloat16PerformanceScalar = convertPerformanceInfo(performanceInfo);
+
+    nnapi->SL_ANeuralNetworksDevice_getPerformanceInfo(
+            device, SL_ANEURALNETWORKS_CAPABILITIES_PERFORMANCE_RELAXED_TENSOR, &performanceInfo);
+    capabilities.relaxedFloat32toFloat16PerformanceTensor = convertPerformanceInfo(performanceInfo);
+
+    nnapi->SL_ANeuralNetworksDevice_getPerformanceInfo(
+            device, SL_ANEURALNETWORKS_CAPABILITIES_PERFORMANCE_IF, &performanceInfo);
+    capabilities.ifPerformance = convertPerformanceInfo(performanceInfo);
+
+    nnapi->SL_ANeuralNetworksDevice_getPerformanceInfo(
+            device, SL_ANEURALNETWORKS_CAPABILITIES_PERFORMANCE_WHILE, &performanceInfo);
+    capabilities.whilePerformance = convertPerformanceInfo(performanceInfo);
+
+    constexpr auto fn = [](SL_ANeuralNetworksOperandPerformanceInfo info, void* context) {
+        auto* out = static_cast<std::vector<OperandPerformance>*>(context);
+        out->push_back(OperandPerformance{
+                .type = static_cast<OperandType>(info.operandType),
+                .info = convertPerformanceInfo(info.performanceInfo),
+        });
     };
+
+    nnapi->SL_ANeuralNetworksDevice_forEachOperandPerformanceInfo(
+            device, static_cast<void*>(&capabilities.operandPerformance), fn);
+
+    return capabilities;
+}
+
+NumberOfCacheFiles getNumberOfCacheFilesNeeded(const NnApiSupportLibrary* nnapi,
+                                               ANeuralNetworksDevice* device) {
+    uint32_t numModelCacheFiles;
+    uint32_t numDataCacheFiles;
+    nnapi->SL_ANeuralNetworksDevice_getNumberOfCacheFilesNeeded(device, &numModelCacheFiles,
+                                                                &numDataCacheFiles);
+    return {
+            .numModelCache = static_cast<int32_t>(numModelCacheFiles),
+            .numDataCache = static_cast<int32_t>(numDataCacheFiles),
+    };
+}
+
+std::vector<Extension> getVendorExtensions(const NnApiSupportLibrary* nnapi,
+                                           ANeuralNetworksDevice* device) {
+    uint32_t vendorExtensionCount;
+    nnapi->SL_ANeuralNetworksDevice_getVendorExtensionCount(device, &vendorExtensionCount);
+
+    std::vector<Extension> extensions(vendorExtensionCount);
+
+    for (uint32_t vendorExtensionIndex = 0; vendorExtensionIndex < vendorExtensionCount;
+         ++vendorExtensionIndex) {
+        auto& extension = extensions[vendorExtensionIndex];
+
+        const char* extensionName;
+        nnapi->SL_ANeuralNetworksDevice_getVendorExtensionName(device, vendorExtensionIndex,
+                                                               &extensionName);
+        extension.name = extensionName;
+
+        constexpr auto fn = [](SL_ANeuralNetworksExtensionOperandTypeInformation info,
+                               void* context) {
+            auto* out = static_cast<std::vector<ExtensionOperandTypeInformation>*>(context);
+            out->push_back(ExtensionOperandTypeInformation{
+                    .type = info.type,
+                    .isTensor = info.isTensor,
+                    .byteSize = static_cast<int32_t>(info.byteSize),
+            });
+        };
+        nnapi->SL_ANeuralNetworksDevice_forEachVendorExtensionOperandTypeInformation(
+                device, vendorExtensionIndex, static_cast<void*>(&extension.operandTypes), fn);
+    }
+
+    return extensions;
 }
 
 }  // namespace
@@ -109,9 +184,9 @@ ShimDevice::ShimDevice(std::shared_ptr<const NnApiSupportLibrary> nnapi,
       mBufferTracker(ShimBufferTracker::create()),
       mServiceName(std::move(serviceName)),
       mDevice(device),
-      mCapabilities(neuralnetworks::getCapabilities()),
-      mNumberOfCacheFiles(),
-      mExtensions() {}
+      mCapabilities(neuralnetworks::getCapabilities(mNnapi.get(), mDevice)),
+      mNumberOfCacheFiles(neuralnetworks::getNumberOfCacheFilesNeeded(mNnapi.get(), mDevice)),
+      mExtensions(neuralnetworks::getVendorExtensions(mNnapi.get(), mDevice)) {}
 
 // Manages the data buffer for an operand.
 class ShimBuffer : public BnBuffer {

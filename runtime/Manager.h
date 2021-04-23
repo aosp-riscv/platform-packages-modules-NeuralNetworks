@@ -98,11 +98,13 @@ class Device {
     // See the MetaModel class in MetaModel.h for more details.
     virtual std::vector<bool> getSupportedOperations(const MetaModel& metaModel) const = 0;
 
+    virtual const Capabilities& getCapabilities() const = 0;
     virtual Capabilities::PerformanceInfo getPerformance(OperandType type) const = 0;
     virtual Capabilities::PerformanceInfo getRelaxedFloat32toFloat16PerformanceScalar() const = 0;
     virtual Capabilities::PerformanceInfo getRelaxedFloat32toFloat16PerformanceTensor() const = 0;
     virtual Capabilities::PerformanceInfo getIfPerformance() const = 0;
     virtual Capabilities::PerformanceInfo getWhilePerformance() const = 0;
+    virtual std::pair<uint32_t, uint32_t> getNumberOfCacheFilesNeeded() const = 0;
     virtual bool isCachingSupported() const = 0;
     virtual int wait() const = 0;
 

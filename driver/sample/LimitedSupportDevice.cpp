@@ -66,10 +66,6 @@ DeviceType LimitedSupportDevice::getType() const {
     return kDevice->getType();
 }
 
-bool LimitedSupportDevice::isUpdatable() const {
-    return kDevice->isUpdatable();
-}
-
 const std::vector<Extension>& LimitedSupportDevice::getSupportedExtensions() const {
     return kDevice->getSupportedExtensions();
 }

@@ -31,6 +31,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <iterator>
 #include <memory>
 #include <string>
 #include <tuple>
@@ -60,39 +61,42 @@ class DriverDevice : public Device {
    public:
     // Create a DriverDevice from a name and a DeviceFactory function.
     // Returns nullptr on failure.
-    static std::shared_ptr<DriverDevice> create(SharedDevice device);
+    static std::shared_ptr<DriverDevice> create(SharedDevice device, bool isUpdatable = false);
 
     // Prefer using DriverDevice::create
-    explicit DriverDevice(SharedDevice device);
+    explicit DriverDevice(SharedDevice device, bool isUpdatable);
 
     const std::string& getName() const override { return kInterface->getName(); }
     const std::string& getVersionString() const override { return kInterface->getVersionString(); }
     int64_t getFeatureLevel() const override;
     int32_t getType() const override { return static_cast<int32_t>(kInterface->getType()); }
-    bool isUpdatable() const override { return kInterface->isUpdatable(); }
+    bool isUpdatable() const override { return kIsUpdatable; }
     const std::vector<Extension>& getSupportedExtensions() const override {
         return kInterface->getSupportedExtensions();
     }
     std::vector<bool> getSupportedOperations(const MetaModel& metaModel) const override;
+    const Capabilities& getCapabilities() const override { return kInterface->getCapabilities(); }
     Capabilities::PerformanceInfo getPerformance(OperandType type) const override {
-        return kInterface->getCapabilities().operandPerformance.lookup(type);
+        return getCapabilities().operandPerformance.lookup(type);
     }
     Capabilities::PerformanceInfo getRelaxedFloat32toFloat16PerformanceScalar() const override {
-        return kInterface->getCapabilities().relaxedFloat32toFloat16PerformanceScalar;
+        return getCapabilities().relaxedFloat32toFloat16PerformanceScalar;
     }
     Capabilities::PerformanceInfo getRelaxedFloat32toFloat16PerformanceTensor() const override {
-        return kInterface->getCapabilities().relaxedFloat32toFloat16PerformanceTensor;
+        return getCapabilities().relaxedFloat32toFloat16PerformanceTensor;
     }
     Capabilities::PerformanceInfo getIfPerformance() const override {
-        return kInterface->getCapabilities().ifPerformance;
+        return getCapabilities().ifPerformance;
     }
     Capabilities::PerformanceInfo getWhilePerformance() const override {
-        return kInterface->getCapabilities().whilePerformance;
+        return getCapabilities().whilePerformance;
+    }
+    std::pair<uint32_t, uint32_t> getNumberOfCacheFilesNeeded() const override {
+        return kInterface->getNumberOfCacheFilesNeeded();
     }
     bool isCachingSupported() const override {
         // Caching is supported if either of numModelCache or numDataCache is greater than 0.
-        const auto [numModelCacheFiles, numDataCacheFiles] =
-                kInterface->getNumberOfCacheFilesNeeded();
+        const auto [numModelCacheFiles, numDataCacheFiles] = getNumberOfCacheFilesNeeded();
         return numModelCacheFiles > 0 || numDataCacheFiles > 0;
     }
     int wait() const override {
@@ -114,6 +118,7 @@ class DriverDevice : public Device {
 
    private:
     const SharedDevice kInterface;
+    const bool kIsUpdatable;
 
     GeneralResult<std::vector<bool>> getSupportedOperationsImpl(const MetaModel& metaModel) const;
     GeneralResult<SharedPreparedModel> prepareModelFromCacheInternal(
@@ -173,7 +178,8 @@ class DriverPreparedModel : public RuntimePreparedModel {
     const SharedPreparedModel mPreparedModel;
 };
 
-DriverDevice::DriverDevice(SharedDevice device) : kInterface(std::move(device)) {
+DriverDevice::DriverDevice(SharedDevice device, bool isUpdatable)
+    : kInterface(std::move(device)), kIsUpdatable(isUpdatable) {
     CHECK(kInterface != nullptr);
 #ifdef NN_DEBUGGABLE
     static const char samplePrefix[] = "sample";
@@ -183,13 +189,13 @@ DriverDevice::DriverDevice(SharedDevice device) : kInterface(std::move(device)) 
 #endif  // NN_DEBUGGABLE
 }
 
-std::shared_ptr<DriverDevice> DriverDevice::create(SharedDevice device) {
+std::shared_ptr<DriverDevice> DriverDevice::create(SharedDevice device, bool isUpdatable) {
     if (device == nullptr) {
         LOG(ERROR) << "DriverDevice::create called with nullptr";
         return nullptr;
     }
 
-    return std::make_shared<DriverDevice>(std::move(device));
+    return std::make_shared<DriverDevice>(std::move(device), isUpdatable);
 }
 
 int64_t DriverDevice::getFeatureLevel() const {
@@ -717,6 +723,45 @@ std::tuple<int, int, ExecuteFencedInfoCallback, Timing> DriverPreparedModel::exe
     return {ANEURALNETWORKS_NO_ERROR, syncFenceFd, executeFencedInfoCallback, timing};
 }
 
+static Capabilities createCpuCapabilities() {
+    constexpr Capabilities::PerformanceInfo kPerf = {.execTime = 1.0f, .powerUsage = 1.0f};
+    constexpr OperandType operandTypes[] = {
+            OperandType::FLOAT32,
+            OperandType::INT32,
+            OperandType::UINT32,
+            OperandType::TENSOR_FLOAT32,
+            OperandType::TENSOR_INT32,
+            OperandType::TENSOR_QUANT8_ASYMM,
+            OperandType::BOOL,
+            OperandType::TENSOR_QUANT16_SYMM,
+            OperandType::TENSOR_FLOAT16,
+            OperandType::TENSOR_BOOL8,
+            OperandType::FLOAT16,
+            OperandType::TENSOR_QUANT8_SYMM_PER_CHANNEL,
+            OperandType::TENSOR_QUANT16_ASYMM,
+            OperandType::TENSOR_QUANT8_SYMM,
+            OperandType::TENSOR_QUANT8_ASYMM_SIGNED,
+    };
+
+    std::vector<Capabilities::OperandPerformance> operandPerformance;
+    operandPerformance.reserve(std::size(operandTypes));
+    std::transform(std::begin(operandTypes), std::end(operandTypes),
+                   std::back_inserter(operandPerformance), [kPerf](OperandType type) {
+                       return Capabilities::OperandPerformance{.type = type, .info = kPerf};
+                   });
+
+    auto table =
+            Capabilities::OperandPerformanceTable::create(std::move(operandPerformance)).value();
+
+    return Capabilities{
+            .relaxedFloat32toFloat16PerformanceScalar = kPerf,
+            .relaxedFloat32toFloat16PerformanceTensor = kPerf,
+            .operandPerformance = std::move(table),
+            .ifPerformance = kPerf,
+            .whilePerformance = kPerf,
+    };
+}
+
 // A special abstracted device for the CPU. Only one instance of this class will exist.
 // Use get() to retrieve it.
 class CpuDevice : public Device {
@@ -736,6 +781,7 @@ class CpuDevice : public Device {
         return kSupportedExtensions;
     }
     std::vector<bool> getSupportedOperations(const MetaModel& metaModel) const override;
+    const Capabilities& getCapabilities() const override { return kCapabilities; }
     Capabilities::PerformanceInfo getPerformance(OperandType) const override {
         return kPerformance;
     }
@@ -747,6 +793,9 @@ class CpuDevice : public Device {
     }
     Capabilities::PerformanceInfo getIfPerformance() const override { return kPerformance; }
     Capabilities::PerformanceInfo getWhilePerformance() const override { return kPerformance; }
+    std::pair<uint32_t, uint32_t> getNumberOfCacheFilesNeeded() const override {
+        return {/*numModelCache=*/0, /*numDataCache=*/0};
+    }
     bool isCachingSupported() const override { return false; }
     int wait() const override { return ANEURALNETWORKS_NO_ERROR; }
 
@@ -770,6 +819,7 @@ class CpuDevice : public Device {
     // Since the performance is a ratio compared to the CPU performance,
     // by definition the performance of the CPU is 1.0.
     const Capabilities::PerformanceInfo kPerformance = {.execTime = 1.0f, .powerUsage = 1.0f};
+    const Capabilities kCapabilities = createCpuCapabilities();
     const std::vector<Extension> kSupportedExtensions{/* No extensions. */};
 };
 
@@ -1011,8 +1061,31 @@ std::shared_ptr<Device> DeviceManager::forTest_makeDriverDevice(const SharedDevi
 }
 
 #ifndef NN_COMPATIBILITY_LIBRARY_BUILD
-std::vector<SharedDevice> getDevices() {
-    return hal::getDevices();
+std::vector<std::shared_ptr<DriverDevice>> getDriverDevices() {
+    const auto& appInfo = AppInfoFetcher::get()->getAppInfo();
+    const bool currentProcessIsOnThePlatform =
+            appInfo.appIsSystemApp || appInfo.appIsOnVendorImage || appInfo.appIsOnProductImage;
+
+    const bool includeUpdatableDrivers = !currentProcessIsOnThePlatform;
+    auto devicesAndUpdatability =
+            hardware::neuralnetworks::service::getDevices(includeUpdatableDrivers);
+
+    std::vector<std::shared_ptr<DriverDevice>> driverDevices;
+    driverDevices.reserve(devicesAndUpdatability.size());
+    for (auto& [device, isDeviceUpdatable] : devicesAndUpdatability) {
+        driverDevices.push_back(DriverDevice::create(std::move(device), isDeviceUpdatable));
+    }
+    return driverDevices;
+}
+#else
+std::vector<std::shared_ptr<DriverDevice>> getDriverDevices() {
+    auto devices = getDevices();
+    std::vector<std::shared_ptr<DriverDevice>> driverDevices;
+    driverDevices.reserve(devices.size());
+    for (auto& device : devices) {
+        driverDevices.push_back(DriverDevice::create(std::move(device)));
+    }
+    return driverDevices;
 }
 #endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 
@@ -1020,10 +1093,10 @@ void DeviceManager::findAvailableDevices() {
     VLOG(MANAGER) << "findAvailableDevices";
 
     // register driver devices
-    std::vector<SharedDevice> devices = getDevices();
-    for (const auto& device : devices) {
-        VLOG(MANAGER) << "Found interface " << device->getName();
-        registerDevice(device);
+    auto driverDevices = getDriverDevices();
+    for (auto& driverDevice : driverDevices) {
+        VLOG(MANAGER) << "Found interface " << driverDevice->getName();
+        mDevices.push_back(std::move(driverDevice));
     }
 
 #ifndef NN_COMPATIBILITY_LIBRARY_BUILD
@@ -1033,23 +1106,9 @@ void DeviceManager::findAvailableDevices() {
 #endif  // NN_COMPATIBILITY_LIBRARY_BUILD
 }
 
-static bool updatableDriversAreAllowed() {
-#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
-    const auto& appInfo = AppInfoFetcher::get()->getAppInfo();
-    const bool currentProcessIsOnThePlatform =
-            appInfo.appIsSystemApp || appInfo.appIsOnVendorImage || appInfo.appIsOnProductImage;
-    return !currentProcessIsOnThePlatform;
-#else
-    // The concept does not exist in the compatibility library build.
-    return true;
-#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
-}
-
 void DeviceManager::registerDevice(const SharedDevice& device) {
     if (auto driverDevice = DriverDevice::create(device)) {
-        if (!driverDevice->isUpdatable() || updatableDriversAreAllowed()) {
-            mDevices.push_back(std::move(driverDevice));
-        }
+        mDevices.push_back(std::move(driverDevice));
     }
 }
 

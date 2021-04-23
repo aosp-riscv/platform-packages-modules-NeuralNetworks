@@ -117,10 +117,6 @@ DeviceType Device::getType() const {
     return DeviceType::CPU;
 }
 
-bool Device::isUpdatable() const {
-    return false;
-}
-
 const std::vector<Extension>& Device::getSupportedExtensions() const {
     static const std::vector<Extension> kExtensions = {/* No extensions. */};
     return kExtensions;

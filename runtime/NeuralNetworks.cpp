@@ -1703,8 +1703,9 @@ int SL_ANeuralNetworksDevice_getNumberOfCacheFilesNeeded(const ANeuralNetworksDe
         return ANEURALNETWORKS_UNEXPECTED_NULL;
     }
 
-    LOG(ERROR) << "SL_ANeuralNetworksDevice_getNumberOfCacheFilesNeeded not yet implemented";
-    return ANEURALNETWORKS_BAD_STATE;
+    const Device* d = reinterpret_cast<const Device*>(device);
+    std::tie(*numModelCacheFiles, *numDataCacheFiles) = d->getNumberOfCacheFilesNeeded();
+    return ANEURALNETWORKS_NO_ERROR;
 }
 
 int SL_ANeuralNetworksDevice_getPerformanceInfo(
@@ -1717,20 +1718,32 @@ int SL_ANeuralNetworksDevice_getPerformanceInfo(
         return ANEURALNETWORKS_UNEXPECTED_NULL;
     }
 
+    constexpr auto conv = [](const Capabilities::PerformanceInfo& info) {
+        return SL_ANeuralNetworksPerformanceInfo{.execTime = info.execTime,
+                                                 .powerUsage = info.powerUsage};
+    };
+
+    const Device* d = reinterpret_cast<const Device*>(device);
+    const Capabilities& capabilities = d->getCapabilities();
+
     switch (performanceInfoKind) {
         case SL_ANEURALNETWORKS_CAPABILITIES_PERFORMANCE_RELAXED_SCALAR:
+            *performanceInfo = conv(capabilities.relaxedFloat32toFloat16PerformanceScalar);
+            return ANEURALNETWORKS_NO_ERROR;
         case SL_ANEURALNETWORKS_CAPABILITIES_PERFORMANCE_RELAXED_TENSOR:
+            *performanceInfo = conv(capabilities.relaxedFloat32toFloat16PerformanceTensor);
+            return ANEURALNETWORKS_NO_ERROR;
         case SL_ANEURALNETWORKS_CAPABILITIES_PERFORMANCE_IF:
-        case SL_ANEURALNETWORKS_CAPABILITIES_PERFORMANCE_WHILE: {
-            LOG(ERROR) << "SL_ANeuralNetworksDevice_getPerformanceInfo passed unknown "
-                          "performanceInfoKind "
-                       << performanceInfoKind;
-            return ANEURALNETWORKS_BAD_DATA;
-        }
+            *performanceInfo = conv(capabilities.ifPerformance);
+            return ANEURALNETWORKS_NO_ERROR;
+        case SL_ANEURALNETWORKS_CAPABILITIES_PERFORMANCE_WHILE:
+            *performanceInfo = conv(capabilities.whilePerformance);
+            return ANEURALNETWORKS_NO_ERROR;
     }
 
-    LOG(ERROR) << "SL_ANeuralNetworksDevice_getPerformanceInfo not yet implemented";
-    return ANEURALNETWORKS_BAD_STATE;
+    LOG(ERROR) << "SL_ANeuralNetworksDevice_getPerformanceInfo passed unknown performanceInfoKind "
+               << performanceInfoKind;
+    return ANEURALNETWORKS_BAD_DATA;
 }
 
 int SL_ANeuralNetworksDevice_forEachOperandPerformanceInfo(
@@ -1741,8 +1754,22 @@ int SL_ANeuralNetworksDevice_forEachOperandPerformanceInfo(
         return ANEURALNETWORKS_UNEXPECTED_NULL;
     }
 
-    LOG(ERROR) << "SL_ANeuralNetworksDevice_forEachOperandPerformanceInfo not yet implemented";
-    return ANEURALNETWORKS_BAD_STATE;
+    constexpr auto conv = [](const Capabilities::OperandPerformance& operandPerformance) {
+        return SL_ANeuralNetworksOperandPerformanceInfo{
+                .operandType = static_cast<int32_t>(operandPerformance.type),
+                .performanceInfo = {.execTime = operandPerformance.info.execTime,
+                                    .powerUsage = operandPerformance.info.powerUsage},
+        };
+    };
+
+    const Device* d = reinterpret_cast<const Device*>(device);
+    const Capabilities& capabilities = d->getCapabilities();
+
+    for (const auto& operandPerformance : capabilities.operandPerformance.asVector()) {
+        const SL_ANeuralNetworksOperandPerformanceInfo opPerf = conv(operandPerformance);
+        callback(opPerf, context);
+    }
+    return ANEURALNETWORKS_NO_ERROR;
 }
 
 int SL_ANeuralNetworksDevice_getVendorExtensionCount(const ANeuralNetworksDevice* device,
@@ -1754,8 +1781,9 @@ int SL_ANeuralNetworksDevice_getVendorExtensionCount(const ANeuralNetworksDevice
         return ANEURALNETWORKS_UNEXPECTED_NULL;
     }
 
-    LOG(ERROR) << "SL_ANeuralNetworksDevice_getVendorExtensionCount not yet implemented";
-    return ANEURALNETWORKS_BAD_STATE;
+    const Device* d = reinterpret_cast<const Device*>(device);
+    *vendorExtensionCount = d->getSupportedExtensions().size();
+    return ANEURALNETWORKS_NO_ERROR;
 }
 
 int SL_ANeuralNetworksDevice_getVendorExtensionName(const ANeuralNetworksDevice* device,
@@ -1777,9 +1805,10 @@ int SL_ANeuralNetworksDevice_getVendorExtensionName(const ANeuralNetworksDevice*
                    "that is out of range";
         return ANEURALNETWORKS_BAD_DATA;
     }
+    const auto& extension = extensions[vendorExtensionIndex];
 
-    LOG(ERROR) << "SL_ANeuralNetworksDevice_getVendorExtensionName not yet implemented";
-    return ANEURALNETWORKS_BAD_STATE;
+    *extensionName = extension.name.c_str();
+    return ANEURALNETWORKS_NO_ERROR;
 }
 
 int SL_ANeuralNetworksDevice_forEachVendorExtensionOperandTypeInformation(
@@ -1801,10 +1830,21 @@ int SL_ANeuralNetworksDevice_forEachVendorExtensionOperandTypeInformation(
                    "vendorExtensionIndex that is out of range";
         return ANEURALNETWORKS_BAD_DATA;
     }
+    const auto& operandTypes = extensions[vendorExtensionIndex].operandTypes;
 
-    LOG(ERROR) << "SL_ANeuralNetworksDevice_forEachVendorExtensionOperandTypeInformation not yet "
-                  "implemented";
-    return ANEURALNETWORKS_BAD_STATE;
+    constexpr auto conv = [](const Extension::OperandTypeInformation& operandTypeInfo) {
+        return SL_ANeuralNetworksExtensionOperandTypeInformation{
+                .byteSize = operandTypeInfo.byteSize,
+                .type = operandTypeInfo.type,
+                .isTensor = operandTypeInfo.isTensor,
+        };
+    };
+
+    for (const auto& operandTypeInfo : operandTypes) {
+        const SL_ANeuralNetworksExtensionOperandTypeInformation opTypeInfo = conv(operandTypeInfo);
+        callback(opTypeInfo, context);
+    }
+    return ANEURALNETWORKS_NO_ERROR;
 }
 
 #define NNCL_FUNC(symbol) .symbol = symbol

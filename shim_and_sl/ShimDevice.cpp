@@ -539,7 +539,15 @@ ndk::ScopedAStatus ShimDevice::prepareModel(
     auto compilation = ::android::nn::sl_wrapper::Compilation::createForDevice(
             mNnapi.get(), &modelAndMemory->models[0], mDevice);
     if (compilation.first != Result::NO_ERROR) {
-        SLW2SAS_RETURN_AND_CALLBACK_IF_ERROR(compilation.first, callback);
+        // b/185976051, if some operation is not supported, this will result in BAD_DATA
+        // from compilation. HAL expects us to say it's all ok on prepareModel, but return
+        // failure from the callback.
+        if (compilation.first == Result::BAD_DATA) {
+            callback->notify(ErrorStatus::INVALID_ARGUMENT, nullptr);
+            return ndk::ScopedAStatus::ok();
+        } else {
+            SLW2SAS_RETURN_AND_CALLBACK_IF_ERROR(compilation.first, callback);
+        }
     }
 
     if (auto p = convertToNDKPreference(preference)) {

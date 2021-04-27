@@ -4110,7 +4110,7 @@ typedef enum {
      *      front of dimension i.
      *      padding[i, 1] specifies the number of elements to be padded after
      *      the end of dimension i.
-     * * 2: An scalar specifying the value to use for padding input0.
+     * * 2: A scalar specifying the value to use for padding input0.
      *      For input tensor of {@link ANEURALNETWORKS_TENSOR_FLOAT16}, the
      *      pad value must be of {@link ANEURALNETWORKS_FLOAT16}.
      *      For input tensor of {@link ANEURALNETWORKS_TENSOR_FLOAT32}, the

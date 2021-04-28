@@ -95,7 +95,9 @@ cc_library_static {
 
 cc_library_shared {
     name: "libneuralnetworks_shim",
-    llndk_stubs: "libneuralnetworks_shim.llndk",
+    llndk: {
+        symbol_file: "libneuralnetworks_shim.map.txt",
+    },
     version_script: "libneuralnetworks_shim.map.txt",
     apex_available: [
         "com.android.neuralnetworks",
@@ -137,13 +139,6 @@ cc_library_shared {
     export_include_dirs: [
         "public",
     ],
-}
-
-llndk_library {
-    name: "libneuralnetworks_shim.llndk",
-    symbol_file: "libneuralnetworks_shim.map.txt",
-    export_include_dirs: ["public"],
-    licenses: ["Android-Apache-2.0"],
 }
 
 cc_library_static {

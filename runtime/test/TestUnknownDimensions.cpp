@@ -77,12 +77,16 @@ std::vector<OperandParams> Combine(const std::vector<DimensionKind>& firsts,
                                    const std::vector<DimensionKind>& seconds);
 auto ioValues = Combine(ioDimensionValues, ioDimensionValues);
 auto constantValues = Combine(constantDimensionValues, constantDimensionValues);
+std::vector<Execution::ComputeMode> computeModes = {
+        Execution::ComputeMode::SYNC,
+        Execution::ComputeMode::FENCED};
 
 class UnknownDimensionsTest : public ::testing::TestWithParam<OperandParams> {
    protected:
     template <class T, Type TensorType>
     void TestOne(const OperandParams& paramsForInput0, const OperandParams& paramsForInput1,
-                 const OperandParams& paramsForConst, const OperandParams& paramsForOutput);
+                 const OperandParams& paramsForConst, const OperandParams& paramsForOutput,
+                 Execution::ComputeMode computeMode);
     template <class T, Type TensorType>
     void TestAll();
 
@@ -162,7 +166,8 @@ template <class T, Type TensorType>
 void UnknownDimensionsTest::TestOne(const OperandParams& paramsForInput0,
                                     const OperandParams& paramsForInput1,
                                     const OperandParams& paramsForConst,
-                                    const OperandParams& paramsForOutput) {
+                                    const OperandParams& paramsForOutput,
+                                    Execution::ComputeMode computeMode) {
     typedef T IntendedMatrix[INTENDED_SIZE][INTENDED_SIZE];
     static const IntendedMatrix ones = {{1, 1, 1}, {1, 1, 1}, {1, 1, 1}};
     static const IntendedMatrix twos = {{2, 2, 2}, {2, 2, 2}, {2, 2, 2}};
@@ -293,7 +298,9 @@ void UnknownDimensionsTest::TestOne(const OperandParams& paramsForInput0,
             Result::NO_ERROR);
 
     if (allAreIntendedSizeAtExecution) {
+        auto old = Execution::setComputeMode(computeMode);
         ASSERT_EQ(execution.compute(), Result::NO_ERROR);
+        Execution::setComputeMode(old);
     } else {
         // There is no contract (yet) for specific errors in NeuralNetworks.h,
         // so we just assert on not being successful.
@@ -324,8 +331,10 @@ void UnknownDimensionsTest::TestAll() {
     for (auto paramsForInput1 : ioValues) {
         for (auto paramsForConst : constantValues) {
             for (auto paramsForOutput : ioValues) {
-                TestOne<T, TensorType>(paramsForInput0, paramsForInput1, paramsForConst,
-                                       paramsForOutput);
+                for (auto computeMode : computeModes) {
+                    TestOne<T, TensorType>(paramsForInput0, paramsForInput1, paramsForConst,
+                                           paramsForOutput, computeMode);
+                }
             }
         }
     }

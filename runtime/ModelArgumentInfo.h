@@ -56,6 +56,10 @@ class ModelArgumentInfo {
         return mBuffer;
     }
 
+    const std::vector<uint32_t>& initialDimensions() const {
+        CHECK(mState == POINTER || mState == MEMORY);
+        return mInitialDimensions;
+    }
     const std::vector<uint32_t>& dimensions() const {
         CHECK(mState == POINTER || mState == MEMORY);
         return mDimensions;

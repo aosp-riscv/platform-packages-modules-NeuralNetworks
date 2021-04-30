@@ -88,6 +88,7 @@ bool localResponseNorm<float>(const float* inputData, const Shape& inputShape, i
                               const Shape& outputShape) {
     int32_t ndim = getNumberOfDimensions(inputShape);
     NN_CHECK(handleNegativeAxis(inputShape, &axis));
+    radius = std::min(radius, static_cast<int32_t>(inputShape.dimensions[axis]));
     // TFLite optimized implementation only supports computation along the last axis
     if (axis == ndim - 1) {
         NNTRACE_COMP("optimized_ops::LocalResponseNormalization::float");
@@ -188,6 +189,8 @@ bool prepare(IOperationExecutionContext* context) {
     NN_RET_CHECK_LE(numDimensions, 4);
     NN_RET_CHECK_GE(axis, -numDimensions);
     NN_RET_CHECK_LT(axis, numDimensions);
+    const int32_t radius = context->getInputValue<int32_t>(kRadiusScalar);
+    NN_RET_CHECK_GE(radius, 0);
     return context->setOutputShape(kOutputTensor, input);
 }
 

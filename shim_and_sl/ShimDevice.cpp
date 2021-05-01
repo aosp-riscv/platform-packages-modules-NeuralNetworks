@@ -526,6 +526,17 @@ ndk::ScopedAStatus ShimDevice::prepareModel(
         return toAStatus(ErrorStatus::INVALID_ARGUMENT);
     }
 
+    auto ndkPreference = convertToNDKPreference(preference);
+    if (!ndkPreference) {
+        callback->notify(ErrorStatus::INVALID_ARGUMENT, nullptr);
+        return toAStatus(ErrorStatus::INVALID_ARGUMENT);
+    }
+    auto ndkPriority = convertToNDKPriority(priority);
+    if (!ndkPriority) {
+        callback->notify(ErrorStatus::INVALID_ARGUMENT, nullptr);
+        return toAStatus(ErrorStatus::INVALID_ARGUMENT);
+    }
+
     ErrorStatus convertErrorStatus = ErrorStatus::NONE;
     std::vector<uint8_t> copiedOperandValues;
     auto modelAndMemory =
@@ -536,39 +547,17 @@ ndk::ScopedAStatus ShimDevice::prepareModel(
         return toAStatus(convertErrorStatus);
     }
 
+    // b/185976051, past this point we pretend that compilation is asynchronous, and in
+    /// case of error we return OK status, but communicate the error through the callback.
     auto compilation = ::android::nn::sl_wrapper::Compilation::createForDevice(
             mNnapi.get(), &modelAndMemory->models[0], mDevice);
-    if (compilation.first != Result::NO_ERROR) {
-        // b/185976051, if some operation is not supported, this will result in BAD_DATA
-        // from compilation. HAL expects us to say it's all ok on prepareModel, but return
-        // failure from the callback.
-        if (compilation.first == Result::BAD_DATA) {
-            callback->notify(ErrorStatus::INVALID_ARGUMENT, nullptr);
-            return ndk::ScopedAStatus::ok();
-        } else {
-            SLW2SAS_RETURN_AND_CALLBACK_IF_ERROR(compilation.first, callback);
-        }
-    }
 
-    if (auto p = convertToNDKPreference(preference)) {
-        SLW2SAS_RETURN_AND_CALLBACK_IF_ERROR(compilation.second.setPreference(*p), callback);
-    } else {
-        callback->notify(ErrorStatus::INVALID_ARGUMENT, nullptr);
-        return toAStatus(ErrorStatus::INVALID_ARGUMENT);
-    }
-
-    if (auto p = convertToNDKPriority(priority)) {
-        SLW2SAS_RETURN_AND_CALLBACK_IF_ERROR(compilation.second.setPriority(*p), callback);
-    } else {
-        callback->notify(ErrorStatus::INVALID_ARGUMENT, nullptr);
-        return toAStatus(ErrorStatus::INVALID_ARGUMENT);
-    }
-
-    // TODO(170375075): support caching and deadline
-    if (compilation.second.finish() != Result::NO_ERROR) {
-        callback->notify(ErrorStatus::INVALID_ARGUMENT, nullptr);
-        return toAStatus(ErrorStatus::INVALID_ARGUMENT);
-    }
+    SLW2SAS_OK_RETURN_AND_ERROR_CALLBACK_IF_ERROR(compilation.first, callback);
+    SLW2SAS_OK_RETURN_AND_ERROR_CALLBACK_IF_ERROR(compilation.second.setPreference(*ndkPreference),
+                                                  callback);
+    SLW2SAS_OK_RETURN_AND_ERROR_CALLBACK_IF_ERROR(compilation.second.setPriority(*ndkPriority),
+                                                  callback);
+    SLW2SAS_OK_RETURN_AND_ERROR_CALLBACK_IF_ERROR(compilation.second.finish(), callback);
 
     const std::shared_ptr<ShimPreparedModel> preparedModel =
             ndk::SharedRefBase::make<ShimPreparedModel>(

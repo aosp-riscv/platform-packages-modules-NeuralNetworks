@@ -50,4 +50,15 @@ ndk::ScopedAStatus toAStatus(ErrorStatus errorStatus);
         }                                                                  \
     } while (0)
 
+#define SLW2SAS_OK_RETURN_AND_ERROR_CALLBACK_IF_ERROR(expr, callback)      \
+    do {                                                                   \
+        const Result nnReturnIfErrorErrorCode = static_cast<Result>(expr); \
+        if (nnReturnIfErrorErrorCode != Result::NO_ERROR) {                \
+            const auto nnReturnIfErrorErrorCodeConverted =                 \
+                    convertResultToErrorStatus(nnReturnIfErrorErrorCode);  \
+            callback->notify(nnReturnIfErrorErrorCodeConverted, nullptr);  \
+            return ndk::ScopedAStatus::ok();                               \
+        }                                                                  \
+    } while (0)
+
 }  // namespace aidl::android::hardware::neuralnetworks

@@ -375,6 +375,17 @@ class Compilation {
                 mCompilation, cacheDir.c_str(), token.data()));
     }
 
+    Result setCachingFromFds(const std::vector<int>& modelCacheFds,
+                             const std::vector<int>& dataCacheFds,
+                             const std::vector<uint8_t>& token) {
+        if (token.size() != ANEURALNETWORKS_BYTE_SIZE_OF_CACHE_TOKEN) {
+            return Result::BAD_DATA;
+        }
+        return static_cast<Result>(mNnApi->SL_ANeuralNetworksCompilation_setCachingFromFds(
+                mCompilation, modelCacheFds.data(), modelCacheFds.size(), dataCacheFds.data(),
+                dataCacheFds.size(), token.data()));
+    }
+
     Result finish() {
         return static_cast<Result>(mNnApi->ANeuralNetworksCompilation_finish(mCompilation));
     }

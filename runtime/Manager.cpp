@@ -110,7 +110,7 @@ class DriverDevice : public Device {
 
     std::pair<int, std::shared_ptr<RuntimePreparedModel>> prepareModel(
             const ModelFactory& makeModel, ExecutionPreference preference, Priority priority,
-            const OptionalTimePoint& deadline, const std::string& cacheDir,
+            const OptionalTimePoint& deadline, const CacheInfo& cacheInfo,
             const std::optional<CacheToken>& maybeToken) const override;
 
     std::pair<int, std::unique_ptr<RuntimeMemory>> allocate(const MemoryDescriptor& desc,
@@ -122,7 +122,7 @@ class DriverDevice : public Device {
 
     GeneralResult<std::vector<bool>> getSupportedOperationsImpl(const MetaModel& metaModel) const;
     GeneralResult<SharedPreparedModel> prepareModelFromCacheInternal(
-            const OptionalTimePoint& deadline, const std::string& cacheDir,
+            const OptionalTimePoint& deadline, const CacheInfo& cacheInfo,
             const CacheToken& token) const;
 
 #ifdef NN_DEBUGGABLE
@@ -330,16 +330,25 @@ static GeneralResult<std::vector<SharedHandle>> createCacheHandleVec(
     return handles;
 }
 
-struct CacheHandles {
-    std::vector<SharedHandle> modelCache;
-    std::vector<SharedHandle> dataCache;
-};
-
 // Maps a token to cache file names and returns a pair of vectors of shared
 // handles to the opened files.
 static GeneralResult<CacheHandles> getCacheHandles(
-        const std::string& cacheDir, const CacheToken& token,
+        const CacheInfo& cacheInfo, const CacheToken& token,
         const std::pair<uint32_t, uint32_t>& numCacheFiles, bool createIfNotExist) {
+    if (const auto* cacheHandles = std::get_if<CacheHandles>(&cacheInfo.variant)) {
+        if (cacheHandles->modelCache.size() != numCacheFiles.first) {
+            return NN_ERROR(ErrorStatus::GENERAL_FAILURE)
+                   << "Expected " << numCacheFiles.first << " model cache handles, got "
+                   << cacheHandles->modelCache.size();
+        }
+        if (cacheHandles->dataCache.size() != numCacheFiles.second) {
+            return NN_ERROR(ErrorStatus::GENERAL_FAILURE)
+                   << "Expected " << numCacheFiles.second << " data cache handles, got "
+                   << cacheHandles->dataCache.size();
+        }
+        return *cacheHandles;
+    }
+
     // The filename includes kByteSizeOfCacheToken * 2 characters for token,
     // and 1 character for model/data cache identifier.
     std::string filename(kByteSizeOfCacheToken * 2 + 1, '0');
@@ -348,6 +357,7 @@ static GeneralResult<CacheHandles> getCacheHandles(
         filename[i * 2 + 1] = 'A' + (token[i] >> 4);
     }
 
+    const auto& cacheDir = std::get<CacheDir>(cacheInfo.variant);
     CHECK(cacheDir.empty() || cacheDir.back() == '/');
     std::string cacheFileName = cacheDir + filename;
     const uint32_t cacheTypeIdentifierIndex = cacheDir.size() + kByteSizeOfCacheToken * 2;
@@ -367,22 +377,21 @@ static GeneralResult<CacheHandles> getCacheHandles(
 }
 
 GeneralResult<SharedPreparedModel> DriverDevice::prepareModelFromCacheInternal(
-        const OptionalTimePoint& deadline, const std::string& cacheDir,
+        const OptionalTimePoint& deadline, const CacheInfo& cacheInfo,
         const CacheToken& token) const {
     // Get cache files if they exist, otherwise return from the function early.
-    const auto cache =
-            NN_TRY(getCacheHandles(cacheDir, token, kInterface->getNumberOfCacheFilesNeeded(),
-                                   /*createIfNotExist=*/false));
+    auto cache = NN_TRY(getCacheHandles(cacheInfo, token, kInterface->getNumberOfCacheFilesNeeded(),
+                                        /*createIfNotExist=*/false));
     return kInterface->prepareModelFromCache(deadline, cache.modelCache, cache.dataCache, token);
 }
 
 std::pair<int, std::shared_ptr<RuntimePreparedModel>> DriverDevice::prepareModel(
         const ModelFactory& makeModel, ExecutionPreference preference, Priority priority,
-        const OptionalTimePoint& deadline, const std::string& cacheDir,
+        const OptionalTimePoint& deadline, const CacheInfo& cacheInfo,
         const std::optional<CacheToken>& maybeToken) const {
     // Attempt to compile from cache if token is present.
     if (maybeToken.has_value()) {
-        auto result = prepareModelFromCacheInternal(deadline, cacheDir, *maybeToken);
+        auto result = prepareModelFromCacheInternal(deadline, cacheInfo, *maybeToken);
         if (result.has_value()) {
             return {ANEURALNETWORKS_NO_ERROR,
                     std::make_shared<DriverPreparedModel>(this, std::move(result).value())};
@@ -396,7 +405,7 @@ std::pair<int, std::shared_ptr<RuntimePreparedModel>> DriverDevice::prepareModel
     CacheHandles cache;
     if (maybeToken.has_value()) {
         auto result =
-                getCacheHandles(cacheDir, *maybeToken, kInterface->getNumberOfCacheFilesNeeded(),
+                getCacheHandles(cacheInfo, *maybeToken, kInterface->getNumberOfCacheFilesNeeded(),
                                 /*createIfNotExist=*/true);
         if (result.has_value()) {
             cache = std::move(result).value();
@@ -801,7 +810,7 @@ class CpuDevice : public Device {
 
     std::pair<int, std::shared_ptr<RuntimePreparedModel>> prepareModel(
             const ModelFactory& makeModel, ExecutionPreference preference, Priority priority,
-            const OptionalTimePoint& deadline, const std::string& cacheDir,
+            const OptionalTimePoint& deadline, const CacheInfo& cacheInfo,
             const std::optional<CacheToken>& maybeToken) const override;
 
     std::pair<int, std::unique_ptr<RuntimeMemory>> allocate(const MemoryDescriptor& desc,
@@ -884,7 +893,7 @@ std::vector<bool> CpuDevice::getSupportedOperations(const MetaModel& metaModel) 
 
 std::pair<int, std::shared_ptr<RuntimePreparedModel>> CpuDevice::prepareModel(
         const ModelFactory& makeModel, ExecutionPreference preference, Priority priority,
-        const OptionalTimePoint& deadline, const std::string& /*cacheDir*/,
+        const OptionalTimePoint& deadline, const CacheInfo& /*cacheInfo*/,
         const std::optional<CacheToken>& maybeToken) const {
     CHECK(!maybeToken.has_value())
             << "Should never call prepareModel with cache information on CpuDevice";

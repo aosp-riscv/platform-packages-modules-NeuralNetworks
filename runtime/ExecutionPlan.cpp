@@ -68,7 +68,7 @@ constexpr uint32_t kNoPadding = 1;
 // operation indices to be executed (COMPOUND body). The token will be re-hashed further by the
 // device name, device version string, and the execution preference in this function.
 int compile(const Device& device, const ModelBuilder& model, int executionPreference,
-            int compilationPriority, const OptionalTimePoint& deadline, const std::string& cacheDir,
+            int compilationPriority, const OptionalTimePoint& deadline, const CacheInfo& cacheInfo,
             TokenHasher* token, std::shared_ptr<RuntimePreparedModel>* preparedModel) {
     CHECK(token != nullptr);
     CHECK(preparedModel != nullptr);
@@ -89,7 +89,7 @@ int compile(const Device& device, const ModelBuilder& model, int executionPrefer
     const ExecutionPreference preference = static_cast<ExecutionPreference>(executionPreference);
     const Priority priority = convertToCanonicalPriority(compilationPriority);
     const auto [n, returnedPreparedModel] =
-            device.prepareModel(makeModel, preference, priority, deadline, cacheDir, cacheToken);
+            device.prepareModel(makeModel, preference, priority, deadline, cacheInfo, cacheToken);
     *preparedModel = returnedPreparedModel;
     return n;
 }
@@ -823,7 +823,7 @@ int ExecutionStep::finishStepModel(const ModelBuilder* mainModel, bool* hasOutpu
 
     // TODO: Move compilation elsewhere?
     VLOG(COMPILATION) << "ExecutionStep::finishStepModel, compilation on " << mDevice->getName();
-    return compile(*mDevice, mStepModel, executionPreference, priority, {}, *mPlan->getCacheDir(),
+    return compile(*mDevice, mStepModel, executionPreference, priority, {}, *mPlan->getCacheInfo(),
                    &mToken, &mPreparedStepModel);
 }
 
@@ -1087,8 +1087,8 @@ int ExecutionPlan::SimpleBody::finish(const SourceModels*, int32_t executionPref
     CHECK(!mSuccessfulFinish);
     CHECK(mDevice != nullptr);
     VLOG(COMPILATION) << "ExecutionPlan::SimpleBody::finish, compilation";
-    int n = compile(*mDevice, *mModel, executionPreference, priority, deadline, *mCacheDir, &mToken,
-                    &mPreparedModel);
+    int n = compile(*mDevice, *mModel, executionPreference, priority, deadline, *mCacheInfo,
+                    &mToken, &mPreparedModel);
     if (n == ANEURALNETWORKS_NO_ERROR && simulateFailureResultCode != ANEURALNETWORKS_NO_ERROR) {
         VLOG(COMPILATION) << "ExecutionPlan::SimpleBody::finish: simulating failure, ResultCode "
                           << simulateFailureResultCode;
@@ -1875,7 +1875,7 @@ GotoStep* ExecutionPlan::createNewGotoStep() {
 void ExecutionPlan::becomeSingleStep(const std::shared_ptr<Device> device,
                                      const ModelBuilder* model) {
     CHECK(mState == EMPTY);
-    mBody = new SimpleBody(device, model, mCacheDir, mToken);
+    mBody = new SimpleBody(device, model, mCacheInfo, mToken);
     mState = SIMPLE;
 }
 

@@ -20,6 +20,7 @@
 
 #include <LegacyUtils.h>
 #include <nnapi/IBurst.h>
+#include <nnapi/SharedMemory.h>
 #include <nnapi/Types.h>
 
 #include <algorithm>
@@ -60,7 +61,7 @@ int CompilationBuilder::finish() {
 
     mFinished = true;
     if (mIsCacheInfoProvided) {
-        mPlan.setCaching(&mCacheDir, mToken);
+        mPlan.setCaching(&mCacheInfo, mToken);
     }
     if (mPartitioning) {
         int n = mModel->partitionTheWork(mDevices, mPreference, mPriority, deadline, &mPlan,
@@ -121,11 +122,63 @@ int CompilationBuilder::setCaching(const std::string& cacheDir, const uint8_t* t
                 << "ANeuralNetworksCompilation_setCaching can't modify after compilation finished";
         return ANEURALNETWORKS_BAD_STATE;
     }
-    mCacheDir = cacheDir;
+    std::string path = cacheDir;
     // Make sure the cache dir can concat with the filename.
-    if (!mCacheDir.empty() && mCacheDir.back() != '/') {
-        mCacheDir.push_back('/');
+    if (!path.empty() && path.back() != '/') {
+        path.push_back('/');
     }
+    mCacheInfo.variant = std::move(path);
+    std::copy(token, token + ANEURALNETWORKS_BYTE_SIZE_OF_CACHE_TOKEN, mToken);
+    mIsCacheInfoProvided = true;
+    return ANEURALNETWORKS_NO_ERROR;
+}
+
+static GeneralResult<SharedHandle> createCacheHandle(int fd) {
+    std::vector<base::unique_fd> fds;
+    fds.push_back(NN_TRY(dupFd(fd)));
+    return std::make_shared<const Handle>(Handle{
+            .fds = std::move(fds),
+            .ints = {},
+    });
+}
+
+static GeneralResult<std::vector<SharedHandle>> createCacheHandleVec(const int* fds,
+                                                                     uint32_t numFds) {
+    std::vector<SharedHandle> handles;
+    handles.reserve(numFds);
+    for (uint32_t i = 0; i < numFds; i++) {
+        handles.push_back(NN_TRY(createCacheHandle(fds[i])));
+    }
+    return handles;
+}
+
+int CompilationBuilder::setCachingFromFds(const int* modelCacheFds,
+                                          const uint32_t numModelCacheFiles,
+                                          const int* dataCacheFds, const uint32_t numDataCacheFiles,
+                                          const uint8_t* token) {
+    if (mFinished) {
+        LOG(ERROR) << "SL_ANeuralNetworksCompilation_setCachingFromFds can't modify after "
+                      "compilation finished";
+        return ANEURALNETWORKS_BAD_STATE;
+    }
+    auto modelCache = createCacheHandleVec(modelCacheFds, numModelCacheFiles);
+    if (!modelCache.has_value()) {
+        LOG(ERROR) << "SL_ANeuralNetworksCompilation_setCachingFromFds can't duplicate model cache "
+                      "fds: "
+                   << modelCache.error().message;
+        return ANEURALNETWORKS_BAD_DATA;
+    }
+    auto dataCache = createCacheHandleVec(dataCacheFds, numDataCacheFiles);
+    if (!dataCache.has_value()) {
+        LOG(ERROR) << "SL_ANeuralNetworksCompilation_setCachingFromFds can't duplicate data cache "
+                      "fds: "
+                   << dataCache.error().message;
+        return ANEURALNETWORKS_BAD_DATA;
+    }
+    mCacheInfo.variant = CacheHandles{
+            .modelCache = std::move(modelCache).value(),
+            .dataCache = std::move(dataCache).value(),
+    };
     std::copy(token, token + ANEURALNETWORKS_BYTE_SIZE_OF_CACHE_TOKEN, mToken);
     mIsCacheInfoProvided = true;
     return ANEURALNETWORKS_NO_ERROR;

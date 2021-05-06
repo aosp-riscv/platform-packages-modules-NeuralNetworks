@@ -24,6 +24,7 @@
 #include <vector>
 
 #include "ExecutionPlan.h"
+#include "Manager.h"
 #include "NeuralNetworks.h"
 
 namespace android {
@@ -48,6 +49,10 @@ class CompilationBuilder {
     int setPreference(int32_t preference);
 
     int setCaching(const std::string& cacheDir, const uint8_t* token);
+    // Dups the fds
+    int setCachingFromFds(const int* modelCacheFds, const uint32_t numModelCacheFiles,
+                          const int* dataCacheFds, const uint32_t numDataCacheFiles,
+                          const uint8_t* token);
 
     int setPriority(int32_t priority);
 
@@ -110,7 +115,7 @@ class CompilationBuilder {
     bool mExplicitDeviceList;
 
     // Compilation caching information.
-    std::string mCacheDir;
+    CacheInfo mCacheInfo;
     uint8_t mToken[ANEURALNETWORKS_BYTE_SIZE_OF_CACHE_TOKEN];
     bool mIsCacheInfoProvided = false;
 

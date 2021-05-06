@@ -57,6 +57,7 @@ class RuntimePreparedModel;
 class StepExecutor;
 
 struct ConstantReferenceLocation;
+struct CacheInfo;
 
 // NNAPI Control Flow allows referring to an NNAPI model inside another NNAPI
 // model using OperandType::SUBGRAPH. For example, an IF operation within a
@@ -720,11 +721,11 @@ class ExecutionPlan {
     bool isCompound() const { return mState == COMPOUND; }
     bool isSimpleCpu() const;
 
-    void setCaching(const std::string* cacheDir, const uint8_t* token) {
-        mCacheDir = cacheDir;
+    void setCaching(const CacheInfo* cacheInfo, const uint8_t* token) {
+        mCacheInfo = cacheInfo;
         mToken = token;
     }
-    const std::string* getCacheDir() const { return mCacheDir; }
+    const CacheInfo* getCacheInfo() const { return mCacheInfo; }
     const uint8_t* getCacheToken() const { return mToken; }
 
     // The caller is responsible for making sure the index is within range.
@@ -837,8 +838,8 @@ class ExecutionPlan {
 
     struct SimpleBody : Body {
         SimpleBody(std::shared_ptr<Device> device, const ModelBuilder* model,
-                   const std::string* cacheDir, const uint8_t* token)
-            : mDevice(device), mModel(model), mCacheDir(cacheDir), mToken(token) {}
+                   const CacheInfo* cacheInfo, const uint8_t* token)
+            : mDevice(device), mModel(model), mCacheInfo(cacheInfo), mToken(token) {}
 
         void dump() const override;
         int finish(const SourceModels* sourceModels, int32_t executionPreference, int32_t priority,
@@ -853,7 +854,7 @@ class ExecutionPlan {
         const ModelBuilder* mModel;
         std::shared_ptr<RuntimePreparedModel> mPreparedModel;
 
-        const std::string* mCacheDir;
+        const CacheInfo* mCacheInfo;
         TokenHasher mToken;
     };
 
@@ -982,7 +983,7 @@ class ExecutionPlan {
                                                           uint32_t definingStepIndex)>&) const;
 
     // Pointers to compilation caching information in CompilationBuilder.
-    const std::string* mCacheDir = nullptr;
+    const CacheInfo* mCacheInfo = nullptr;
     const uint8_t* mToken = nullptr;
 
     SourceModels mSourceModels;

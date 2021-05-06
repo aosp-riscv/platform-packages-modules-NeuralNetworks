@@ -515,6 +515,15 @@ ndk::ScopedAStatus ShimDevice::getVersionString(std::string* versionString) {
     return ndk::ScopedAStatus::ok();
 }
 
+static std::vector<int> getIntFds(const std::vector<::ndk::ScopedFileDescriptor>& scopedFds) {
+    std::vector<int> fds;
+    fds.reserve(scopedFds.size());
+    for (const auto& scopedFd : scopedFds) {
+        fds.push_back(scopedFd.get());
+    }
+    return fds;
+}
+
 ndk::ScopedAStatus ShimDevice::prepareModel(
         const Model& model, ExecutionPreference preference, Priority priority, int64_t deadlineNs,
         const std::vector<::ndk::ScopedFileDescriptor>& modelCache,
@@ -557,6 +566,12 @@ ndk::ScopedAStatus ShimDevice::prepareModel(
                                                   callback);
     SLW2SAS_OK_RETURN_AND_ERROR_CALLBACK_IF_ERROR(compilation.second.setPriority(*ndkPriority),
                                                   callback);
+    if (!modelCache.empty() || !dataCache.empty()) {
+        SLW2SAS_OK_RETURN_AND_ERROR_CALLBACK_IF_ERROR(
+                compilation.second.setCachingFromFds(getIntFds(modelCache), getIntFds(dataCache),
+                                                     token),
+                callback);
+    }
     SLW2SAS_OK_RETURN_AND_ERROR_CALLBACK_IF_ERROR(compilation.second.finish(), callback);
 
     const std::shared_ptr<ShimPreparedModel> preparedModel =
@@ -569,25 +584,21 @@ ndk::ScopedAStatus ShimDevice::prepareModel(
 
     // TODO(170375075): support caching and deadline
     (void)deadlineNs;
-    (void)modelCache;
-    (void)dataCache;
-    (void)token;
     return ndk::ScopedAStatus::ok();
 }
 
 ndk::ScopedAStatus ShimDevice::prepareModelFromCache(
-        int64_t deadlineNs, const std::vector<::ndk::ScopedFileDescriptor>& modelCache,
-        const std::vector<::ndk::ScopedFileDescriptor>& dataCache,
-        const std::vector<uint8_t>& token,
+        int64_t /*deadlineNs*/, const std::vector<::ndk::ScopedFileDescriptor>& /*modelCache*/,
+        const std::vector<::ndk::ScopedFileDescriptor>& /*dataCache*/,
+        const std::vector<uint8_t>& /*token*/,
         const std::shared_ptr<IPreparedModelCallback>& callback) {
+    // The NNAPI runtime will attempt to call this before falling back to
+    // ShimDevice::prepareModel(). This is not a LOG(ERROR) to avoid producing
+    // misleading logcat messages on every compilation request because there is
+    // technically nothing wrong.
+    LOG(DEBUG) << "ShimDevice::prepareModelFromCache() is not supported. Use "
+                  "ShimDevice::prepareModel() instead.";
     const auto ret = callback->notify(ErrorStatus::GENERAL_FAILURE, nullptr);
-
-    (void)deadlineNs;
-    (void)modelCache;
-    (void)dataCache;
-    (void)token;
-
-    // TODO(170375075): support caching and deadline
     return toAStatus(ErrorStatus::GENERAL_FAILURE);
 }
 

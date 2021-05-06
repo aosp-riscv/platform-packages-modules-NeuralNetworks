@@ -79,6 +79,17 @@ class RuntimePreparedModel {
 
 using ModelFactory = std::function<Model()>;
 
+struct CacheHandles {
+    std::vector<SharedHandle> modelCache;
+    std::vector<SharedHandle> dataCache;
+};
+
+using CacheDir = std::string;
+
+struct CacheInfo {
+    std::variant<CacheDir, CacheHandles> variant;
+};
+
 // A unified interface for actual driver devices as well as the CPU
 class Device {
     DISALLOW_COPY_AND_ASSIGN(Device);
@@ -110,7 +121,7 @@ class Device {
 
     virtual std::pair<int, std::shared_ptr<RuntimePreparedModel>> prepareModel(
             const ModelFactory& makeModel, ExecutionPreference preference, Priority priority,
-            const OptionalTimePoint& deadline, const std::string& cacheDir,
+            const OptionalTimePoint& deadline, const CacheInfo& cacheInfo,
             const std::optional<CacheToken>& maybeToken) const = 0;
 
     // The caller is responsible for making sure the MemoryDescriptor only contains

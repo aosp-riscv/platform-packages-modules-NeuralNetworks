@@ -21,7 +21,7 @@
 #include <android-base/macros.h>
 #include <nnapi/IBurst.h>
 #include <nnapi/IDevice.h>
-#include <nnapi/IPreparedModel.h>
+#include <nnapi/Types.h>
 
 #include <map>
 #include <memory>

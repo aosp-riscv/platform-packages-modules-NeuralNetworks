@@ -22,6 +22,7 @@
 #include <android-base/thread_annotations.h>
 #include <nnapi/IBurst.h>
 #include <nnapi/IPreparedModel.h>
+#include <nnapi/Types.h>
 #include <nnapi/Validation.h>
 
 #include <memory>

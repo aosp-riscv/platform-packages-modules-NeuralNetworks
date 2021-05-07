@@ -114,6 +114,29 @@ class IBurst {
             const Request& request, MeasureTiming measure, const nn::OptionalTimePoint& deadline,
             const nn::OptionalDuration& loopTimeoutDuration) const = 0;
 
+    /**
+     * Create a reusable burst execution object.
+     *
+     * IBurst::createReusableExecution must verify the inputs to the function are correct. If there
+     * is an error, IBurst::createReusableExecution must immediately return {@link
+     * ErrorStatus::INVALID_ARGUMENT} as a GeneralError. If the inputs to the function are valid and
+     * there is no error, IBurst::createReusableExecution must construct a reusable execution.
+     *
+     * @param request The input and output information on which the prepared model is to be
+     *     executed.
+     * @param measure Specifies whether or not to measure duration of the computation.
+     * @param loopTimeoutDuration The maximum amount of time that should be spent executing a {@link
+     *     OperationType::WHILE} operation. If a loop condition model does not output `false` within
+     *     this duration, the execution must be aborted. If no loop timeout duration is provided,
+     *     the maximum amount of time is {@link kControlFlowTimeoutDefault}. When provided, the
+     *     duration must not exceed {@link kControlFlowTimeoutMaximum}.
+     * @return execution An IExecution object representing a reusable burst execution that has been
+     *     specialized for a fixed request, otherwise GeneralError.
+     */
+    virtual GeneralResult<SharedExecution> createReusableExecution(
+            const Request& request, MeasureTiming measure,
+            const nn::OptionalDuration& loopTimeoutDuration) const = 0;
+
     // Public virtual destructor to allow objects to be stored (and destroyed) as smart pointers.
     // E.g., std::unique_ptr<IBurst>.
     virtual ~IBurst() = default;

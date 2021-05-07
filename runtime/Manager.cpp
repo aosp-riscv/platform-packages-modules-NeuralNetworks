@@ -455,40 +455,20 @@ std::pair<int, std::unique_ptr<RuntimeMemory>> DriverDevice::allocate(const Memo
     return MemoryFromDevice::create(std::move(result).value());
 }
 
-// Figures out how to place each of the input or outputs in a buffer. This just
-// does the layout and memory allocation, it does not copy data.  Aligns each
-// input a bit.
-static std::tuple<int, std::unique_ptr<MemoryAshmem>, std::vector<DataLocation>>
-allocatePointerArgumentsToPool(const std::vector<ModelArgumentInfo>& args,
-                               std::vector<const RuntimeMemory*>* memories) {
-    CHECK(memories != nullptr);
-    std::vector<DataLocation> ptrArgsLocations;
-    const uint32_t nextPoolIndex = memories->size();
-    int64_t total = 0;
-    for (const auto& info : args) {
-        if (info.state() == ModelArgumentInfo::POINTER) {
-            // TODO Good enough alignment?
-            total += alignBytesNeeded(static_cast<uint32_t>(total), info.length());
-            ptrArgsLocations.push_back({.poolIndex = nextPoolIndex,
-                                        .offset = static_cast<uint32_t>(total),
-                                        .length = info.length()});
-            total += info.length();
-        }
-    };
-    if (total > 0xFFFFFFFF) {
-        LOG(ERROR) << "allocatePointerArgumentsToPool: ANeuralNetworksExecution: Size of all "
-                      "inputs or outputs exceeds 2^32.";
-        return {ANEURALNETWORKS_BAD_DATA, nullptr, std::vector<DataLocation>{}};
-    }
-    if (total <= 0) {
-        return {ANEURALNETWORKS_NO_ERROR, nullptr, std::vector<DataLocation>{}};
-    }
-    auto [n, memory] = MemoryAshmem::create(total);
-    if (n != ANEURALNETWORKS_NO_ERROR) {
-        return {n, nullptr, std::vector<DataLocation>{}};
-    }
-    memories->push_back(memory.get());
-    return {ANEURALNETWORKS_NO_ERROR, std::move(memory), std::move(ptrArgsLocations)};
+static Request createDriverRequest(const std::vector<ModelArgumentInfo>& inputs,
+                                   const std::vector<ModelArgumentInfo>& outputs,
+                                   const std::vector<const RuntimeMemory*>& memories) {
+    Request request;
+    request.inputs.reserve(inputs.size());
+    std::transform(inputs.begin(), inputs.end(), std::back_inserter(request.inputs),
+                   [](const auto& input) { return input.createRequestArgument(); });
+    request.outputs.reserve(outputs.size());
+    std::transform(outputs.begin(), outputs.end(), std::back_inserter(request.outputs),
+                   [](const auto& output) { return output.createRequestArgument(); });
+    request.pools.reserve(memories.size());
+    std::transform(memories.begin(), memories.end(), std::back_inserter(request.pools),
+                   [](const RuntimeMemory* memory) { return memory->getMemoryPool(); });
+    return request;
 }
 
 // Perform computation on an actual device driver.
@@ -504,43 +484,7 @@ std::tuple<int, std::vector<OutputShape>, Timing> DriverPreparedModel::execute(
         const OptionalDuration& loopTimeoutDuration) const {
     NNTRACE_RT(NNTRACE_PHASE_INPUTS_AND_OUTPUTS, "DriverPreparedModel::execute");
 
-    // Make a copy of the memory tracker as we will append memory pools for pointer arguments.
-    std::vector<const RuntimeMemory*> localMemories = memories;
-
-    // We separate the input & output pools so accelerators only need to copy
-    // the contents of the input pools. We could also use it to set protection
-    // on read only memory but that's not currently done.
-
-    // Layout the input and output data
-    const auto [n1, inputPtrArgsMemory, inputPtrArgsLocations] =
-            allocatePointerArgumentsToPool(inputs, &localMemories);
-    if (n1 != ANEURALNETWORKS_NO_ERROR) {
-        return {n1, {}, {}};
-    }
-    const auto [n2, outputPtrArgsMemory, outputPtrArgsLocations] =
-            allocatePointerArgumentsToPool(outputs, &localMemories);
-    if (n2 != ANEURALNETWORKS_NO_ERROR) {
-        return {n2, {}, {}};
-    }
-
-    // Copy the input data that was specified via a pointer.
-    if (inputPtrArgsMemory != nullptr) {
-        uint32_t ptrInputIndex = 0;
-        for (const auto& info : inputs) {
-            if (info.state() == ModelArgumentInfo::POINTER) {
-                const DataLocation& loc = inputPtrArgsLocations[ptrInputIndex++];
-                uint8_t* const data = inputPtrArgsMemory->getPointer();
-                memcpy(data + loc.offset, info.buffer(), loc.length);
-            }
-        }
-    }
-
-    Request request;
-    request.inputs = createRequestArguments(inputs, inputPtrArgsLocations);
-    request.outputs = createRequestArguments(outputs, outputPtrArgsLocations);
-    request.pools.reserve(localMemories.size());
-    std::transform(localMemories.begin(), localMemories.end(), std::back_inserter(request.pools),
-                   [](const RuntimeMemory* localMemory) { return localMemory->getMemoryPool(); });
+    auto request = createDriverRequest(inputs, outputs, memories);
 
     NNTRACE_FULL_SWITCH(NNTRACE_LAYER_IPC, NNTRACE_PHASE_EXECUTION,
                         "DriverPreparedModel::execute::execute");
@@ -550,7 +494,7 @@ std::tuple<int, std::vector<OutputShape>, Timing> DriverPreparedModel::execute(
     // compute using burst if present, otherwise compute from IPreparedModel
     const bool burstCompute = (burstController != nullptr);
     if (burstCompute) {
-        for (const RuntimeMemory* memory : localMemories) {
+        for (const RuntimeMemory* memory : memories) {
             const auto pool = memory->getMemoryPool();
             if (const auto* maybeMemory = std::get_if<SharedMemory>(&pool)) {
                 auto cacheHold = burstController->cacheMemory(*maybeMemory);
@@ -588,19 +532,6 @@ std::tuple<int, std::vector<OutputShape>, Timing> DriverPreparedModel::execute(
         return {n, std::move(outputShapes), timing};
     }
 
-    // Copy the output data from shared memory to the output buffers.
-    NNTRACE_RT_SWITCH(NNTRACE_PHASE_RESULTS, "DriverPreparedModel::execute");
-    if (outputPtrArgsMemory != nullptr) {
-        uint32_t ptrOutputIndex = 0;
-        for (const auto& info : outputs) {
-            if (info.state() == ModelArgumentInfo::POINTER) {
-                const DataLocation& loc = outputPtrArgsLocations[ptrOutputIndex++];
-                const uint8_t* const data = outputPtrArgsMemory->getPointer();
-                memcpy(info.buffer(), data + loc.offset, loc.length);
-            }
-        }
-    }
-
     VLOG(EXECUTION) << "DriverPreparedModel::execute completed";
     return {ANEURALNETWORKS_NO_ERROR, std::move(outputShapes), timing};
 }
@@ -613,43 +544,8 @@ std::tuple<int, int, ExecuteFencedInfoCallback, Timing> DriverPreparedModel::exe
         const OptionalDuration& timeoutDurationAfterFence) const {
     NNTRACE_RT(NNTRACE_PHASE_INPUTS_AND_OUTPUTS, "DriverPreparedModel::executeFenced");
     CHECK(std::all_of(waitFor.begin(), waitFor.end(), [](int fd) { return fd > 0; }));
-    // Make a copy of the memory tracker as we will append memory pools for pointer arguments.
-    std::vector<const RuntimeMemory*> localMemories = memories;
 
-    // We separate the input & output pools so accelerators only need to copy
-    // the contents of the input pools. We could also use it to set protection
-    // on read only memory but that's not currently done.
-
-    // Layout the input and output data
-    const auto [n1, inputPtrArgsMemory, inputPtrArgsLocations] =
-            allocatePointerArgumentsToPool(inputs, &localMemories);
-    if (n1 != ANEURALNETWORKS_NO_ERROR) {
-        return {n1, -1, nullptr, {}};
-    }
-    const auto [n2, outputPtrArgsMemory, outputPtrArgsLocations] =
-            allocatePointerArgumentsToPool(outputs, &localMemories);
-    if (n2 != ANEURALNETWORKS_NO_ERROR) {
-        return {n2, -1, nullptr, {}};
-    }
-
-    // Copy the input data that was specified via a pointer.
-    if (inputPtrArgsMemory != nullptr) {
-        uint32_t ptrInputIndex = 0;
-        for (const auto& info : inputs) {
-            if (info.state() == ModelArgumentInfo::POINTER) {
-                const DataLocation& loc = inputPtrArgsLocations[ptrInputIndex++];
-                uint8_t* const data = inputPtrArgsMemory->getPointer();
-                memcpy(data + loc.offset, info.buffer(), loc.length);
-            }
-        }
-    }
-
-    Request request;
-    request.inputs = createRequestArguments(inputs, inputPtrArgsLocations);
-    request.outputs = createRequestArguments(outputs, outputPtrArgsLocations);
-    request.pools.reserve(localMemories.size());
-    std::transform(localMemories.begin(), localMemories.end(), std::back_inserter(request.pools),
-                   [](const RuntimeMemory* localMemory) { return localMemory->getMemoryPool(); });
+    auto request = createDriverRequest(inputs, outputs, memories);
 
     NNTRACE_FULL_SWITCH(NNTRACE_LAYER_IPC, NNTRACE_PHASE_EXECUTION,
                         "DriverPreparedModel::executeFenced");
@@ -705,26 +601,6 @@ std::tuple<int, int, ExecuteFencedInfoCallback, Timing> DriverPreparedModel::exe
         if (syncFenceFd < 0) {
             LOG(ERROR) << "Failed to dup the file descriptor";
             return {ANEURALNETWORKS_OP_FAILED, -1, nullptr, timing};
-        }
-    }
-    // If output buffer is provided as a malloc pointer, wait for the execution to finish.
-    // Then copy the output data from shared memory to the output buffers.
-    if (outputPtrArgsMemory != nullptr) {
-        NNTRACE_RT_SWITCH(NNTRACE_PHASE_RESULTS, "DriverPreparedModel::executeFenced");
-        if (syncFenceFd > 0) {
-            auto r = syncWait(syncFenceFd, -1);
-            if (r != FenceState::SIGNALED) {
-                LOG(ERROR) << "syncWait failed, fd: " << syncFenceFd;
-                return {ANEURALNETWORKS_OP_FAILED, syncFenceFd, nullptr, timing};
-            }
-        }
-        uint32_t ptrOutputIndex = 0;
-        for (const auto& info : outputs) {
-            if (info.state() == ModelArgumentInfo::POINTER) {
-                const DataLocation& loc = outputPtrArgsLocations[ptrOutputIndex++];
-                const uint8_t* const data = outputPtrArgsMemory->getPointer();
-                memcpy(info.buffer(), data + loc.offset, loc.length);
-            }
         }
     }
 

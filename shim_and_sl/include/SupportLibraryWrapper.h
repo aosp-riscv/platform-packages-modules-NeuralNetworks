@@ -367,6 +367,11 @@ class Compilation {
                 mCompilation, static_cast<int32_t>(priority)));
     }
 
+    Result setTimeout(uint64_t durationNs) {
+        return static_cast<Result>(
+                mNnApi->ANeuralNetworksCompilation_setTimeout(mCompilation, durationNs));
+    }
+
     Result setCaching(const std::string& cacheDir, const std::vector<uint8_t>& token) {
         if (token.size() != ANEURALNETWORKS_BYTE_SIZE_OF_CACHE_TOKEN) {
             return Result::BAD_DATA;

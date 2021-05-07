@@ -42,6 +42,27 @@ class Device;
 class MetaModel;
 class ModelArgumentInfo;
 
+// A unified interface for a reusable execution with cached resources.
+// This object provides no thread-safety guarantee. The caller must guarantee there is at most one
+// call to RuntimeExecution::compute or RuntimeExecution::computeFenced on the same RuntimeExecution
+// object in flight at a time.
+class RuntimeExecution {
+    DISALLOW_COPY_AND_ASSIGN(RuntimeExecution);
+
+   public:
+    RuntimeExecution() = default;
+    virtual ~RuntimeExecution() = default;
+
+    virtual std::tuple<int, std::vector<OutputShape>, Timing> compute(
+            const SharedBurst& burstController, const OptionalTimePoint& deadline) const = 0;
+
+    // The returned timing information is only valid if the callback is nullptr.
+    // Returns error_code, sync_fence, callback and timing.
+    virtual std::tuple<int, int, ExecuteFencedInfoCallback, Timing> computeFenced(
+            const std::vector<int>& waitFor, const OptionalTimePoint& deadline,
+            const OptionalDuration& timeoutDurationAfterFence) const = 0;
+};
+
 // A unified interface for actual driver prepared model as well as the CPU.
 class RuntimePreparedModel {
     DISALLOW_COPY_AND_ASSIGN(RuntimePreparedModel);
@@ -71,6 +92,13 @@ class RuntimePreparedModel {
             MeasureTiming measure, const OptionalTimePoint& deadline,
             const OptionalDuration& loopTimeoutDuration,
             const OptionalDuration& timeoutDurationAfterFence) const = 0;
+
+    // Create a reusable execution with given input/output argument info and memory pools.
+    virtual std::pair<int, std::shared_ptr<RuntimeExecution>> createReusableExecution(
+            const std::vector<ModelArgumentInfo>& inputs,
+            const std::vector<ModelArgumentInfo>& outputs,
+            const std::vector<const RuntimeMemory*>& memories, MeasureTiming measure,
+            const OptionalDuration& loopTimeoutDuration) const = 0;
 
     virtual GeneralResult<SharedBurst> configureExecutionBurst() const = 0;
 

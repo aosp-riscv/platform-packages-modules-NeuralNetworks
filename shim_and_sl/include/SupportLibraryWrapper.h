@@ -20,6 +20,7 @@
 #ifndef ANDROID_PACKAGES_MODULES_NEURALNETWORKS_SL_SUPPORT_LIBRARY_WRAPPER_H
 #define ANDROID_PACKAGES_MODULES_NEURALNETWORKS_SL_SUPPORT_LIBRARY_WRAPPER_H
 
+#include <android-base/unique_fd.h>
 #include <android/hardware_buffer.h>
 #include <math.h>
 #include <unistd.h>
@@ -389,6 +390,19 @@ class Compilation {
         return static_cast<Result>(mNnApi->SL_ANeuralNetworksCompilation_setCachingFromFds(
                 mCompilation, modelCacheFds.data(), modelCacheFds.size(), dataCacheFds.data(),
                 dataCacheFds.size(), token.data()));
+    }
+
+    Result setCachingFromFds(const std::vector<base::unique_fd>& modelCacheOwnedFds,
+                             const std::vector<base::unique_fd>& dataCacheOwnedFds,
+                             const std::vector<uint8_t>& token) {
+        std::vector<int> modelCacheFds, dataCacheFds;
+        for (const auto& fd : modelCacheOwnedFds) {
+            modelCacheFds.push_back(fd.get());
+        }
+        for (const auto& fd : dataCacheOwnedFds) {
+            dataCacheFds.push_back(fd.get());
+        }
+        return setCachingFromFds(modelCacheFds, dataCacheFds, token);
     }
 
     Result finish() {

@@ -19,6 +19,7 @@
 
 #include <BufferTracker.h>
 #include <CpuExecutor.h>
+#include <nnapi/IExecution.h>
 #include <nnapi/IPreparedModel.h>
 #include <nnapi/Result.h>
 #include <nnapi/Types.h>
@@ -46,6 +47,10 @@ class PreparedModel final : public IPreparedModel,
             const Request& request, const std::vector<SyncFence>& waitFor, MeasureTiming measure,
             const OptionalTimePoint& deadline, const OptionalDuration& loopTimeoutDuration,
             const OptionalDuration& timeoutDurationAfterFence) const override;
+
+    GeneralResult<nn::SharedExecution> createReusableExecution(
+            const Request& request, MeasureTiming measure,
+            const OptionalDuration& loopTimeoutDuration) const override;
 
     GeneralResult<SharedBurst> configureExecutionBurst() const override;
 

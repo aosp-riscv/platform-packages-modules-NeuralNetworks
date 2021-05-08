@@ -566,6 +566,19 @@ ndk::ScopedAStatus ShimDevice::prepareModel(
                                                   callback);
     SLW2SAS_OK_RETURN_AND_ERROR_CALLBACK_IF_ERROR(compilation.second.setPriority(*ndkPriority),
                                                   callback);
+    if (deadlineNs > -1) {
+        std::chrono::time_point<::android::base::boot_clock> deadlinePoint(
+                std::chrono::nanoseconds{deadlineNs});
+        const auto currentTime = ::android::base::boot_clock::now();
+        const auto timeoutDuration = std::chrono::nanoseconds(deadlinePoint - currentTime);
+        if (timeoutDuration <= std::chrono::nanoseconds::zero()) {
+            callback->notify(ErrorStatus::MISSED_DEADLINE_TRANSIENT, nullptr);
+            return ndk::ScopedAStatus::ok();
+        }
+        SLW2SAS_OK_RETURN_AND_ERROR_CALLBACK_IF_ERROR(
+                compilation.second.setTimeout(std::max<uint64_t>(1, timeoutDuration.count())),
+                callback);
+    }
     if (!modelCache.empty() || !dataCache.empty()) {
         SLW2SAS_OK_RETURN_AND_ERROR_CALLBACK_IF_ERROR(
                 compilation.second.setCachingFromFds(getIntFds(modelCache), getIntFds(dataCache),
@@ -581,9 +594,6 @@ ndk::ScopedAStatus ShimDevice::prepareModel(
                     std::move(copiedOperandValues));
 
     callback->notify(ErrorStatus::NONE, preparedModel);
-
-    // TODO(170375075): support caching and deadline
-    (void)deadlineNs;
     return ndk::ScopedAStatus::ok();
 }
 

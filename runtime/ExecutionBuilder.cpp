@@ -25,6 +25,7 @@
 #include <android-base/logging.h>
 #include <nnapi/IBurst.h>
 #include <nnapi/IPreparedModel.h>
+#include <nnapi/Types.h>
 
 #include <algorithm>
 #include <limits>

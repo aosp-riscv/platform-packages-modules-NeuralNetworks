@@ -30,6 +30,7 @@
 #include <optional>
 #include <string>
 #include <type_traits>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -47,6 +48,7 @@ namespace android::nn {
 class IBuffer;
 class IBurst;
 class IDevice;
+class IExecution;
 class IPreparedModel;
 struct Memory;
 
@@ -72,6 +74,7 @@ using AlignedData = std::max_align_t;
 using SharedBuffer = std::shared_ptr<const IBuffer>;
 using SharedBurst = std::shared_ptr<const IBurst>;
 using SharedDevice = std::shared_ptr<const IDevice>;
+using SharedExecution = std::shared_ptr<const IExecution>;
 using SharedMemory = std::shared_ptr<const Memory>;
 using SharedPreparedModel = std::shared_ptr<const IPreparedModel>;
 
@@ -229,6 +232,9 @@ using TimePoint = std::chrono::time_point<Clock, Duration>;
 using OptionalTimePoint = std::optional<TimePoint>;
 
 %insert Timing
+
+// Returns status, timingLaunched, timingFenced
+using ExecuteFencedInfoCallback = std::function<GeneralResult<std::pair<Timing, Timing>>()>;
 
 enum class Version { ANDROID_OC_MR1, ANDROID_P, ANDROID_Q, ANDROID_R, ANDROID_S, CURRENT_RUNTIME };
 

@@ -16,6 +16,7 @@
 
 #include "CanonicalPreparedModel.h"
 
+#include <DefaultExecution.h>
 #include <Tracing.h>
 #include <nnapi/IPreparedModel.h>
 #include <nnapi/Result.h>
@@ -278,6 +279,15 @@ GeneralResult<std::pair<SyncFence, ExecuteFencedInfoCallback>> PreparedModel::ex
         return std::make_pair(timingSinceLaunch, timingAfterFence);
     };
     return std::make_pair(SyncFence::createAsSignaled(), std::move(fencedExecutionCallback));
+}
+
+GeneralResult<SharedExecution> PreparedModel::createReusableExecution(
+        const Request& request, MeasureTiming measure,
+        const OptionalDuration& loopTimeoutDuration) const {
+    NNTRACE_FULL(NNTRACE_LAYER_DRIVER, NNTRACE_PHASE_EXECUTION,
+                 "sample::PreparedModel::createReusableExecution");
+    return std::make_shared<DefaultExecution>(shared_from_this(), request, measure,
+                                              loopTimeoutDuration);
 }
 
 GeneralResult<SharedBurst> PreparedModel::configureExecutionBurst() const {

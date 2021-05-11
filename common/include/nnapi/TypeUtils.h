@@ -68,7 +68,7 @@ Result<Dimensions> combineDimensions(const Dimensions& lhs, const Dimensions& rh
 std::pair<size_t, std::vector<size_t>> getMemorySizes(const Model& model);
 
 // Round up "size" to the nearest multiple of "multiple". "multiple" must be a power of 2.
-uint32_t roundUp(uint32_t size, uint32_t multiple);
+size_t roundUp(size_t size, size_t multiple);
 
 // Set of output utility functions.
 std::ostream& operator<<(std::ostream& os, const DeviceStatus& deviceStatus);

@@ -212,7 +212,7 @@ std::pair<size_t, std::vector<size_t>> getMemorySizes(const Model& model) {
     return std::make_pair(operandValuesSize, std::move(poolSizes));
 }
 
-uint32_t roundUp(uint32_t size, uint32_t multiple) {
+size_t roundUp(size_t size, size_t multiple) {
     CHECK(multiple != 0);
     CHECK((multiple & (multiple - 1)) == 0) << multiple << " is not a power of two";
     return (size + (multiple - 1)) & ~(multiple - 1);

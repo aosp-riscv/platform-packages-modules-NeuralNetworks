@@ -25,43 +25,25 @@
 #include <vector>
 
 #include "Result.h"
+#include "TypeUtils.h"
 #include "Types.h"
 
 namespace android::nn {
-namespace {
-
-constexpr size_t safeDivideRoundedUp(size_t numerator, size_t denominator) {
-    CHECK_NE(denominator, 0u);
-    CHECK_LE(numerator, std::numeric_limits<size_t>::max() - denominator);
-    return (numerator + denominator - 1) / denominator;
-}
-
-constexpr size_t safeMultiply(size_t a, size_t b) {
-    if (b == 0) {
-        return 0;
-    }
-    CHECK_LE(a, std::numeric_limits<size_t>::max() / b);
-    return a * b;
-}
-
-constexpr size_t extendToAlignment(size_t length) {
-    constexpr size_t kMaxAlignment = alignof(AlignedData);
-    return safeMultiply(safeDivideRoundedUp(length, kMaxAlignment), kMaxAlignment);
-}
-
-}  // namespace
 
 MutableMemoryBuilder::MutableMemoryBuilder(uint32_t poolIndex) : mPoolIndex(poolIndex) {}
 
-DataLocation MutableMemoryBuilder::append(size_t length) {
+DataLocation MutableMemoryBuilder::append(size_t length, size_t alignment, size_t padding) {
     CHECK_GT(length, 0u);
+    mSize = roundUp(mSize, alignment);
     const size_t offset = mSize;
-    mSize += extendToAlignment(length);
+    const size_t paddedLength = roundUp(length, padding);
     CHECK_LE(offset, std::numeric_limits<uint32_t>::max());
-    CHECK_LE(length, std::numeric_limits<uint32_t>::max());
+    CHECK_LE(paddedLength, std::numeric_limits<uint32_t>::max());
+    mSize += paddedLength;
     return {.poolIndex = mPoolIndex,
             .offset = static_cast<uint32_t>(offset),
-            .length = static_cast<uint32_t>(length)};
+            .length = static_cast<uint32_t>(length),
+            .padding = static_cast<uint32_t>(paddedLength - length)};
 }
 
 bool MutableMemoryBuilder::empty() const {

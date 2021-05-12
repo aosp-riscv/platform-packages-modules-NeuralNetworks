@@ -35,7 +35,8 @@ class MutableMemoryBuilder {
    public:
     explicit MutableMemoryBuilder(uint32_t poolIndex);
 
-    DataLocation append(size_t length);
+    DataLocation append(size_t length, size_t alignment = kMinMemoryAlignment,
+                        size_t padding = kMinMemoryPadding);
     bool empty() const;
 
     GeneralResult<SharedMemory> finish();

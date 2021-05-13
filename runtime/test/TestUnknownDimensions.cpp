@@ -298,9 +298,7 @@ void UnknownDimensionsTest::TestOne(const OperandParams& paramsForInput0,
             Result::NO_ERROR);
 
     if (allAreIntendedSizeAtExecution) {
-        auto old = Execution::setComputeMode(computeMode);
-        ASSERT_EQ(execution.compute(), Result::NO_ERROR);
-        Execution::setComputeMode(old);
+        ASSERT_EQ(execution.compute(computeMode), Result::NO_ERROR);
     } else {
         // There is no contract (yet) for specific errors in NeuralNetworks.h,
         // so we just assert on not being successful.

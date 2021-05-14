@@ -1557,7 +1557,8 @@ int ExecutionPlan::nextCompound(const ExecutionStep* step, std::shared_ptr<Contr
 
     *executor = std::make_shared<StepExecutor>(controller->mExecutionBuilder, step->getStepModel(),
                                                step->getDevice(), step->getPreparedStepModel(),
-                                               step, &controller->mDynamicTemporaries);
+                                               /*reusable=*/false, step,
+                                               &controller->mDynamicTemporaries);
 
     step->mapInputsAndOutputs(
             *executor, mainModelOutputShapes, controller->mTemporaries.get(),
@@ -1823,10 +1824,11 @@ int ExecutionPlan::nextCompound(const GotoStep* step, std::shared_ptr<Controller
 }
 
 std::shared_ptr<StepExecutor> ExecutionPlan::makeStepExecutor(
-        ExecutionBuilder* executionBuilder) const {
+        bool reusable, ExecutionBuilder* executionBuilder) const {
     auto simpleBody = simple();
     auto executor = std::make_shared<StepExecutor>(executionBuilder, simpleBody->mModel,
-                                                   simpleBody->mDevice, simpleBody->mPreparedModel);
+                                                   simpleBody->mDevice, simpleBody->mPreparedModel,
+                                                   reusable);
     executor->mapInputsAndOutputsTrivially();
     return executor;
 }

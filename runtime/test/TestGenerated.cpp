@@ -66,6 +66,8 @@ class GeneratedTests : public GeneratedTestBase {
     bool shouldSkipTest();
 
     std::optional<Compilation> compileModel(const Model& model);
+    void executeInternal(const Compilation& compilation, const TestModel& testModel,
+                         bool testReusableExecution);
     void executeWithCompilation(const Compilation& compilation, const TestModel& testModel);
     void executeOnce(const Model& model, const TestModel& testModel);
     void executeMultithreadedOwnCompilation(const Model& model, const TestModel& testModel);
@@ -237,14 +239,13 @@ static void copyResultsFromDeviceMemories(const TestModel& testModel,
     }
 }
 
-void GeneratedTests::executeWithCompilation(const Compilation& compilation,
-                                            const TestModel& testModel) {
-    NNTRACE_APP(NNTRACE_PHASE_EXECUTION, "executeWithCompilation example");
+void GeneratedTests::executeInternal(const Compilation& compilation, const TestModel& testModel,
+                                     bool testReusableExecution) {
+    NNTRACE_APP(NNTRACE_PHASE_EXECUTION, "executeInternal example");
 
     Execution execution(&compilation);
-
     if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
-        execution.setReusable(mTestReusableExecution);
+        execution.setReusable(testReusableExecution);
     }
 
     std::vector<TestBuffer> outputs;
@@ -268,7 +269,7 @@ void GeneratedTests::executeWithCompilation(const Compilation& compilation,
         }
 
         {
-            NNTRACE_APP(NNTRACE_PHASE_RESULTS, "executeWithCompilation example");
+            NNTRACE_APP(NNTRACE_PHASE_RESULTS, "executeInternal example");
             if (mExpectFailure) {
                 ASSERT_NE(result, Result::NO_ERROR);
                 return;
@@ -292,9 +293,18 @@ void GeneratedTests::executeWithCompilation(const Compilation& compilation,
     };
 
     computeAndCheckResults();
+    if (testReusableExecution) {
+        computeAndCheckResults();
+    }
+}
+
+void GeneratedTests::executeWithCompilation(const Compilation& compilation,
+                                            const TestModel& testModel) {
+    // Single-time and reusable executions have different code paths, so test both.
+    executeInternal(compilation, testModel, /*testReusableExecution=*/false);
     if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
         if (mTestReusableExecution) {
-            computeAndCheckResults();
+            executeInternal(compilation, testModel, /*testReusableExecution=*/true);
         }
     }
 }

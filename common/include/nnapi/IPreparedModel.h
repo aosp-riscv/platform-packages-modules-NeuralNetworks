@@ -27,9 +27,6 @@
 
 namespace android::nn {
 
-// Returns status, timingLaunched, timingFenced
-using ExecuteFencedInfoCallback = std::function<GeneralResult<std::pair<Timing, Timing>>()>;
-
 /**
  * IPreparedModel describes a model that has been prepared for execution and is used to launch
  * executions.
@@ -149,6 +146,32 @@ class IPreparedModel {
             const Request& request, const std::vector<SyncFence>& waitFor, MeasureTiming measure,
             const OptionalTimePoint& deadline, const OptionalDuration& loopTimeoutDuration,
             const OptionalDuration& timeoutDurationAfterFence) const = 0;
+
+    /**
+     * Create a reusable execution from a request and execution configurations.
+     *
+     * IPreparedModel::createReusableExecution must verify the inputs to the function are correct.
+     * If there is an error, IPreparedModel::createReusableExecution must immediately return
+     * {@link ErrorStatus::INVALID_ARGUMENT} as a GeneralError. If the inputs to the function are
+     * valid and there is no error, IPreparedModel::createReusableExecution must construct a
+     * reusable execution.
+     *
+     * @param request The input and output information on which the prepared model is to be
+     *     executed.
+     * @param measure Specifies whether or not to measure duration of the computations performed
+     *     with the returned execution.
+     * @param loopTimeoutDuration The maximum amount of time that should be spent executing a {@link
+     *     OperationType::WHILE} operation. During a computation with the returned execution, if a
+     *     loop condition model does not output `false` within this duration, the computation must
+     *     be aborted. If no loop timeout duration is provided, the maximum amount of time is
+     *     {@link LoopTimeoutDurationNs::DEFAULT}. When provided, the duration must not exceed
+     *     {@link LoopTimeoutDurationNs::MAXIMUM}.
+     * @return execution An IExecution object representing a reusable execution that has been
+     *     specialized for a fixed request, otherwise GeneralError.
+     */
+    virtual GeneralResult<SharedExecution> createReusableExecution(
+            const Request& request, MeasureTiming measure,
+            const OptionalDuration& loopTimeoutDuration) const = 0;
 
     /**
      * Creates a burst controller on a prepared model.

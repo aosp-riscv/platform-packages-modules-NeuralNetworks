@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-""" Generate NeuralNetworks.h or types.hal from a specification file and a template file.
+""" Generate an output file from a specification file and a template file.
     See README.md for more details.
 """
 

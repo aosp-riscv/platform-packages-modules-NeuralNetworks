@@ -16,6 +16,7 @@
 
 #include <android-base/logging.h>
 #include <android-base/properties.h>
+#include <android-base/unique_fd.h>
 #include <ftw.h>
 #include <gtest/gtest.h>
 #include <unistd.h>
@@ -27,6 +28,7 @@
 #include <iostream>
 #include <map>
 #include <memory>
+#include <random>
 #include <set>
 #include <string>
 #include <thread>
@@ -134,6 +136,20 @@ bool GeneratedTests::checkSupported(const Model& model, ANeuralNetworksDevice* d
     return fullySupportedModel;
 }
 
+static std::vector<base::unique_fd> createCacheFds(const std::vector<std::string>& files) {
+    std::vector<base::unique_fd> fds;
+    fds.reserve(files.size());
+    for (const auto& file : files) {
+        auto fd = base::unique_fd(open(file.c_str(), O_RDWR | O_CREAT, S_IRUSR | S_IWUSR));
+        if (fd.get() == -1) {
+            [] { FAIL(); }();
+            return {};
+        }
+        fds.push_back(std::move(fd));
+    }
+    return fds;
+}
+
 std::optional<Compilation> GeneratedTests::compileModel(const Model& model,
                                                         ANeuralNetworksDevice* device) {
     NNTRACE_APP(NNTRACE_PHASE_COMPILATION, "compileModel");
@@ -143,16 +159,72 @@ std::optional<Compilation> GeneratedTests::compileModel(const Model& model,
         // exercised if supported by the driver.
         // No invalid model will be passed to this branch.
         EXPECT_FALSE(mExpectFailure);
+
+        std::string mode = ::android::base::GetProperty("debug.nn.slts.caching", "random");
+        bool useSetCachingFromFds;
+        if (mode == "path") {
+            useSetCachingFromFds = false;
+        } else if (mode == "fds") {
+            useSetCachingFromFds = true;
+        } else if (mode == "random") {
+            std::string testName = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+            std::seed_seq seq(testName.begin(), testName.end());
+            std::mt19937 gen(seq);
+            std::bernoulli_distribution d(0.5);
+            useSetCachingFromFds = d(gen);
+        } else {
+            [&mode] {
+                FAIL() << "System property debug.nn.slts.caching should be one of \"path\", "
+                          "\"fds\", or \"random\"; got \""
+                       << mode << "\"";
+            }();
+            return {};
+        }
+        SCOPED_TRACE("Use setCachingFromFds = " + std::to_string(useSetCachingFromFds) + " (" +
+                     mode + ")");
+        std::cout << "\nUse setCachingFromFds = " << std::boolalpha << useSetCachingFromFds << " ("
+                  << mode << ")" << std::endl;
+
+        std::vector<std::string> modelCacheFilenames, dataCacheFilenames;
+        if (useSetCachingFromFds) {
+            uint32_t numModelCacheFiles, numDataCacheFiles;
+            EXPECT_EQ(mNnApi->SL_ANeuralNetworksDevice_getNumberOfCacheFilesNeeded(
+                              device, &numModelCacheFiles, &numDataCacheFiles),
+                      ANEURALNETWORKS_NO_ERROR);
+            for (uint32_t i = 0; i < numModelCacheFiles; i++) {
+                modelCacheFilenames.push_back({mCacheDir + "/model" + std::to_string(i)});
+            }
+            for (uint32_t i = 0; i < numDataCacheFiles; i++) {
+                dataCacheFilenames.push_back({mCacheDir + "/data" + std::to_string(i)});
+            }
+        }
+
         auto resultCompilation1 = Compilation::createForDevice(mNnApi.get(), &model, device);
         EXPECT_EQ(resultCompilation1.first, Result::NO_ERROR);
         auto compilation1 = std::move(resultCompilation1.second);
-        EXPECT_EQ(compilation1.setCaching(mCacheDir, mToken), Result::NO_ERROR);
+        if (useSetCachingFromFds) {
+            auto modelCacheFds = createCacheFds(modelCacheFilenames);
+            auto dataCacheFds = createCacheFds(dataCacheFilenames);
+            EXPECT_EQ(compilation1.setCachingFromFds(modelCacheFds, dataCacheFds, mToken),
+                      Result::NO_ERROR);
+        } else {
+            EXPECT_EQ(compilation1.setCaching(mCacheDir, mToken), Result::NO_ERROR);
+        }
         EXPECT_EQ(compilation1.finish(), Result::NO_ERROR);
+
         auto resultCompilation2 = Compilation::createForDevice(mNnApi.get(), &model, device);
         EXPECT_EQ(resultCompilation2.first, Result::NO_ERROR);
         auto compilation2 = std::move(resultCompilation2.second);
-        EXPECT_EQ(compilation2.setCaching(mCacheDir, mToken), Result::NO_ERROR);
+        if (useSetCachingFromFds) {
+            auto modelCacheFds = createCacheFds(modelCacheFilenames);
+            auto dataCacheFds = createCacheFds(dataCacheFilenames);
+            EXPECT_EQ(compilation2.setCachingFromFds(modelCacheFds, dataCacheFds, mToken),
+                      Result::NO_ERROR);
+        } else {
+            EXPECT_EQ(compilation2.setCaching(mCacheDir, mToken), Result::NO_ERROR);
+        }
         EXPECT_EQ(compilation2.finish(), Result::NO_ERROR);
+
         return compilation2;
     } else {
         auto resultCompilation = Compilation::createForDevice(mNnApi.get(), &model, device);

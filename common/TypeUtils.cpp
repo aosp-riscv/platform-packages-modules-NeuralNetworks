@@ -212,6 +212,22 @@ std::pair<size_t, std::vector<size_t>> getMemorySizes(const Model& model) {
     return std::make_pair(operandValuesSize, std::move(poolSizes));
 }
 
+size_t roundUp(size_t size, size_t multiple) {
+    CHECK(multiple != 0);
+    CHECK((multiple & (multiple - 1)) == 0) << multiple << " is not a power of two";
+    return (size + (multiple - 1)) & ~(multiple - 1);
+}
+
+size_t getAlignmentForLength(size_t length) {
+    if (length < 2) {
+        return 1;  // No alignment necessary
+    } else if (length < 4) {
+        return 2;  // Align on 2-byte boundary
+    } else {
+        return 4;  // Align on 4-byte boundary
+    }
+}
+
 std::ostream& operator<<(std::ostream& os, const DeviceStatus& deviceStatus) {
     switch (deviceStatus) {
         case DeviceStatus::AVAILABLE:
@@ -751,6 +767,11 @@ std::ostream& operator<<(std::ostream& os, const SharedMemory& memory) {
     return os << *memory;
 }
 
+std::ostream& operator<<(std::ostream& os, const MemoryPreference& memoryPreference) {
+    return os << "MemoryPreference{.alignment=" << memoryPreference.alignment
+              << ", .padding=" << memoryPreference.padding << "}";
+}
+
 std::ostream& operator<<(std::ostream& os, const Model::Subgraph& subgraph) {
     std::vector<Operand> operands;
     std::vector<Operation> operations;
@@ -939,6 +960,13 @@ bool operator==(const Extension& a, const Extension& b) {
     return a.name == b.name && a.operandTypes == b.operandTypes;
 }
 bool operator!=(const Extension& a, const Extension& b) {
+    return !(a == b);
+}
+
+bool operator==(const MemoryPreference& a, const MemoryPreference& b) {
+    return a.alignment == b.alignment && a.padding == b.padding;
+}
+bool operator!=(const MemoryPreference& a, const MemoryPreference& b) {
     return !(a == b);
 }
 

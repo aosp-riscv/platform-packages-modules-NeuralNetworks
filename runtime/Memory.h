@@ -95,7 +95,6 @@ class ObjectTracker {
 };
 
 using CompilationRole = std::tuple<const CompilationBuilder*, IOType, uint32_t>;
-using StepRoleCallback = std::function<void(const RuntimePreparedModel*, IOType, uint32_t)>;
 
 struct MemoryDescriptor {
     std::vector<uint32_t> dimensions;

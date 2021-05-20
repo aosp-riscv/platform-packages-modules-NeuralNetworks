@@ -78,13 +78,13 @@ class SampleDriver : public aidl_hal::BnDevice {
     ndk::ScopedAStatus getVersionString(std::string* version) override;
     ndk::ScopedAStatus prepareModel(
             const aidl_hal::Model& model, aidl_hal::ExecutionPreference preference,
-            aidl_hal::Priority priority, int64_t deadline,
+            aidl_hal::Priority priority, int64_t deadlineNs,
             const std::vector<ndk::ScopedFileDescriptor>& modelCache,
             const std::vector<ndk::ScopedFileDescriptor>& dataCache,
             const std::vector<uint8_t>& token,
             const std::shared_ptr<aidl_hal::IPreparedModelCallback>& callback) override;
     ndk::ScopedAStatus prepareModelFromCache(
-            int64_t deadline, const std::vector<ndk::ScopedFileDescriptor>& modelCache,
+            int64_t deadlineNs, const std::vector<ndk::ScopedFileDescriptor>& modelCache,
             const std::vector<ndk::ScopedFileDescriptor>& dataCache,
             const std::vector<uint8_t>& token,
             const std::shared_ptr<aidl_hal::IPreparedModelCallback>& callback) override;
@@ -117,12 +117,12 @@ class SamplePreparedModel : public aidl_hal::BnPreparedModel {
     }
     bool initialize();
     ndk::ScopedAStatus executeSynchronously(const aidl_hal::Request& request, bool measureTiming,
-                                            int64_t deadline, int64_t loopTimeoutDuration,
+                                            int64_t deadlineNs, int64_t loopTimeoutDurationNs,
                                             aidl_hal::ExecutionResult* executionResult) override;
     ndk::ScopedAStatus executeFenced(const aidl_hal::Request& request,
                                      const std::vector<ndk::ScopedFileDescriptor>& waitFor,
-                                     bool measureTiming, int64_t deadline,
-                                     int64_t loopTimeoutDuration, int64_t duration,
+                                     bool measureTiming, int64_t deadlineNs,
+                                     int64_t loopTimeoutDurationNs, int64_t durationNs,
                                      aidl_hal::FencedExecutionResult* executionResult) override;
     ndk::ScopedAStatus configureExecutionBurst(std::shared_ptr<aidl_hal::IBurst>* burst) override;
     const aidl_hal::Model* getModel() const { return &mModel; }
@@ -165,8 +165,8 @@ class SampleBurst : public aidl_hal::BnBurst {
 
     ndk::ScopedAStatus executeSynchronously(const aidl_hal::Request& request,
                                             const std::vector<int64_t>& memoryIdentifierTokens,
-                                            bool measureTiming, int64_t deadline,
-                                            int64_t loopTimeoutDuration,
+                                            bool measureTiming, int64_t deadlineNs,
+                                            int64_t loopTimeoutDurationNs,
                                             aidl_hal::ExecutionResult* executionResult) override;
     ndk::ScopedAStatus releaseMemoryResource(int64_t memoryIdentifierToken) override;
 

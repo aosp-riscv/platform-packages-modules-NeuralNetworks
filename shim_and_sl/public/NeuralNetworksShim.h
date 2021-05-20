@@ -79,41 +79,20 @@ typedef enum {
 } ANeuralNetworksShimResultCode;
 
 /**
- * Information about expected time and power usage.
- * See NNAPI HAL IDevice::getCapabilities for more information
- */
-typedef struct {
-    float execTime;
-    float powerUsage;
-} ANeuralNetworksShimPerformanceInfo;
-
-/**
- * Information about expected time and power usage for a datatype.
- * See NNAPI HAL IDevice::getCapabilities for more information
- */
-typedef struct {
-    int32_t operandType;
-    ANeuralNetworksShimPerformanceInfo performanceInfo;
-} ANeuralNetworksShimOperandPerformanceInfo;
-
-/**
- * Information about NNAPI Vendor extension operand type.
- * See NNAPI HAL ExtensionOperandTypeInformation for more information
- */
-typedef struct {
-    uint32_t byteSize;
-    uint16_t type;
-    bool isTensor;
-} ANeuralNetworksShimExtensionOperandTypeInformation;
-
-/**
- * Supplementary information required to expose NNAPI HAL Service in top of
+ * Supplementary information required to expose NNAPI HAL Service on top of
  * a NNAPI SL Driver.
  */
 typedef struct ANeuralNetworksShimDeviceInfo ANeuralNetworksShimDeviceInfo;
 
 /**
+ * Additional parameters indicating how to devices should be registered.
+ */
+typedef struct ANeuralNetworksShimRegistrationParams ANeuralNetworksShimRegistrationParams;
+
+/**
  * Allocate ANeuralNetworksShimDeviceInfo struct with a device name.
+ *
+ * Available since API level 31.
  *
  * @param deviceInfo The {@link ANeuralNetworksShimDeviceInfo} to be created.
  *                   Set to NULL if unsuccessful.
@@ -123,87 +102,126 @@ typedef struct ANeuralNetworksShimDeviceInfo ANeuralNetworksShimDeviceInfo;
  * @return {@link ANeuralNetworksShimResultCode} enum values.
  *         Returns ANNSHIM_NO_ERROR if successful.
  */
-int ANeuralNetworksShimDeviceInfo_create(ANeuralNetworksShimDeviceInfo** deviceInfo,
-                                         const char* deviceName, const char* serviceName)
-        __INTRODUCED_IN(31);
+int ANeuralNetworksShimDeviceInfo_create(
+        ANeuralNetworksShimDeviceInfo* _Nullable* _Nonnull deviceInfo,
+        const char* _Nonnull deviceName, const char* _Nullable serviceName) __INTRODUCED_IN(31);
 
 /**
  * Free ANeuralNetworksShimDeviceInfo struct.
  *
+ * Available since API level 31.
+ *
  * @param deviceInfo The NNAPI shim device info to be destroyed. Passing NULL is acceptable and
  *                   results in no operation.
  */
-void ANeuralNetworksShimDeviceInfo_free(ANeuralNetworksShimDeviceInfo* deviceInfo)
+void ANeuralNetworksShimDeviceInfo_free(ANeuralNetworksShimDeviceInfo* _Nonnull deviceInfo)
         __INTRODUCED_IN(31);
 
 /**
- * Set NNAPI Device compilation caching Information.
- * See NNAPI HAL IDevice::getNumberOfCacheFilesNeeded for more information.
+ * Allocate ANeuralNetworksShimRegistrationParams struct.
  *
- * @param deviceInfo The NNAPI shim device info to be modified.
- * @param numDataCacheFiles Value returned in NNAPI HAL IDevice::getNumberOfCacheFilesNeeded for
- *                          data files.
- * @param numModelCacheFiles Value returned in NNAPI HAL IDevice::getNumberOfCacheFilesNeeded for
- *                           model files.
-
+ * Available since API level 31.
+ *
+ * @param nnapiSupportLibraryPackage Handle to a NNAPI SL implementation.
+ * @param outRegistrationParams The {@link ANeuralNetworksShimRegistrationParams} to be created.
+ *                  Set to NULL if unsuccessful.
  * @return {@link ANeuralNetworksShimResultCode} enum values.
  *         Returns ANNSHIM_NO_ERROR if successful.
- *         Returns ANNSHIM_INVALID_ARGUMENT if any num param set to more than NNAPI HAL
- *         IDevice::MAX_NUMBER_OF_CACHE_FILES (32).
  */
-int ANeuralNetworksShimDeviceInfo_setNumberOfCacheFilesNeeded(
-        ANeuralNetworksShimDeviceInfo* deviceInfo, uint32_t numDataCacheFiles,
-        uint32_t numModelCacheFiles) __INTRODUCED_IN(31);
+int ANeuralNetworksShimRegistrationParams_create(
+        NnApiSLDriverImpl* _Nonnull nnapiSupportLibraryPackage,
+        ANeuralNetworksShimRegistrationParams* _Nullable* _Nonnull outRegistrationParams)
+        __INTRODUCED_IN(31);
 
 /**
- * Set NNAPI Device performance/power capabilities.
- * See NNAPI HAL IDevice::getCapabilities for more information
+ * Free ANeuralNetworksShimRegistrationParams struct.
  *
- * @param deviceInfo The NNAPI shim device info to be modified.
- * @param ifPerformanced Value returned in NNAPI HAL IDevice::getCapabilities()->ifPerformance.
- * @param whilePerformanced Value returned in NNAPI HAL
- *                          IDevice::getCapabilities()c->whilePerformance.
- * @param relaxedFloat32toFloat16PerformanceScalar
- *        Value returned in NNAPI HAL IDevice::getCapabilities()
- *        relaxedFloat32toFloat16PerformanceScalar.
- * @param relaxedFloat32toFloat16PerformanceTensor
- *        Value returned in NNAPI HAL IDevice::getCapabilities()
- *        relaxedFloat32toFloat16PerformanceTensor.
- * @param operandPerformanceCount Number of entries in operandPerformance param
- * @param operandPerformance Sorted array (by ascending operandType in
- *                           ANeuralNetworksShimOperandPerformanceInfo) with values to be
- *                           returned in NNAPI HAL IDevice::getCapabilities()
- *                           operandPerformance. It's illegal to use operandType with
- *                           ANEURALNETWORKS_MODEL value.
- * @return {@link ANeuralNetworksShimResultCode} enum values.
- *         Returns ANNSHIM_NO_ERROR if successful.
- *         Returns ANNSHIM_INVALID_ARGUMENT if operandPerformance is ill-ordered or with illegal
- *         operandType values.
+ * Available since API level 31.
+ *
+ * @param registrationParams The NNAPI shim registration parameters to be destroyed. Passing NULL is
+ *                           acceptable and results in no operation.
  */
-int ANeuralNetworksShimDeviceInfo_setCapabilities(
-        ANeuralNetworksShimDeviceInfo* deviceInfo, ANeuralNetworksShimPerformanceInfo ifPerformance,
-        ANeuralNetworksShimPerformanceInfo whilePerformance,
-        ANeuralNetworksShimPerformanceInfo relaxedFloat32toFloat16PerformanceScalar,
-        ANeuralNetworksShimPerformanceInfo relaxedFloat32toFloat16PerformanceTensor,
-        uint32_t operandPerformanceCount,
-        ANeuralNetworksShimOperandPerformanceInfo operandPerformance[]) __INTRODUCED_IN(31);
+void ANeuralNetworksShimRegistrationParams_free(
+        ANeuralNetworksShimRegistrationParams* _Nonnull registrationParams) __INTRODUCED_IN(31);
 
 /**
- * Add NNAPI Device vendor extension to be exposed by the shim.
- * See NNAPI HAL IDevice::getSupportedExtensions for more information
+ * Add device info to the registration parameters.
  *
- * @param deviceInfo The NNAPI shim device info to be modified.
- * @param extensionName Value set in NNAPI HAL Extension .name field.
- * @param extensionOperandTypeInformationCount Number of entries in extensionOperandTypeInformation
- *                                             array.
- * @param extensionOperandTypeInformation Value set in NNAPI HAL Extension .operandTypes field.
+ * Available since API level 31.
+ *
+ * @param registrationParams The NNAPI shim registration parameter struct to be modified.
+ * @param devicesToRegister ANeuralNetworksShimDeviceInfo struct, with name and supplementary info
+ *                          about NNAPI device to register.
  * @return {@link ANeuralNetworksShimResultCode} enum values.
  *         Returns ANNSHIM_NO_ERROR if successful.
  */
-int ANeuralNetworksShimDeviceInfo_addVendorExtension(
-        ANeuralNetworksShimDeviceInfo* deviceInfo, const char* extensionName,
-        uint32_t extensionOperandTypeInformationCount,
-        ANeuralNetworksShimExtensionOperandTypeInformation extensionOperandTypeInformation[])
+int ANeuralNetworksShimRegistrationParams_addDeviceInfo(
+        ANeuralNetworksShimRegistrationParams* _Nonnull registrationParams,
+        const ANeuralNetworksShimDeviceInfo* _Nonnull deviceInfo) __INTRODUCED_IN(31);
+
+/**
+ * Set the number of listener threads for all registered services.
+ *
+ * By default, this value is 15, but this default may change in the future. The provided value must
+ * be non-zero.
+ *
+ * Available since API level 31.
+ *
+ * @param registrationParams The NNAPI shim registration parameter struct to be modified.
+ * @param numberOfListenerThreads Number of listener threads for the registered services.
+ * @return {@link ANeuralNetworksShimResultCode} enum values.
+ *         Returns ANNSHIM_NO_ERROR if successful.
+ */
+int ANeuralNetworksShimRegistrationParams_setNumberOfListenerThreads(
+        ANeuralNetworksShimRegistrationParams* _Nonnull registrationParams,
+        uint32_t numberOfListenerThreads) __INTRODUCED_IN(31);
+
+/**
+ * Set whether to register the service eagerly or lazily.
+ *
+ * By default, the service is eagerly registered.
+ *
+ * Available since API level 31.
+ *
+ * @param registrationParams The NNAPI shim registration parameter struct to be modified.
+ * @param asLazy 'false' if the services should be registered with
+ *                {@link AServiceManager_addService}, 'true' if the services should be registered
+ *                with {@link AServiceManager_registerLazyService}.
+ * @return {@link ANeuralNetworksShimResultCode} enum values.
+ *         Returns ANNSHIM_NO_ERROR if successful.
+ */
+int ANeuralNetworksShimRegistrationParams_registerAsLazyService(
+        ANeuralNetworksShimRegistrationParams* _Nonnull registrationParams, bool asLazy)
+        __INTRODUCED_IN(31);
+
+/**
+ * Specifies whether a minimum support device should be registered in the event a specified driver
+ * could not be registered from the NNAPI SL implementation.
+ *
+ * When called, {@link ANeuralNetworksShim_registerSupportLibraryService} will attempt to register
+ * all drivers specified by a {@link ANeuralNetworksShimDeviceInfo}. For some clients of this API
+ * (such as the legacy NNAPI vendor drivers), failing to register any driver should be considered
+ * an error, and {@link ANeuralNetworksShim_registerSupportLibraryService} should return with an
+ * error code. However, for other clients of this API (such as the NNAPI updatable vendor drivers),
+ * failing to register one driver should not prevent other drivers from being registered; instead, a
+ * driver with minimum support should instead be registered so that the devices registered with the
+ * Service Manager matches the service instances listed in the device manifest.
+ *
+ * By default, {@link ANeuralNetworksShim_registerSupportLibraryService} will immediately return
+ * with an error instead of registering a minimum support device.
+ *
+ * Available since API level 31.
+ *
+ * @param registrationParams The NNAPI shim registration parameter struct to be modified.
+ * @param fallback 'true' if a minimal device should be registered when the actual device is not
+ *                 able to be registered, 'false' if
+ *                 {@link ANeuralNetworksShim_registerSupportLibraryService} should instead
+ *                 immediately fail with an error.
+ * @return {@link ANeuralNetworksShimResultCode} enum values.
+ *         Returns ANNSHIM_NO_ERROR if successful.
+ */
+int ANeuralNetworksShimRegistrationParams_fallbackToMinimumSupportDevice(
+        ANeuralNetworksShimRegistrationParams* _Nonnull registrationParams, bool fallback)
         __INTRODUCED_IN(31);
 
 /**
@@ -215,18 +233,15 @@ int ANeuralNetworksShimDeviceInfo_addVendorExtension(
  * If loading SL driver is successful, it blocks and never returns. If there's
  * any problem with the support library driver, it returns on error.
  *
- * @param dlhandle Shared object handle returned by dlopen.
- * @param devicesToRegister Array of ANeuralNetworksShimDeviceInfo structs pointers, with
- *                          name and supplementary info about NNAPI devices to register.
- * @param devicesToRegisterCount Count of named NNAPI devices to register.
+ * Available since API level 31.
+ *
+ * @param registrationParams Additional arguments for how the devices should be registered.
  * @return {@link ANeuralNetworksShimResultCode} enum values.
  *         Blocks forever if successful.
- *
- * Available since API level 31.
  */
 int ANeuralNetworksShim_registerSupportLibraryService(
-        NnApiSLDriverImpl* nnapiImpl, ANeuralNetworksShimDeviceInfo* devicesToRegister[],
-        int devicesToRegisterCount) __INTRODUCED_IN(31);
+        const ANeuralNetworksShimRegistrationParams* _Nonnull registrationParams)
+        __INTRODUCED_IN(31);
 
 __END_DECLS
 

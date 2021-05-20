@@ -4110,7 +4110,7 @@ typedef enum {
      *      front of dimension i.
      *      padding[i, 1] specifies the number of elements to be padded after
      *      the end of dimension i.
-     * * 2: An scalar specifying the value to use for padding input0.
+     * * 2: A scalar specifying the value to use for padding input0.
      *      For input tensor of {@link ANEURALNETWORKS_TENSOR_FLOAT16}, the
      *      pad value must be of {@link ANEURALNETWORKS_FLOAT16}.
      *      For input tensor of {@link ANEURALNETWORKS_TENSOR_FLOAT32}, the
@@ -6169,7 +6169,7 @@ typedef struct ANeuralNetworksExecution ANeuralNetworksExecution;
  * Parameters for ANEURALNETWORKS_TENSOR_QUANT8_SYMM_PER_CHANNEL operand.
  */
 typedef struct ANeuralNetworksSymmPerChannelQuantParams {
-    /* The index of the channel dimension. */
+    /** The index of the channel dimension. */
     uint32_t channelDim;
     /** The size of the scale array. Should be equal to dimension[channelDim] of the Operand. */
     uint32_t scaleCount;
@@ -6303,6 +6303,10 @@ typedef struct ANeuralNetworksOperandType {
     int32_t zeroPoint;
 } ANeuralNetworksOperandType;
 
+/**
+ * Aliasing to {@link OperationCode}, used in function
+ * {@link ANeuralNetworksModel_addOperation}.
+ */
 typedef int32_t ANeuralNetworksOperationType;
 
 /**

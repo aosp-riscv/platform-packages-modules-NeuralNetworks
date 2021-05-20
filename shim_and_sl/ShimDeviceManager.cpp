@@ -18,33 +18,109 @@
 
 #include "ShimDeviceManager.h"
 
+#include <AndroidVersionUtil.h>
+#include <aidl/android/hardware/neuralnetworks/IDevice.h>
+#include <android-base/logging.h>
+#include <android/binder_manager.h>
+#include <android/binder_process.h>
+#include <nnapi/hal/aidl/InvalidDevice.h>
+
 #include <algorithm>
 #include <memory>
 #include <string>
-#include <string_view>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
-#include <android-base/logging.h>
-#include <android/binder_process.h>
+#include "NeuralNetworksShim.h"
 #include "ShimDevice.h"
 #include "ShimUtils.h"
 #include "SupportLibrary.h"
 
 namespace android::neuralnetworks::shim {
+namespace {
 
+using aidl::android::hardware::neuralnetworks::IDevice;
+using aidl::android::hardware::neuralnetworks::InvalidDevice;
 using aidl::android::hardware::neuralnetworks::ShimDevice;
-using aidl::android::hardware::neuralnetworks::ShimDeviceInfo;
+
+ANeuralNetworksShimResultCode registerEagerService(const std::shared_ptr<IDevice>& device,
+                                                   const std::string& name) {
+    const binder_exception_t status =
+            AServiceManager_addService(device->asBinder().get(), name.c_str());
+    if (status != EX_NONE) {
+        LOG(ERROR) << "AServiceManager_addService failed for " << name << ", error code " << status;
+        return ANNSHIM_FAILED_TO_REGISTER_SERVICE;
+    }
+    return ANNSHIM_NO_ERROR;
+}
+
+ANeuralNetworksShimResultCode registerLazyService(const std::shared_ptr<IDevice>& device,
+                                                  const std::string& name) {
+    if (__builtin_available(android __NNAPI_AIDL_MIN_ANDROID_API__, *)) {
+        const binder_status_t status =
+                AServiceManager_registerLazyService(device->asBinder().get(), name.c_str());
+        if (status != STATUS_OK) {
+            LOG(ERROR) << "Service registration failed for " << name << ", error code " << status;
+            return ANNSHIM_FAILED_TO_REGISTER_SERVICE;
+        }
+        return ANNSHIM_NO_ERROR;
+    }
+    LOG(ERROR) << "Service registration failed for " << name
+               << " because AServiceManager_registerLazyService is not supported until API "
+                  "level 31";
+    return ANNSHIM_FAILED_TO_REGISTER_SERVICE;
+}
+
+ANeuralNetworksShimResultCode registerService(const std::shared_ptr<IDevice>& device,
+                                              const std::string& name, bool registerAsLazy) {
+    const std::string instance = std::string(ShimDevice::descriptor) + "/" + name;
+    LOG(INFO) << "Attempting service registration for " << instance;
+    return registerAsLazy ? registerLazyService(device, instance)
+                          : registerEagerService(device, instance);
+}
+
+std::unordered_map<std::string, ANeuralNetworksDevice*> getNamedDevices(
+        const std::shared_ptr<const NnApiSupportLibrary>& nnapi) {
+    uint32_t numDevices;
+    if (nnapi->ANeuralNetworks_getDeviceCount(&numDevices) != ANEURALNETWORKS_NO_ERROR) {
+        LOG(ERROR) << "Failed ANeuralNetworks_getDeviceCount";
+        return {};
+    }
+
+    std::unordered_map<std::string, ANeuralNetworksDevice*> nameToDevice;
+    for (uint32_t i = 0; i < numDevices; ++i) {
+        ANeuralNetworksDevice* device;
+        if (nnapi->ANeuralNetworks_getDevice(i, &device) != ANEURALNETWORKS_NO_ERROR) {
+            LOG(ERROR) << "Failed ANeuralNetworks_getDevice";
+            return {};
+        }
+
+        const char* name = nullptr;
+        if (nnapi->ANeuralNetworksDevice_getName(device, &name) != ANEURALNETWORKS_NO_ERROR) {
+            LOG(ERROR) << "Failed ANeuralNetworks_getName";
+            return {};
+        }
+
+        nameToDevice.emplace(name, device);
+    }
+
+    return nameToDevice;
+}
+
+}  // namespace
 
 ANeuralNetworksShimResultCode registerDevices(NnApiSLDriverImpl* nnapiSLImpl,
-                                              ANeuralNetworksShimDeviceInfo* devicesToRegister[],
-                                              int devicesToRegisterCount) {
+                                              const std::vector<ShimDeviceInfo>& devicesToRegister,
+                                              uint32_t numberOfListenerThreads,
+                                              bool registerAsLazyService,
+                                              bool fallbackToMinimumSupportDevice) {
     if (nnapiSLImpl == nullptr) {
         LOG(ERROR) << "Invalid arguments, nnapiSLImpl == nullptr ";
         return ANNSHIM_INVALID_ARGUMENT;
     }
-    if (devicesToRegister == nullptr || devicesToRegisterCount == 0) {
-        LOG(ERROR)
-                << "Invalid arguments, devicesToRegister == nullptr || devicesToRegisterCount == 0";
+    if (devicesToRegister.empty()) {
+        LOG(ERROR) << "Invalid arguments, devicesToRegister is empty";
         return ANNSHIM_INVALID_ARGUMENT;
     }
 
@@ -64,87 +140,63 @@ ANeuralNetworksShimResultCode registerDevices(NnApiSLDriverImpl* nnapiSLImpl,
             std::make_shared<const NnApiSupportLibrary>(
                     *reinterpret_cast<NnApiSLDriverImplFL5*>(nnapiSLImpl), nullptr);
 
-    uint32_t numDevices;
-    if (nnapi->ANeuralNetworks_getDeviceCount(&numDevices) != ANEURALNETWORKS_NO_ERROR) {
-        LOG(ERROR) << "Failed ANeuralNetworks_getDeviceCount";
-        return ANNSHIM_GENERAL_ERROR;
-    }
+    ABinderProcess_setThreadPoolMaxThreadCount(numberOfListenerThreads);
 
-    std::vector<std::shared_ptr<ShimDevice>> devices;
-    int expectedDeviceCount = devicesToRegisterCount;
-    devices.reserve(expectedDeviceCount);
+    const auto nameToDevice = getNamedDevices(nnapi);
+    std::vector<std::shared_ptr<IDevice>> devices;
+    devices.reserve(devicesToRegister.size());
 
-    // The default is 15, use more only if there's more devices exposed.
-    ABinderProcess_setThreadPoolMaxThreadCount(std::max(15, 4 * expectedDeviceCount));
+    // Convert all supplied devices to AIDL IDevice interfaces.
+    for (const auto& info : devicesToRegister) {
+        const auto& name = info.deviceName;
 
-    // Set of devices is small enough that vector is sufficient.
-    std::vector<size_t> registeredDevicesIndexes;
-    registeredDevicesIndexes.reserve(expectedDeviceCount);
+        if (const auto iter = nameToDevice.find(name); iter != nameToDevice.end()) {
+            ANeuralNetworksDevice* device = iter->second;
 
-    auto getDeviceInfoV1 = [&](size_t index) {
-        return reinterpret_cast<ShimDeviceInfo*>(devicesToRegister[index]);
-    };
-
-    auto getDeviceName = [&](size_t index) { return getDeviceInfoV1(index)->deviceName; };
-
-    for (uint32_t i = 0; i < numDevices; ++i) {
-        ANeuralNetworksDevice* device;
-        if (nnapi->ANeuralNetworks_getDevice(i, &device) != ANEURALNETWORKS_NO_ERROR) {
-            LOG(ERROR) << "Failed ANeuralNetworks_getDevice";
-            return ANNSHIM_GENERAL_ERROR;
-        }
-
-        const char* name = nullptr;
-        if (nnapi->ANeuralNetworksDevice_getName(device, &name) != ANEURALNETWORKS_NO_ERROR) {
-            LOG(ERROR) << "Failed ANeuralNetworks_getName";
-            return ANNSHIM_GENERAL_ERROR;
-        }
-
-        ShimDeviceInfo* toRegister = nullptr;
-        for (int j = 0; j < devicesToRegisterCount; j++) {
-            if (std::find(registeredDevicesIndexes.begin(), registeredDevicesIndexes.end(), j) !=
-                registeredDevicesIndexes.end()) {
-                continue;
-            }
-
-            ShimDeviceInfo* info = getDeviceInfoV1(j);
-            if (std::string_view(info->deviceName) == std::string_view(name)) {
-                toRegister = info;
-                registeredDevicesIndexes.push_back(j);
-                break;
-            }
-        }
-        if (!toRegister) {
-            LOG(INFO) << "NNAPI Device " << name << " not listed for registration, skipping";
+            auto shimDevice = ndk::SharedRefBase::make<ShimDevice>(nnapi, device, info.serviceName);
+            devices.push_back(std::move(shimDevice));
             continue;
         }
 
-        const auto shimDevice = ndk::SharedRefBase::make<ShimDevice>(nnapi, device, *toRegister);
-        int registrationResult = shimDevice->registerService();
-        if (registrationResult == ANNSHIM_NO_ERROR) {
-            devices.push_back(shimDevice);
-        } else {
+        if (!fallbackToMinimumSupportDevice) {
+            LOG(ERROR) << "NNAPI device " << name
+                       << " was not found in the support library package, and falling back to a "
+                          "minimum support device was not specified";
             return ANNSHIM_FAILED_TO_REGISTER_SERVICE;
         }
-    }
-    if (devices.empty()) {
-        LOG(INFO) << "No devices registered, returning error";
-        return ANNSHIM_FAILED_TO_REGISTER_SERVICE;
-    }
-    if (registeredDevicesIndexes.size() < devicesToRegisterCount) {
-        LOG(INFO) << "Some NNAPI devices listed for registration not found in SL Driver";
-        for (int j = 0; j < devicesToRegisterCount; ++j) {
-            if (std::find(registeredDevicesIndexes.begin(), registeredDevicesIndexes.end(), j) !=
-                registeredDevicesIndexes.end()) {
-                LOG(INFO) << "Failed to register NNAPI Device: " << getDeviceName(j);
-            }
-        }
-        return ANNSHIM_FAILED_TO_REGISTER_SERVICE;
-    }
-    LOG(INFO) << devices.size() << " NNAPI Devices/services registered, blocking";
 
+        // If the device was not found in the support library package, and falling back on a
+        // minimum support device is allowed, construct a minimum support device.
+        LOG(INFO) << "NNAPI device " << name
+                  << " was not found in the support library package, and falling back to a "
+                     "minimal support device is allowed, so a minimal support device "
+                     "is being registered instead.";
+        devices.push_back(InvalidDevice::create());
+    }
+
+    CHECK_EQ(devices.size(), devicesToRegister.size());
+
+    // Register all AIDL IDevice interfaces.
+    for (size_t i = 0; i < devicesToRegister.size(); i++) {
+        const auto& info = devicesToRegister[i];
+        const auto& device = devices[i];
+
+        const auto registrationResult =
+                registerService(device, info.serviceName, registerAsLazyService);
+        if (registrationResult != ANNSHIM_NO_ERROR) {
+            // This will only fail if there is a problem with Binder or if there is a mismatch
+            // between the service being registered and the service listed on the device manifest.
+            // Falling back to a minimum support device would not help resolve this whatever
+            // mismatch may exist, so there is no fallback path at this stage.
+            return registrationResult;
+        }
+    }
+
+    LOG(INFO) << devices.size() << " NNAPI Devices/services registered, blocking";
     ABinderProcess_joinThreadPool();
+
     // Shouldn't reach here.
+    LOG(ERROR) << "ABinderProcess_joinThreadPool unexpected returned in registerDevices.";
     return ANNSHIM_GENERAL_ERROR;
 }
 

@@ -18,7 +18,7 @@
 #define ANDROID_FRAMEWORKS_ML_NN_RUNTIME_EVENT_H
 
 #include <android-base/logging.h>
-#include <nnapi/IPreparedModel.h>
+#include <nnapi/Types.h>
 
 #include <memory>
 #include <mutex>

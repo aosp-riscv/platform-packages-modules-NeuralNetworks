@@ -17,7 +17,9 @@
 #define LOG_TAG "ShimServiceSample"
 
 #include <android-base/logging.h>
+#include <android-base/scopeguard.h>
 #include <dlfcn.h>
+
 #include "NeuralNetworksShim.h"
 #include "SupportLibrarySymbols.h"
 
@@ -28,30 +30,28 @@ int main() {
         return EXIT_FAILURE;
     }
 
-    constexpr int operandsCount = ANEURALNETWORKS_MODEL;
-    ANeuralNetworksShimOperandPerformanceInfo operandPerformance[operandsCount];
-    for (int i = 0; i < operandsCount; ++i) {
-        operandPerformance[i].operandType = i;
-        operandPerformance[i].performanceInfo = {.execTime = 0.5, .powerUsage = 0.5};
-    };
-
     ANeuralNetworksShimDeviceInfo* deviceInfo;
     ANeuralNetworksShimDeviceInfo_create(&deviceInfo,
                                          /*deviceName=*/"nnapi-sample_sl",
                                          /*serviceName=*/"nnapi-sample_sl_shim");
-    ANeuralNetworksShimDeviceInfo_setNumberOfCacheFilesNeeded(deviceInfo, 0, 0);
-    ANeuralNetworksShimDeviceInfo_setCapabilities(
-            deviceInfo, ANeuralNetworksShimPerformanceInfo{.execTime = 0.5, .powerUsage = 0.5},
-            ANeuralNetworksShimPerformanceInfo{.execTime = 0.5, .powerUsage = 0.5},
-            ANeuralNetworksShimPerformanceInfo{.execTime = 0.5, .powerUsage = 0.5},
-            ANeuralNetworksShimPerformanceInfo{.execTime = 0.5, .powerUsage = 0.5}, operandsCount,
-            operandPerformance);
-    ANeuralNetworksShimDeviceInfo* devices[] = {deviceInfo};
-    auto result = ANeuralNetworksShim_registerSupportLibraryService(impl, devices, 1);
+    const auto guardDeviceInfo = android::base::make_scope_guard(
+            [deviceInfo] { ANeuralNetworksShimDeviceInfo_free(deviceInfo); });
+
+    ANeuralNetworksShimRegistrationParams* params;
+    ANeuralNetworksShimRegistrationParams_create(impl, &params);
+    const auto guardParams = android::base::make_scope_guard(
+            [params] { ANeuralNetworksShimRegistrationParams_free(params); });
+    ANeuralNetworksShimRegistrationParams_addDeviceInfo(params, deviceInfo);
+    // The default is 15, use more only if there's more devices exposed.
+    ANeuralNetworksShimRegistrationParams_setNumberOfListenerThreads(params, 15);
+    ANeuralNetworksShimRegistrationParams_registerAsLazyService(params, /*asLazy=*/false);
+    ANeuralNetworksShimRegistrationParams_fallbackToMinimumSupportDevice(params,
+                                                                         /*fallback=*/false);
+
+    auto result = ANeuralNetworksShim_registerSupportLibraryService(params);
 
     LOG(ERROR) << "ANeuralNetworksShim_registerSupportLibraryService returned with error status: "
                << result;
 
-    ANeuralNetworksShimDeviceInfo_free(deviceInfo);
     return EXIT_FAILURE;
 }

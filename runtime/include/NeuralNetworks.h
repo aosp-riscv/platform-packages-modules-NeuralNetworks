@@ -2212,7 +2212,8 @@ int ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput(
  * on the same execution sequentially, either by means of
  * {@link ANeuralNetworksExecution_burstCompute}, {@link ANeuralNetworksExecution_compute},
  * {@link ANeuralNetworksExecution_startCompute} or
- * {@link ANeuralNetworksExecution_startComputeWithDependencies}.
+ * {@link ANeuralNetworksExecution_startComputeWithDependencies}: The application may schedule and
+ * evaluate a computation again from the completed state of a reusable execution.
  *
  * This function may only be invoked when the execution is in the preparation state.
  *

@@ -93,54 +93,6 @@ cc_library_static {
     ],
 }
 
-cc_library_shared {
-    name: "libneuralnetworks_shim",
-    llndk: {
-        symbol_file: "libneuralnetworks_shim.map.txt",
-    },
-    version_script: "libneuralnetworks_shim.map.txt",
-    apex_available: [
-        "com.android.neuralnetworks",
-        "test_com.android.neuralnetworks",
-    ],
-    licenses: ["Android-Apache-2.0"],
-    vendor_available: true,
-    min_sdk_version: "30",
-    whole_static_libs: [
-        "libneuralnetworks_shim_static",
-    ],
-    header_libs: [
-        "libneuralnetworks_headers",
-    ],
-    stubs: {
-        symbol_file: "libneuralnetworks_shim.map.txt",
-        versions: ["31"],
-    },
-    static_libs: [
-        "android.hardware.common-V2-ndk_platform",
-        "android.hardware.graphics.common-V2-ndk_platform",
-        "android.hardware.neuralnetworks-V1-ndk_platform",
-        "libaidlcommonsupport",
-        "libcutils",
-        "libneuralnetworks_common",
-        "neuralnetworks_supportlibrary_loader",
-        "neuralnetworks_types",
-        "neuralnetworks_utils_hal_aidl",
-        "neuralnetworks_utils_hal_common",
-    ],
-    shared_libs: [
-        "libbase",
-        "libbinder_ndk",
-        "libhidlbase",
-        "libhidlmemory",
-        "liblog",
-        "libnativewindow",
-    ],
-    export_include_dirs: [
-        "public",
-    ],
-}
-
 cc_library_static {
     name: "neuralnetworks_supportlibrary_loader",
     srcs: [

@@ -41,7 +41,6 @@ apex_defaults {
     androidManifest: ":com.android.neuralnetworks-androidManifest",
     native_shared_libs: [
         "libneuralnetworks",
-        "libneuralnetworks_shim",
     ],
     compile_multilib: "both",
     key: "com.android.neuralnetworks.key",

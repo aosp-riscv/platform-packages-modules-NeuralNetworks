@@ -84,6 +84,7 @@ cc_defaults {
         "TestControlFlow.cpp",
         "TestFree.cpp",
         "TestGenerated.cpp",
+        "TestGpuNnapi.cpp",
         "TestMemory.cpp",
         "TestNeuralNetworksWrapper.cpp",
         "TestOperandExtraParams.cpp",
@@ -102,6 +103,9 @@ cc_defaults {
     ],
     static_libs: [
         "libgmock",
+    ],
+    shared_libs: [
+        "libvulkan",
     ],
     whole_static_libs: [
         "neuralnetworks_generated_V1_0_example",
@@ -370,6 +374,7 @@ cc_library_static {
         "TestControlFlow.cpp",
         "TestFree.cpp",
         "TestGenerated.cpp",
+        "TestGpuNnapi.cpp",
         "TestMemory.cpp",
         "TestNeuralNetworksWrapper.cpp",
         "TestTrivialModel.cpp",
@@ -404,6 +409,7 @@ cc_library_static {
         "libandroid",
         "liblog",
         "libneuralnetworks",
+        "libvulkan",
     ],
     static_libs: [
         "libbase_ndk",

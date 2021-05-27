@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 #include <android-base/logging.h>
-#include <gmock/gmock-matchers.h>
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <sstream>

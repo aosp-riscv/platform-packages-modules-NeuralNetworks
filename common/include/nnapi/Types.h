@@ -76,7 +76,6 @@ constexpr auto kLoopTimeoutMaximum = std::chrono::seconds{15};
 
 // Aliases
 
-using AlignedData = std::max_align_t;
 using SharedBuffer = std::shared_ptr<const IBuffer>;
 using SharedBurst = std::shared_ptr<const IBurst>;
 using SharedDevice = std::shared_ptr<const IDevice>;
@@ -703,13 +702,17 @@ struct Model {
         OperandValues();
         OperandValues(const uint8_t* data, size_t length);
 
+        // Append a segment of memory (starting at `data` with `length` number of bytes) to the back
+        // of `OperandValues`, adding padding as necessary so that the appended data is aligned.
+        // Refer to `getAlignmentForLength` for more information on alignment (such as what the
+        // current alignments are for different data lengths).
         DataLocation append(const uint8_t* data, size_t length);
 
         const uint8_t* data() const;
         size_t size() const;
 
        private:
-        std::vector<AlignedData> mData;
+        std::vector<uint8_t> mData;
     };
 
     /**

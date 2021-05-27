@@ -388,14 +388,8 @@ bool tensorHasUnspecifiedDimensions(const Operand& operand) {
 }
 
 uint32_t alignBytesNeeded(uint32_t index, size_t length) {
-    uint32_t pattern;
-    if (length < 2) {
-        pattern = 0;  // No alignment necessary
-    } else if (length < 4) {
-        pattern = 1;  // Align on 2-byte boundary
-    } else {
-        pattern = 3;  // Align on 4-byte boundary
-    }
+    uint32_t alignment = getAlignmentForLength(length);
+    uint32_t pattern = alignment - 1;
     uint32_t extra = (~(index - 1)) & pattern;
     return extra;
 }

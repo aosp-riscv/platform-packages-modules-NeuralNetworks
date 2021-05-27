@@ -15,7 +15,6 @@
  */
 
 #include <gmock/gmock.h>
-#include <gtest/gtest-death-test.h>
 #include <gtest/gtest.h>
 
 #include <algorithm>

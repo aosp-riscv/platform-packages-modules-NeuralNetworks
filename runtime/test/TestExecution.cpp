@@ -186,8 +186,8 @@ class TestPreparedModelLatest : public V1_3::IPreparedModel {
             configureExecutionBurst_cb cb) override {
         CHECK(mPreparedModelV1_2 != nullptr) << "V1_2 prepared model is nullptr.";
         if (mErrorStatus == V1_3::ErrorStatus::NONE) {
-            const sp<V1_2::IBurstContext> burst = nn::ExecutionBurstServer::create(
-                    callback, requestChannel, resultChannel, this);
+            const sp<V1_2::IBurstContext> burst =
+                    nn::ExecutionBurstServer::create(callback, requestChannel, resultChannel, this);
 
             cb(burst == nullptr ? V1_0::ErrorStatus::GENERAL_FAILURE : V1_0::ErrorStatus::NONE,
                burst);
@@ -669,13 +669,21 @@ class ExecutionTestTemplate
 
    protected:
     // Unit test method
-    void TestWait();
+    // Set "reusable" to true to test reusable execution; Otherwise, test non-reusable execution.
+    void TestWait(bool reusable);
 
     virtual void TearDown() {
         // Reinitialize the device list since Introspection API path altered it.
         if (kUseIntrospectionAPI) {
             DeviceManager::get()->forTest_reInitializeDeviceList();
         }
+    }
+
+    void getDimensionsWhileRunning(WrapperExecution& execution) {
+        TestPreparedModelLatest::waitForExecutionToBegin();
+        // Cannot query dimensions while execution is running
+        std::vector<uint32_t> dimensions;
+        EXPECT_EQ(execution.getOutputOperandDimensions(0, &dimensions), WrapperResult::BAD_STATE);
     }
 
     const std::string kName;
@@ -728,8 +736,19 @@ class ExecutionTestTemplate
     }
 };
 
+void computeHelper(bool reusable, const std::function<void()>& compute) {
+    {
+        SCOPED_TRACE(reusable ? "first time reusable" : "non-reusable");
+        compute();
+    }
+    if (reusable) {
+        SCOPED_TRACE("second time reusable");
+        compute();
+    }
+}
+
 template <class DriverClass>
-void ExecutionTestTemplate<DriverClass>::TestWait() {
+void ExecutionTestTemplate<DriverClass>::TestWait(bool reusable) {
     SCOPED_TRACE(kName);
     // Skip Introspection API tests when CPU only flag is forced on.
     if (kUseIntrospectionAPI && DeviceManager::get()->getUseCpuOnly()) {
@@ -738,59 +757,60 @@ void ExecutionTestTemplate<DriverClass>::TestWait() {
 
     ASSERT_EQ(mCompilation.finish(), WrapperResult::NO_ERROR);
 
-    const auto getDimensionsWhileRunning = [](WrapperExecution& execution) {
-        TestPreparedModelLatest::waitForExecutionToBegin();
-        // Cannot query dimensions while execution is running
-        std::vector<uint32_t> dimensions;
-        EXPECT_EQ(execution.getOutputOperandDimensions(0, &dimensions), WrapperResult::BAD_STATE);
-    };
-
     {
         SCOPED_TRACE("startCompute");
         WrapperExecution execution(&mCompilation);
+        ASSERT_EQ(execution.setReusable(reusable), WrapperResult::NO_ERROR);
         ASSERT_NO_FATAL_FAILURE(setInputOutput(&execution));
-        TestPreparedModelLatest::pauseExecutions(true);
-        WrapperEvent event;
-        ASSERT_EQ(execution.startCompute(&event), WrapperResult::NO_ERROR);
-        getDimensionsWhileRunning(execution);
-        TestPreparedModelLatest::pauseExecutions(false);
-        ASSERT_EQ(event.wait(), kExpectResult);
-        if (kExpectResult == WrapperResult::NO_ERROR) {
-            ASSERT_EQ(mOutputBuffer, kOutputBufferExpected);
-        }
-        std::vector<uint32_t> dimensions;
-        if (kExpectResult == WrapperResult::NO_ERROR ||
-            kExpectResult == WrapperResult::OUTPUT_INSUFFICIENT_SIZE) {
-            // Only one output operand, hardcoded as index 0.
-            ASSERT_EQ(execution.getOutputOperandDimensions(0, &dimensions), kExpectResult);
-            ASSERT_EQ(dimensions, kOutputDimensionsExpected);
-        } else {
-            ASSERT_EQ(execution.getOutputOperandDimensions(0, &dimensions),
-                      WrapperResult::BAD_STATE);
-        }
+        const auto compute = [this, &execution] {
+            TestPreparedModelLatest::pauseExecutions(true);
+            WrapperEvent event;
+            ASSERT_EQ(execution.startCompute(&event), WrapperResult::NO_ERROR);
+            getDimensionsWhileRunning(execution);
+            TestPreparedModelLatest::pauseExecutions(false);
+            ASSERT_EQ(event.wait(), kExpectResult);
+            if (kExpectResult == WrapperResult::NO_ERROR) {
+                ASSERT_EQ(mOutputBuffer, kOutputBufferExpected);
+            }
+            std::vector<uint32_t> dimensions;
+            if (kExpectResult == WrapperResult::NO_ERROR ||
+                kExpectResult == WrapperResult::OUTPUT_INSUFFICIENT_SIZE) {
+                // Only one output operand, hardcoded as index 0.
+                ASSERT_EQ(execution.getOutputOperandDimensions(0, &dimensions), kExpectResult);
+                ASSERT_EQ(dimensions, kOutputDimensionsExpected);
+            } else {
+                ASSERT_EQ(execution.getOutputOperandDimensions(0, &dimensions),
+                          WrapperResult::BAD_STATE);
+            }
+        };
+        computeHelper(reusable, compute);
     }
     {
         SCOPED_TRACE("compute");
         WrapperExecution execution(&mCompilation);
+        ASSERT_EQ(execution.setReusable(reusable), WrapperResult::NO_ERROR);
         ASSERT_NO_FATAL_FAILURE(setInputOutput(&execution));
-        TestPreparedModelLatest::pauseExecutions(true);
-        std::thread run([this, &execution] { EXPECT_EQ(execution.compute(), kExpectResult); });
-        getDimensionsWhileRunning(execution);
-        TestPreparedModelLatest::pauseExecutions(false);
-        run.join();
-        if (kExpectResult == WrapperResult::NO_ERROR) {
-            ASSERT_EQ(mOutputBuffer, kOutputBufferExpected);
-        }
-        std::vector<uint32_t> dimensions;
-        if (kExpectResult == WrapperResult::NO_ERROR ||
-            kExpectResult == WrapperResult::OUTPUT_INSUFFICIENT_SIZE) {
-            // Only one output operand, hardcoded as index 0.
-            ASSERT_EQ(execution.getOutputOperandDimensions(0, &dimensions), kExpectResult);
-            ASSERT_EQ(dimensions, kOutputDimensionsExpected);
-        } else {
-            ASSERT_EQ(execution.getOutputOperandDimensions(0, &dimensions),
-                      WrapperResult::BAD_STATE);
-        }
+        const auto compute = [this, &execution] {
+            TestPreparedModelLatest::pauseExecutions(true);
+            std::thread run([this, &execution] { EXPECT_EQ(execution.compute(), kExpectResult); });
+            getDimensionsWhileRunning(execution);
+            TestPreparedModelLatest::pauseExecutions(false);
+            run.join();
+            if (kExpectResult == WrapperResult::NO_ERROR) {
+                ASSERT_EQ(mOutputBuffer, kOutputBufferExpected);
+            }
+            std::vector<uint32_t> dimensions;
+            if (kExpectResult == WrapperResult::NO_ERROR ||
+                kExpectResult == WrapperResult::OUTPUT_INSUFFICIENT_SIZE) {
+                // Only one output operand, hardcoded as index 0.
+                ASSERT_EQ(execution.getOutputOperandDimensions(0, &dimensions), kExpectResult);
+                ASSERT_EQ(dimensions, kOutputDimensionsExpected);
+            } else {
+                ASSERT_EQ(execution.getOutputOperandDimensions(0, &dimensions),
+                          WrapperResult::BAD_STATE);
+            }
+        };
+        computeHelper(reusable, compute);
     }
     {
         SCOPED_TRACE("burstCompute");
@@ -800,59 +820,68 @@ void ExecutionTestTemplate<DriverClass>::TestWait() {
         // Execution::compute(WrapperExecution::ComputeMode::BURST).
 
         WrapperExecution execution(&mCompilation);
+        ASSERT_EQ(execution.setReusable(reusable), WrapperResult::NO_ERROR);
         ASSERT_NO_FATAL_FAILURE(setInputOutput(&execution));
-        TestPreparedModelLatest::pauseExecutions(true);
-        std::thread run([this, &execution] {
-            EXPECT_EQ(execution.compute(WrapperExecution::ComputeMode::BURST), kExpectResult);
-        });
-        getDimensionsWhileRunning(execution);
-        TestPreparedModelLatest::pauseExecutions(false);
-        run.join();
-        if (kExpectResult == WrapperResult::NO_ERROR) {
-            ASSERT_EQ(mOutputBuffer, kOutputBufferExpected);
-        }
-        std::vector<uint32_t> dimensions;
-        if (kExpectResult == WrapperResult::NO_ERROR ||
-            kExpectResult == WrapperResult::OUTPUT_INSUFFICIENT_SIZE) {
-            // Only one output operand, hardcoded as index 0.
-            ASSERT_EQ(execution.getOutputOperandDimensions(0, &dimensions), kExpectResult);
-            ASSERT_EQ(dimensions, kOutputDimensionsExpected);
-        } else {
-            ASSERT_EQ(execution.getOutputOperandDimensions(0, &dimensions),
-                      WrapperResult::BAD_STATE);
-        }
+        const auto compute = [this, &execution] {
+            TestPreparedModelLatest::pauseExecutions(true);
+            std::thread run([this, &execution] {
+                EXPECT_EQ(execution.compute(WrapperExecution::ComputeMode::BURST), kExpectResult);
+            });
+            getDimensionsWhileRunning(execution);
+            TestPreparedModelLatest::pauseExecutions(false);
+            run.join();
+            if (kExpectResult == WrapperResult::NO_ERROR) {
+                ASSERT_EQ(mOutputBuffer, kOutputBufferExpected);
+            }
+            std::vector<uint32_t> dimensions;
+            if (kExpectResult == WrapperResult::NO_ERROR ||
+                kExpectResult == WrapperResult::OUTPUT_INSUFFICIENT_SIZE) {
+                // Only one output operand, hardcoded as index 0.
+                ASSERT_EQ(execution.getOutputOperandDimensions(0, &dimensions), kExpectResult);
+                ASSERT_EQ(dimensions, kOutputDimensionsExpected);
+            } else {
+                ASSERT_EQ(execution.getOutputOperandDimensions(0, &dimensions),
+                          WrapperResult::BAD_STATE);
+            }
+        };
+        computeHelper(reusable, compute);
     }
     if (kExpectResult != WrapperResult::OUTPUT_INSUFFICIENT_SIZE) {
         // computeWithDependencies doesn't support OUTPUT_INSUFFICIENT_SIZE
         SCOPED_TRACE("computeWithDependencies");
         WrapperExecution execution(&mCompilation);
+        ASSERT_EQ(execution.setReusable(reusable), WrapperResult::NO_ERROR);
         ASSERT_NO_FATAL_FAILURE(setInputOutput(&execution));
-        TestPreparedModelLatest::pauseExecutions(true);
 
-        WrapperEvent event;
-        // Note, due to the limitation of SampleDriver implementation, the call is synchronous.
-        // If the SampleDriver is updated to return real sync fence, this must be updated.
-        std::thread run([this, &execution, &event] {
-            EXPECT_EQ(execution.startComputeWithDependencies({}, 0, &event), kExpectResult);
-        });
-        getDimensionsWhileRunning(execution);
-        TestPreparedModelLatest::pauseExecutions(false);
-        run.join();
-        if (kExpectResult == WrapperResult::NO_ERROR) {
-            ASSERT_EQ(event.wait(), kExpectResult);
-            ASSERT_EQ(mOutputBuffer, kOutputBufferExpected);
-        } else {
-            ASSERT_EQ(event.wait(), WrapperResult::UNEXPECTED_NULL);
-        }
-        std::vector<uint32_t> dimensions;
-        if (kExpectResult == WrapperResult::NO_ERROR) {
-            // Only one output operand, hardcoded as index 0.
-            ASSERT_EQ(execution.getOutputOperandDimensions(0, &dimensions), kExpectResult);
-            ASSERT_EQ(dimensions, kOutputDimensionsExpected);
-        } else {
-            ASSERT_EQ(execution.getOutputOperandDimensions(0, &dimensions),
-                      WrapperResult::BAD_STATE);
-        }
+        const auto compute = [this, &execution] {
+            TestPreparedModelLatest::pauseExecutions(true);
+
+            WrapperEvent event;
+            // Note, due to the limitation of SampleDriver implementation, the call is synchronous.
+            // If the SampleDriver is updated to return real sync fence, this must be updated.
+            std::thread run([this, &execution, &event] {
+                EXPECT_EQ(execution.startComputeWithDependencies({}, 0, &event), kExpectResult);
+            });
+            getDimensionsWhileRunning(execution);
+            TestPreparedModelLatest::pauseExecutions(false);
+            run.join();
+            if (kExpectResult == WrapperResult::NO_ERROR) {
+                ASSERT_EQ(event.wait(), kExpectResult);
+                ASSERT_EQ(mOutputBuffer, kOutputBufferExpected);
+            } else {
+                ASSERT_EQ(event.wait(), WrapperResult::UNEXPECTED_NULL);
+            }
+            std::vector<uint32_t> dimensions;
+            if (kExpectResult == WrapperResult::NO_ERROR) {
+                // Only one output operand, hardcoded as index 0.
+                ASSERT_EQ(execution.getOutputOperandDimensions(0, &dimensions), kExpectResult);
+                ASSERT_EQ(dimensions, kOutputDimensionsExpected);
+            } else {
+                ASSERT_EQ(execution.getOutputOperandDimensions(0, &dimensions),
+                          WrapperResult::BAD_STATE);
+            }
+        };
+        computeHelper(reusable, compute);
     }
 }
 
@@ -871,27 +900,41 @@ auto kTestValues = ::testing::Values(
 
 class ExecutionTest13 : public ExecutionTestTemplate<TestDriver13> {};
 TEST_P(ExecutionTest13, Wait) {
-    TestWait();
+    TestWait(/*reusable=*/false);
+}
+TEST_P(ExecutionTest13, WaitReusable) {
+    TestWait(/*reusable=*/true);
 }
 INSTANTIATE_TEST_SUITE_P(Flavor, ExecutionTest13, kTestValues);
 
 class ExecutionTest12 : public ExecutionTestTemplate<TestDriver12> {};
 TEST_P(ExecutionTest12, Wait) {
-    TestWait();
+    TestWait(/*reusable=*/false);
+}
+TEST_P(ExecutionTest12, WaitReusable) {
+    TestWait(/*reusable=*/true);
 }
 INSTANTIATE_TEST_SUITE_P(Flavor, ExecutionTest12, kTestValues);
 
 class ExecutionTest11 : public ExecutionTestTemplate<TestDriver11> {};
 TEST_P(ExecutionTest11, Wait) {
     if (kForceErrorStatus == V1_3::ErrorStatus::OUTPUT_INSUFFICIENT_SIZE) return;
-    TestWait();
+    TestWait(/*reusable=*/false);
+}
+TEST_P(ExecutionTest11, WaitReusable) {
+    if (kForceErrorStatus == V1_3::ErrorStatus::OUTPUT_INSUFFICIENT_SIZE) return;
+    TestWait(/*reusable=*/true);
 }
 INSTANTIATE_TEST_SUITE_P(Flavor, ExecutionTest11, kTestValues);
 
 class ExecutionTest10 : public ExecutionTestTemplate<TestDriver10> {};
 TEST_P(ExecutionTest10, Wait) {
     if (kForceErrorStatus == V1_3::ErrorStatus::OUTPUT_INSUFFICIENT_SIZE) return;
-    TestWait();
+    TestWait(/*reusable=*/false);
+}
+TEST_P(ExecutionTest10, WaitReusable) {
+    if (kForceErrorStatus == V1_3::ErrorStatus::OUTPUT_INSUFFICIENT_SIZE) return;
+    TestWait(/*reusable=*/true);
 }
 INSTANTIATE_TEST_SUITE_P(Flavor, ExecutionTest10, kTestValues);
 

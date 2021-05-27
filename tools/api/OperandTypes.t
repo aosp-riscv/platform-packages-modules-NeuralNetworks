@@ -21,6 +21,13 @@
 
 namespace android::nn {
 
+%%
+%% The function `getAlignmentForLength` assumes that required (or optimal)
+%% alignment is a function of length (not data type), and assumes that there
+%% is a maximum alignment requirement. If a new operand type is added with a
+%% stricter alignment requirement, then `getAlignmentForLength` may need to
+%% be modified.
+%%
 %insert Operand_1.0_Comment
 enum class OperandType {
 %insert Operand_1.0

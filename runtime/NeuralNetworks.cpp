@@ -1534,7 +1534,7 @@ int ANeuralNetworksEvent_getSyncFenceFd(const ANeuralNetworksEvent* event, int* 
     if (*syncFenceFd <= 0) {
         LOG(ERROR) << "ANeuralNetworksEvent_getSyncFenceFd unable to get valid sync_fence fd";
         *syncFenceFd = -1;
-        return ANEURALNETWORKS_OP_FAILED;
+        return ANEURALNETWORKS_BAD_DATA;
     }
     return ANEURALNETWORKS_NO_ERROR;
 }

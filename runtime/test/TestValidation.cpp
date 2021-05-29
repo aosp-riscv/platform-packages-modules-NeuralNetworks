@@ -2266,9 +2266,36 @@ TEST_F(ValidationTest, EventCreateFromSyncFenceFd) {
 }
 
 TEST_F(ValidationTest, EventGetSyncFenceFd) {
-    int sync_fd = -1;
-    EXPECT_EQ(ANeuralNetworksEvent_getSyncFenceFd(nullptr, &sync_fd),
+    int syncFd = -100;
+    EXPECT_EQ(ANeuralNetworksEvent_getSyncFenceFd(nullptr, &syncFd),
               ANEURALNETWORKS_UNEXPECTED_NULL);
+    EXPECT_EQ(syncFd, -1);
+}
+
+TEST_F(ValidationTestExecution, EventGetSyncFenceFdFromStartCompute) {
+    // Create a valid execution and event first.
+    ANeuralNetworksExecution* execution;
+    EXPECT_EQ(ANeuralNetworksExecution_create(mCompilation, &execution), ANEURALNETWORKS_NO_ERROR);
+    float input0[] = {1.0f, 1.0f}, input1[] = {2.0f, 2.0f}, output0[2];
+    int32_t input2[] = {0};
+    EXPECT_EQ(ANeuralNetworksExecution_setInput(execution, 0, nullptr, input0, sizeof(input0)),
+              ANEURALNETWORKS_NO_ERROR);
+    EXPECT_EQ(ANeuralNetworksExecution_setInput(execution, 1, nullptr, input1, sizeof(input1)),
+              ANEURALNETWORKS_NO_ERROR);
+    EXPECT_EQ(ANeuralNetworksExecution_setInput(execution, 2, nullptr, input2, sizeof(input2)),
+              ANEURALNETWORKS_NO_ERROR);
+    EXPECT_EQ(ANeuralNetworksExecution_setOutput(execution, 0, nullptr, output0, sizeof(output0)),
+              ANEURALNETWORKS_NO_ERROR);
+    ANeuralNetworksEvent* event = nullptr;
+    EXPECT_EQ(ANeuralNetworksExecution_startCompute(execution, &event), ANEURALNETWORKS_NO_ERROR);
+
+    // The event from startCompute is not backed by sync fence.
+    int syncFd = -100;
+    EXPECT_EQ(ANeuralNetworksEvent_getSyncFenceFd(event, &syncFd), ANEURALNETWORKS_BAD_DATA);
+    EXPECT_EQ(syncFd, -1);
+
+    ANeuralNetworksEvent_free(event);
+    ANeuralNetworksExecution_free(execution);
 }
 
 TEST_F(ValidationTestExecution, FencedExecution) {
@@ -2292,6 +2319,18 @@ TEST_F(ValidationTestExecution, FencedExecution) {
 
     EXPECT_EQ(ANeuralNetworksEvent_getSyncFenceFd(event1, nullptr),
               ANEURALNETWORKS_UNEXPECTED_NULL);
+
+    // The event from startComputeWithDependencie may or may not be backed by a sync fence depending
+    // on the driver implementation.
+    int syncFd = -100;
+    int getSyncFdResult = ANeuralNetworksEvent_getSyncFenceFd(event1, &syncFd);
+    if (getSyncFdResult == ANEURALNETWORKS_NO_ERROR) {
+        EXPECT_GE(syncFd, 0);
+        close(syncFd);
+    } else {
+        EXPECT_EQ(getSyncFdResult, ANEURALNETWORKS_BAD_DATA);
+        EXPECT_EQ(syncFd, -1);
+    }
 
     // The subsequent execution will wait for the first execution to finish.
     ANeuralNetworksExecution* execution2;

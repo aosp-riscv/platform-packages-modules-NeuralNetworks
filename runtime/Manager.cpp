@@ -470,7 +470,7 @@ std::pair<int, std::shared_ptr<RuntimePreparedModel>> DriverDevice::prepareModel
                                            cache.dataCache, token);
     if (!result.ok()) {
         LOG(ERROR) << "IDevice::prepareModel() error: " << result.error().message;
-        return {ANEURALNETWORKS_OP_FAILED, nullptr};  // TODO: confirm
+        return {convertErrorStatusToResultCode(result.error().code), nullptr};
     }
     SharedPreparedModel preparedModel = std::move(result).value();
     CHECK(preparedModel != nullptr)

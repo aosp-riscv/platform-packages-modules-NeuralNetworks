@@ -132,7 +132,7 @@ bool isExtensionSupported(const std::vector<VkExtensionProperties>& supportedExt
                           const char* requestedExtension) {
     return std::any_of(supportedExtensions.begin(), supportedExtensions.end(),
                        [requestedExtension](const auto& extension) {
-                           return strcmp(extension.extensionName, requestedExtension);
+                           return strcmp(extension.extensionName, requestedExtension) == 0;
                        });
 }
 
@@ -183,19 +183,19 @@ DispatchSize chooseDispatchSize(const VkPhysicalDeviceLimits& limits) {
 // Find the first memory index that satisfies the requirements
 // See VkAndroidHardwareBufferPropertiesANDROID::memoryTypeBits for the semantics of
 // "memoryTypeBitsRequirement"
-uint32_t findMemoryType(const VkPhysicalDeviceMemoryProperties& properties,
-                        uint32_t memoryTypeBitsRequirement, VkFlags requirementsMask) {
+std::optional<uint32_t> findMemoryType(const VkPhysicalDeviceMemoryProperties& properties,
+                                       uint32_t memoryTypeBitsRequirement,
+                                       VkDeviceSize sizeRequirement) {
     for (uint32_t memoryIndex = 0; memoryIndex < VK_MAX_MEMORY_TYPES; ++memoryIndex) {
         const uint32_t memoryTypeBits = (1 << memoryIndex);
         const bool isRequiredMemoryType = memoryTypeBitsRequirement & memoryTypeBits;
-        const bool satisfiesFlags = (properties.memoryTypes[memoryIndex].propertyFlags &
-                                     requirementsMask) == requirementsMask;
-        if (isRequiredMemoryType && satisfiesFlags) return memoryIndex;
+        const uint32_t heapIndex = properties.memoryTypes[memoryIndex].heapIndex;
+        const bool isLargeEnough = properties.memoryHeaps[heapIndex].size >= sizeRequirement;
+        if (isRequiredMemoryType && isLargeEnough) return memoryIndex;
     }
 
     // failed to find memory type.
-    CHECK(false);
-    return 0;
+    return std::nullopt;
 }
 
 void addBufferTransitionBarrier(VkCommandBuffer commandBuffer, VkBuffer buffer,
@@ -545,6 +545,14 @@ class VulkanComputePipeline {
         };
         ASSERT_EQ(vkCreateBuffer(mDevice, &bufferCreateInfo, nullptr, &mOutputBuffer), VK_SUCCESS);
 
+        // Find a proper memory type
+        const auto maybeMemoryTypeIndex =
+                findMemoryType(mPhysicalDeviceMemoryProperties, properties.memoryTypeBits,
+                               properties.allocationSize);
+        if (!maybeMemoryTypeIndex.has_value()) {
+            GTEST_SKIP() << "None of the memory type is suitable for allocation";
+        }
+
         // Import the AHardwareBuffer memory
         const VkImportAndroidHardwareBufferInfoANDROID importMemoryAllocateInfo = {
                 .sType = VK_STRUCTURE_TYPE_IMPORT_ANDROID_HARDWARE_BUFFER_INFO_ANDROID,
@@ -555,11 +563,17 @@ class VulkanComputePipeline {
                 .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
                 .pNext = &importMemoryAllocateInfo,
                 .allocationSize = properties.allocationSize,
-                .memoryTypeIndex = findMemoryType(mPhysicalDeviceMemoryProperties,
-                                                  properties.memoryTypeBits, 0),
+                .memoryTypeIndex = maybeMemoryTypeIndex.value(),
         };
-        ASSERT_EQ(vkAllocateMemory(mDevice, &memoryAllocInfo, nullptr, &mOutputBufferMemory),
-                  VK_SUCCESS);
+        const auto allocationResult =
+                vkAllocateMemory(mDevice, &memoryAllocInfo, nullptr, &mOutputBufferMemory);
+        // Memory allocation may fail if the size exceeds the upper limit of a single allocation
+        // that the platform supports
+        if (allocationResult == VK_ERROR_OUT_OF_DEVICE_MEMORY) {
+            GTEST_SKIP() << "Unable to allocate device memory of " << properties.allocationSize
+                         << " bytes";
+        }
+        ASSERT_EQ(allocationResult, VK_SUCCESS);
 
         // Bind the memory with the buffer
         ASSERT_EQ(vkBindBufferMemory(mDevice, mOutputBuffer, mOutputBufferMemory, 0), VK_SUCCESS);

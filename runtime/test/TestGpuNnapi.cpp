@@ -31,10 +31,16 @@
 
 #include "TestNeuralNetworksWrapper.h"
 
+#ifndef NNTEST_ONLY_PUBLIC_API
+#include "Manager.h"
+#endif
+
 namespace android::nn {
 namespace {
 
-using namespace test_wrapper;
+using Type = test_wrapper::Type;
+using OperandType = test_wrapper::OperandType;
+using Result = test_wrapper::Result;
 
 constexpr uint32_t kOperandSizeX = 256;
 constexpr uint32_t kOperandSizeY = 256;
@@ -851,7 +857,8 @@ class NnapiExecutor {
 
         // Create compilation for the target device
         Result result;
-        std::tie(result, mCompilation) = Compilation::createForDevice(&mModel, device);
+        std::tie(result, mCompilation) =
+                test_wrapper::Compilation::createForDevice(&mModel, device);
         ASSERT_EQ(result, Result::NO_ERROR);
 
         // Finish the compilation
@@ -868,7 +875,7 @@ class NnapiExecutor {
         *outSuccess = false;
 
         // Setup execution
-        mExecution = std::make_unique<Execution>(&mCompilation);
+        mExecution = std::make_unique<test_wrapper::Execution>(&mCompilation);
         ASSERT_EQ(mExecution->setInputFromMemory(/*index=*/0, &mInputMemory, /*offset=*/0,
                                                  kOperandLength * sizeof(ElementType)),
                   Result::NO_ERROR);
@@ -877,18 +884,18 @@ class NnapiExecutor {
                   Result::NO_ERROR);
 
         // Setup dependencies
-        std::vector<const Event*> dependencies;
-        Event start;
+        std::vector<const test_wrapper::Event*> dependencies;
+        test_wrapper::Event start;
         // The sync fence from Vulkan may not be valid if GPU workload has already finished
         // prior to exporting the fence.
         if (inSyncFd.ok()) {
-            start = Event(inSyncFd.get());
+            start = test_wrapper::Event(inSyncFd.get());
             ASSERT_TRUE(start.isValid());
             dependencies = {&start};
         }
 
         // Fenced compute
-        Event finished;
+        test_wrapper::Event finished;
         mExecution->startComputeWithDependencies(dependencies, /*infinite timeout*/ 0, &finished);
 
         // Get the output sync fence if supported; Otherwise, wait until the execution is finished
@@ -901,10 +908,10 @@ class NnapiExecutor {
         *outSuccess = true;
     }
 
-    Model mModel;
-    Compilation mCompilation;
-    std::unique_ptr<Execution> mExecution;
-    Memory mInputMemory, mOutputMemory;
+    test_wrapper::Model mModel;
+    test_wrapper::Compilation mCompilation;
+    std::unique_ptr<test_wrapper::Execution> mExecution;
+    test_wrapper::Memory mInputMemory, mOutputMemory;
     bool mIsValid = false;
 };
 
@@ -921,6 +928,12 @@ class GpuNnapiTest : public testing::TestWithParam<NameAndDevice> {
 
     template <Type dataType>
     void runTest() {
+#ifndef NNTEST_ONLY_PUBLIC_API
+        if (DeviceManager::get()->getUseCpuOnly()) {
+            GTEST_SKIP();
+        }
+#endif
+
         // Allocate hardware buffers for GPU and NNAPI outputs
         const size_t size = kOperandLength * sizeof(typename TestTypeHelper<dataType>::ElementType);
         allocateBlobAhwb(
@@ -947,18 +960,19 @@ class GpuNnapiTest : public testing::TestWithParam<NameAndDevice> {
             auto [nnapiSuccess, nnapiSyncFd] = nnapi->run(gpuSyncFd);
             ASSERT_TRUE(nnapiSuccess);
 
-            checkResults<dataType>(nnapiSyncFd);
+            checkResults<dataType>(std::move(nnapiSyncFd));
         }
     }
 
     template <Type dataType>
-    void checkResults(const base::unique_fd& syncFd) {
+    void checkResults(base::unique_fd syncFd) {
         using ElementType = typename TestTypeHelper<dataType>::ElementType;
 
         // Lock the buffer with the sync fence
+        // AHardwareBuffer_lock will take the ownership and close the sync fence even on errors
         void* data;
         ASSERT_EQ(AHardwareBuffer_lock(mNnapiOutput, AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN,
-                                       syncFd.get(), /*rect=*/nullptr, &data),
+                                       syncFd.release(), /*rect=*/nullptr, &data),
                   0);
 
         // Compare the actual results with the expect value

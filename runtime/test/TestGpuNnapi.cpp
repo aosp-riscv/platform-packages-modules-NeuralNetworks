@@ -31,10 +31,16 @@
 
 #include "TestNeuralNetworksWrapper.h"
 
+#ifndef NNTEST_ONLY_PUBLIC_API
+#include "Manager.h"
+#endif
+
 namespace android::nn {
 namespace {
 
-using namespace test_wrapper;
+using Type = test_wrapper::Type;
+using OperandType = test_wrapper::OperandType;
+using Result = test_wrapper::Result;
 
 constexpr uint32_t kOperandSizeX = 256;
 constexpr uint32_t kOperandSizeY = 256;
@@ -132,7 +138,7 @@ bool isExtensionSupported(const std::vector<VkExtensionProperties>& supportedExt
                           const char* requestedExtension) {
     return std::any_of(supportedExtensions.begin(), supportedExtensions.end(),
                        [requestedExtension](const auto& extension) {
-                           return strcmp(extension.extensionName, requestedExtension);
+                           return strcmp(extension.extensionName, requestedExtension) == 0;
                        });
 }
 
@@ -183,19 +189,19 @@ DispatchSize chooseDispatchSize(const VkPhysicalDeviceLimits& limits) {
 // Find the first memory index that satisfies the requirements
 // See VkAndroidHardwareBufferPropertiesANDROID::memoryTypeBits for the semantics of
 // "memoryTypeBitsRequirement"
-uint32_t findMemoryType(const VkPhysicalDeviceMemoryProperties& properties,
-                        uint32_t memoryTypeBitsRequirement, VkFlags requirementsMask) {
+std::optional<uint32_t> findMemoryType(const VkPhysicalDeviceMemoryProperties& properties,
+                                       uint32_t memoryTypeBitsRequirement,
+                                       VkDeviceSize sizeRequirement) {
     for (uint32_t memoryIndex = 0; memoryIndex < VK_MAX_MEMORY_TYPES; ++memoryIndex) {
         const uint32_t memoryTypeBits = (1 << memoryIndex);
         const bool isRequiredMemoryType = memoryTypeBitsRequirement & memoryTypeBits;
-        const bool satisfiesFlags = (properties.memoryTypes[memoryIndex].propertyFlags &
-                                     requirementsMask) == requirementsMask;
-        if (isRequiredMemoryType && satisfiesFlags) return memoryIndex;
+        const uint32_t heapIndex = properties.memoryTypes[memoryIndex].heapIndex;
+        const bool isLargeEnough = properties.memoryHeaps[heapIndex].size >= sizeRequirement;
+        if (isRequiredMemoryType && isLargeEnough) return memoryIndex;
     }
 
     // failed to find memory type.
-    CHECK(false);
-    return 0;
+    return std::nullopt;
 }
 
 void addBufferTransitionBarrier(VkCommandBuffer commandBuffer, VkBuffer buffer,
@@ -545,6 +551,14 @@ class VulkanComputePipeline {
         };
         ASSERT_EQ(vkCreateBuffer(mDevice, &bufferCreateInfo, nullptr, &mOutputBuffer), VK_SUCCESS);
 
+        // Find a proper memory type
+        const auto maybeMemoryTypeIndex =
+                findMemoryType(mPhysicalDeviceMemoryProperties, properties.memoryTypeBits,
+                               properties.allocationSize);
+        if (!maybeMemoryTypeIndex.has_value()) {
+            GTEST_SKIP() << "None of the memory type is suitable for allocation";
+        }
+
         // Import the AHardwareBuffer memory
         const VkImportAndroidHardwareBufferInfoANDROID importMemoryAllocateInfo = {
                 .sType = VK_STRUCTURE_TYPE_IMPORT_ANDROID_HARDWARE_BUFFER_INFO_ANDROID,
@@ -555,11 +569,17 @@ class VulkanComputePipeline {
                 .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
                 .pNext = &importMemoryAllocateInfo,
                 .allocationSize = properties.allocationSize,
-                .memoryTypeIndex = findMemoryType(mPhysicalDeviceMemoryProperties,
-                                                  properties.memoryTypeBits, 0),
+                .memoryTypeIndex = maybeMemoryTypeIndex.value(),
         };
-        ASSERT_EQ(vkAllocateMemory(mDevice, &memoryAllocInfo, nullptr, &mOutputBufferMemory),
-                  VK_SUCCESS);
+        const auto allocationResult =
+                vkAllocateMemory(mDevice, &memoryAllocInfo, nullptr, &mOutputBufferMemory);
+        // Memory allocation may fail if the size exceeds the upper limit of a single allocation
+        // that the platform supports
+        if (allocationResult == VK_ERROR_OUT_OF_DEVICE_MEMORY) {
+            GTEST_SKIP() << "Unable to allocate device memory of " << properties.allocationSize
+                         << " bytes";
+        }
+        ASSERT_EQ(allocationResult, VK_SUCCESS);
 
         // Bind the memory with the buffer
         ASSERT_EQ(vkBindBufferMemory(mDevice, mOutputBuffer, mOutputBufferMemory, 0), VK_SUCCESS);
@@ -837,7 +857,8 @@ class NnapiExecutor {
 
         // Create compilation for the target device
         Result result;
-        std::tie(result, mCompilation) = Compilation::createForDevice(&mModel, device);
+        std::tie(result, mCompilation) =
+                test_wrapper::Compilation::createForDevice(&mModel, device);
         ASSERT_EQ(result, Result::NO_ERROR);
 
         // Finish the compilation
@@ -854,7 +875,7 @@ class NnapiExecutor {
         *outSuccess = false;
 
         // Setup execution
-        mExecution = std::make_unique<Execution>(&mCompilation);
+        mExecution = std::make_unique<test_wrapper::Execution>(&mCompilation);
         ASSERT_EQ(mExecution->setInputFromMemory(/*index=*/0, &mInputMemory, /*offset=*/0,
                                                  kOperandLength * sizeof(ElementType)),
                   Result::NO_ERROR);
@@ -863,18 +884,18 @@ class NnapiExecutor {
                   Result::NO_ERROR);
 
         // Setup dependencies
-        std::vector<const Event*> dependencies;
-        Event start;
+        std::vector<const test_wrapper::Event*> dependencies;
+        test_wrapper::Event start;
         // The sync fence from Vulkan may not be valid if GPU workload has already finished
         // prior to exporting the fence.
         if (inSyncFd.ok()) {
-            start = Event(inSyncFd.get());
+            start = test_wrapper::Event(inSyncFd.get());
             ASSERT_TRUE(start.isValid());
             dependencies = {&start};
         }
 
         // Fenced compute
-        Event finished;
+        test_wrapper::Event finished;
         mExecution->startComputeWithDependencies(dependencies, /*infinite timeout*/ 0, &finished);
 
         // Get the output sync fence if supported; Otherwise, wait until the execution is finished
@@ -887,10 +908,10 @@ class NnapiExecutor {
         *outSuccess = true;
     }
 
-    Model mModel;
-    Compilation mCompilation;
-    std::unique_ptr<Execution> mExecution;
-    Memory mInputMemory, mOutputMemory;
+    test_wrapper::Model mModel;
+    test_wrapper::Compilation mCompilation;
+    std::unique_ptr<test_wrapper::Execution> mExecution;
+    test_wrapper::Memory mInputMemory, mOutputMemory;
     bool mIsValid = false;
 };
 
@@ -907,6 +928,12 @@ class GpuNnapiTest : public testing::TestWithParam<NameAndDevice> {
 
     template <Type dataType>
     void runTest() {
+#ifndef NNTEST_ONLY_PUBLIC_API
+        if (DeviceManager::get()->getUseCpuOnly()) {
+            GTEST_SKIP();
+        }
+#endif
+
         // Allocate hardware buffers for GPU and NNAPI outputs
         const size_t size = kOperandLength * sizeof(typename TestTypeHelper<dataType>::ElementType);
         allocateBlobAhwb(
@@ -933,18 +960,19 @@ class GpuNnapiTest : public testing::TestWithParam<NameAndDevice> {
             auto [nnapiSuccess, nnapiSyncFd] = nnapi->run(gpuSyncFd);
             ASSERT_TRUE(nnapiSuccess);
 
-            checkResults<dataType>(nnapiSyncFd);
+            checkResults<dataType>(std::move(nnapiSyncFd));
         }
     }
 
     template <Type dataType>
-    void checkResults(const base::unique_fd& syncFd) {
+    void checkResults(base::unique_fd syncFd) {
         using ElementType = typename TestTypeHelper<dataType>::ElementType;
 
         // Lock the buffer with the sync fence
+        // AHardwareBuffer_lock will take the ownership and close the sync fence even on errors
         void* data;
         ASSERT_EQ(AHardwareBuffer_lock(mNnapiOutput, AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN,
-                                       syncFd.get(), /*rect=*/nullptr, &data),
+                                       syncFd.release(), /*rect=*/nullptr, &data),
                   0);
 
         // Compare the actual results with the expect value

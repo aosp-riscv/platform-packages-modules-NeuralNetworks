@@ -19,7 +19,6 @@
 
 #include <android/api-level.h>
 
-// TODO: replace __ANDROID_API_FUTURE__with 31 when it's official (b/178144708)
-#define __NNAPI_AIDL_MIN_ANDROID_API__ __ANDROID_API_FUTURE__
+#define __NNAPI_AIDL_MIN_ANDROID_API__ __ANDROID_API_S__
 
 #endif  // ANDROID_FRAMEWORKS_ML_NN_COMMON_ANDROID_VERSION_UTILS_H

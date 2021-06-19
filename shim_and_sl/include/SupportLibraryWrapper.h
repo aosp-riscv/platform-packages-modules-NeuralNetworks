@@ -293,6 +293,32 @@ class Model {
         }
     }
 
+    void getExtensionOperandType(const std::string& extensionName,
+                                 uint16_t operandCodeWithinExtension, int32_t* type) {
+        if (mNnApi->ANeuralNetworksModel_getExtensionOperandType(
+                    mModel, extensionName.c_str(), operandCodeWithinExtension, type) !=
+            ANEURALNETWORKS_NO_ERROR) {
+            mValid = false;
+        }
+    }
+
+    void getExtensionOperationType(const std::string& extensionName,
+                                   uint16_t operandCodeWithinExtension,
+                                   ANeuralNetworksOperationType* type) {
+        if (mNnApi->ANeuralNetworksModel_getExtensionOperationType(
+                    mModel, extensionName.c_str(), operandCodeWithinExtension, type) !=
+            ANEURALNETWORKS_NO_ERROR) {
+            mValid = false;
+        }
+    }
+
+    void setOperandExtensionData(int32_t operandId, const void* data, size_t length) {
+        if (mNnApi->ANeuralNetworksModel_setOperandExtensionData(mModel, operandId, data, length) !=
+            ANEURALNETWORKS_NO_ERROR) {
+            mValid = false;
+        }
+    }
+
     ANeuralNetworksModel* getHandle() const { return mModel; }
     bool isValid() const { return mValid; }
     bool isRelaxed() const { return mRelaxed; }

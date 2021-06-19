@@ -52,6 +52,10 @@ inline uint16_t getExtensionPrefix(uint32_t type) {
     return static_cast<uint16_t>(type >> kExtensionTypeBits);
 }
 
+inline uint16_t getTypeWithinExtension(uint32_t type) {
+    return static_cast<uint16_t>(type & kTypeWithinExtensionMask);
+}
+
 std::optional<size_t> getNonExtensionSize(OperandType operandType, const Dimensions& dimensions);
 std::optional<size_t> getNonExtensionSize(const Operand& operand);
 

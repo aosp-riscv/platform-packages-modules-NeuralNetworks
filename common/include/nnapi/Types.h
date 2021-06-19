@@ -66,6 +66,7 @@ constexpr uint32_t kMaxNumberOfCacheFiles = 32;
  */
 constexpr uint8_t kExtensionTypeBits = 16;
 constexpr uint8_t kExtensionPrefixBits = 16;
+constexpr uint32_t kTypeWithinExtensionMask = 0xFFFF;
 
 constexpr uint32_t kDefaultRequestMemoryAlignment = 64;
 constexpr uint32_t kDefaultRequestMemoryPadding = 64;

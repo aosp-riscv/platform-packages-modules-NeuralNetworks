@@ -32,6 +32,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -57,6 +58,15 @@ ANeuralNetworksModel* convertSubgraphFromHAL(
     const auto& subgraph = subgraphIndex == 0 ? model.main : model.referenced[subgraphIndex - 1];
     ::android::nn::sl_wrapper::Model resultModel(nnapi);
 
+    auto getExtensionName = [&](uint16_t prefix) -> const std::string* {
+        for (const auto& nameToPrefix : model.extensionNameToPrefix) {
+            if (prefix == nameToPrefix.prefix) {
+                return &nameToPrefix.name;
+            }
+        }
+        return nullptr;
+    };
+
     for (int i = 0; i < subgraph.operands.size(); ++i) {
         const auto& operand = subgraph.operands[i];
 
@@ -73,11 +83,45 @@ ANeuralNetworksModel* convertSubgraphFromHAL(
                     params.scales, static_cast<uint32_t>(params.channelDim));
         }
 
-        resultModel.addOperand(&operandType);
+        if (::android::nn::isExtension(static_cast<::android::nn::OperandType>(operand.type))) {
+            uint16_t extensionPrefix =
+                    ::android::nn::getExtensionPrefix(static_cast<uint32_t>(operand.type));
+            uint16_t typeWithinExtension =
+                    ::android::nn::getTypeWithinExtension(static_cast<uint32_t>(operand.type));
+
+            auto* extensionName = getExtensionName(extensionPrefix);
+            if (extensionName == nullptr) {
+                LOG(ERROR) << "Unknown extension prefix " << extensionPrefix;
+                *errorStatus = ErrorStatus::INVALID_ARGUMENT;
+                return nullptr;
+            }
+            resultModel.getExtensionOperandType(*extensionName, typeWithinExtension,
+                                                &operandType.operandType.type);
+            if (!resultModel.isValid()) {
+                LOG(ERROR) << "Failed to get extension operand with index " << i;
+                *errorStatus = ErrorStatus::INVALID_ARGUMENT;
+                return nullptr;
+            }
+        }
+
+        uint32_t operandIndex = resultModel.addOperand(&operandType);
         if (!resultModel.isValid()) {
-            LOG(ERROR) << "Failed to add operand with index" << i;
+            LOG(ERROR) << "Failed to add operand with index " << i;
             *errorStatus = ErrorStatus::INVALID_ARGUMENT;
             return nullptr;
+        }
+
+        if (operand.extraParams &&
+            operand.extraParams->getTag() == OperandExtraParams::Tag::extension) {
+            const auto& extensionData =
+                    operand.extraParams->get<OperandExtraParams::Tag::extension>();
+            resultModel.setOperandExtensionData(operandIndex, extensionData.data(),
+                                                extensionData.size());
+            if (!resultModel.isValid()) {
+                LOG(ERROR) << "Failed to add extension data for operand with index " << i;
+                *errorStatus = ErrorStatus::INVALID_ARGUMENT;
+                return nullptr;
+            }
         }
 
         switch (operand.lifetime) {
@@ -133,7 +177,7 @@ ANeuralNetworksModel* convertSubgraphFromHAL(
         }
 
         if (!resultModel.isValid()) {
-            LOG(ERROR) << "Failed to add operand with index" << i;
+            LOG(ERROR) << "Failed to add operand with index " << i;
             *errorStatus = ErrorStatus::INVALID_ARGUMENT;
             return nullptr;
         }
@@ -144,10 +188,32 @@ ANeuralNetworksModel* convertSubgraphFromHAL(
 
         std::vector<uint32_t> inputs(operation.inputs.begin(), operation.inputs.end());
         std::vector<uint32_t> outputs(operation.outputs.begin(), operation.outputs.end());
-        resultModel.addOperation(static_cast<int>(operation.type), inputs, outputs);
+
+        int operationType = static_cast<int>(operation.type);
+        if (::android::nn::isExtension(static_cast<::android::nn::OperationType>(operationType))) {
+            uint16_t extensionPrefix =
+                    ::android::nn::getExtensionPrefix(static_cast<uint32_t>(operationType));
+            uint16_t typeWithinExtension =
+                    ::android::nn::getTypeWithinExtension(static_cast<uint32_t>(operationType));
+            auto* extensionName = getExtensionName(extensionPrefix);
+            if (extensionName == nullptr) {
+                LOG(ERROR) << "Unknown extension prefix " << extensionPrefix;
+                *errorStatus = ErrorStatus::INVALID_ARGUMENT;
+                return nullptr;
+            }
+            resultModel.getExtensionOperationType(*extensionName, typeWithinExtension,
+                                                  &operationType);
+            if (!resultModel.isValid()) {
+                LOG(ERROR) << "Failed to get extension operation with index " << i;
+                *errorStatus = ErrorStatus::INVALID_ARGUMENT;
+                return nullptr;
+            }
+        }
+
+        resultModel.addOperation(operationType, inputs, outputs);
 
         if (!resultModel.isValid()) {
-            LOG(ERROR) << "Failed to add operation with index" << i;
+            LOG(ERROR) << "Failed to add operation with index " << i;
             *errorStatus = ErrorStatus::INVALID_ARGUMENT;
             return nullptr;
         }

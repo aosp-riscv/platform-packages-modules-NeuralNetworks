@@ -207,9 +207,25 @@ std::pair<size_t, std::vector<size_t>> getMemorySizes(const Model& model) {
     std::vector<size_t> poolSizes;
     poolSizes.reserve(model.pools.size());
     std::transform(model.pools.begin(), model.pools.end(), std::back_inserter(poolSizes),
-                   [](const SharedMemory& memory) { return memory->size; });
+                   [](const SharedMemory& memory) { return getSize(memory); });
 
     return std::make_pair(operandValuesSize, std::move(poolSizes));
+}
+
+size_t roundUp(size_t size, size_t multiple) {
+    CHECK(multiple != 0);
+    CHECK((multiple & (multiple - 1)) == 0) << multiple << " is not a power of two";
+    return (size + (multiple - 1)) & ~(multiple - 1);
+}
+
+size_t getAlignmentForLength(size_t length) {
+    if (length < 2) {
+        return 1;  // No alignment necessary
+    } else if (length < 4) {
+        return 2;  // Align on 2-byte boundary
+    } else {
+        return 4;  // Align on 4-byte boundary
+    }
 }
 
 std::ostream& operator<<(std::ostream& os, const DeviceStatus& deviceStatus) {
@@ -704,8 +720,7 @@ std::ostream& operator<<(std::ostream& os, const Operation& operation) {
 }
 
 static std::ostream& operator<<(std::ostream& os, const Handle& handle) {
-    return os << "<handle with " << handle.fds.size() << " fds and " << handle.ints.size()
-              << " ints>";
+    return os << (handle.ok() ? "<valid handle>" : "<invalid handle>");
 }
 
 std::ostream& operator<<(std::ostream& os, const SharedHandle& handle) {
@@ -715,20 +730,38 @@ std::ostream& operator<<(std::ostream& os, const SharedHandle& handle) {
     return os << *handle;
 }
 
-static std::ostream& operator<<(std::ostream& os, const HardwareBufferHandle& handle) {
-    return os << (handle.get() != nullptr ? "<non-empty HardwareBufferHandle>"
-                                          : "<empty HardwareBufferHandle>");
+static std::ostream& operator<<(std::ostream& os, const Memory::Ashmem& memory) {
+    return os << "Ashmem{.fd=" << (memory.fd.ok() ? "<valid fd>" : "<invalid fd>")
+              << ", .size=" << memory.size << "}";
 }
 
-static std::ostream& operator<<(std::ostream& os,
-                                const std::variant<Handle, HardwareBufferHandle>& handle) {
-    std::visit([&os](const auto& x) { os << x; }, handle);
-    return os;
+static std::ostream& operator<<(std::ostream& os, const Memory::Fd& memory) {
+    return os << "Fd{.size=" << memory.size << ", .prot=" << memory.prot
+              << ", .fd=" << (memory.fd.ok() ? "<valid fd>" : "<invalid fd>")
+              << ", .offset=" << memory.offset << "}";
+}
+
+static std::ostream& operator<<(std::ostream& os, const Memory::HardwareBuffer& memory) {
+    if (memory.handle.get() == nullptr) {
+        return os << "<empty HardwareBuffer::Handle>";
+    }
+    return os << (isAhwbBlob(memory) ? "<AHardwareBuffer blob>" : "<non-blob AHardwareBuffer>");
+}
+
+static std::ostream& operator<<(std::ostream& os, const Memory::Unknown::Handle& handle) {
+    return os << "<handle with " << handle.fds.size() << " fds and " << handle.ints.size()
+              << " ints>";
+}
+
+static std::ostream& operator<<(std::ostream& os, const Memory::Unknown& memory) {
+    return os << "Unknown{.handle=" << memory.handle << ", .size=" << memory.size
+              << ", .name=" << memory.name << "}";
 }
 
 std::ostream& operator<<(std::ostream& os, const Memory& memory) {
-    return os << "Memory{.handle=" << memory.handle << ", .size=" << memory.size
-              << ", .name=" << memory.name << "}";
+    os << "Memory{.handle=";
+    std::visit([&os](const auto& x) { os << x; }, memory.handle);
+    return os << "}";
 }
 
 std::ostream& operator<<(std::ostream& os, const SharedMemory& memory) {
@@ -736,6 +769,11 @@ std::ostream& operator<<(std::ostream& os, const SharedMemory& memory) {
         return os << "<empty memory>";
     }
     return os << *memory;
+}
+
+std::ostream& operator<<(std::ostream& os, const MemoryPreference& memoryPreference) {
+    return os << "MemoryPreference{.alignment=" << memoryPreference.alignment
+              << ", .padding=" << memoryPreference.padding << "}";
 }
 
 std::ostream& operator<<(std::ostream& os, const Model::Subgraph& subgraph) {
@@ -926,6 +964,13 @@ bool operator==(const Extension& a, const Extension& b) {
     return a.name == b.name && a.operandTypes == b.operandTypes;
 }
 bool operator!=(const Extension& a, const Extension& b) {
+    return !(a == b);
+}
+
+bool operator==(const MemoryPreference& a, const MemoryPreference& b) {
+    return a.alignment == b.alignment && a.padding == b.padding;
+}
+bool operator!=(const MemoryPreference& a, const MemoryPreference& b) {
     return !(a == b);
 }
 

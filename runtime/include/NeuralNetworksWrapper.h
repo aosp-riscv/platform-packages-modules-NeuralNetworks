@@ -53,6 +53,7 @@ enum class Type {
     TENSOR_QUANT8_SYMM_PER_CHANNEL = ANEURALNETWORKS_TENSOR_QUANT8_SYMM_PER_CHANNEL,
     TENSOR_QUANT16_ASYMM = ANEURALNETWORKS_TENSOR_QUANT16_ASYMM,
     TENSOR_QUANT8_SYMM = ANEURALNETWORKS_TENSOR_QUANT8_SYMM,
+    TENSOR_QUANT8_ASYMM_SIGNED = ANEURALNETWORKS_TENSOR_QUANT8_ASYMM_SIGNED,
     MODEL = ANEURALNETWORKS_MODEL,
 };
 
@@ -89,6 +90,9 @@ enum class Result {
     UNAVAILABLE_DEVICE = ANEURALNETWORKS_UNAVAILABLE_DEVICE,
     MISSED_DEADLINE_TRANSIENT = ANEURALNETWORKS_MISSED_DEADLINE_TRANSIENT,
     MISSED_DEADLINE_PERSISTENT = ANEURALNETWORKS_MISSED_DEADLINE_PERSISTENT,
+
+    // Functionality needed for this feature is not available on the current device.
+    FEATURE_LEVEL_TOO_LOW = 100001,
 };
 
 struct SymmPerChannelQuantParams {
@@ -372,9 +376,14 @@ class Event {
    public:
 #ifdef NNTEST_SLTS
     Event(const NnApiSupportLibrary* nnapi) : mNnApi(nnapi) {}
+    Event(const NnApiSupportLibrary* nnapi, int syncFd) : mNnApi(nnapi) {
 #else
     Event() {}
+    Event(int syncFd) {
 #endif
+        mValid = NNAPI_CALL(ANeuralNetworksEvent_createFromSyncFenceFd(syncFd, &mEvent)) ==
+                 ANEURALNETWORKS_NO_ERROR;
+    }
 
     ~Event() {
         if (mEvent) {
@@ -424,12 +433,15 @@ class Event {
                 NNAPI_CALL(ANeuralNetworksEvent_getSyncFenceFd(mEvent, sync_fence_fd)));
     }
 
+    bool isValid() const { return mValid; }
+
 #ifdef NNTEST_SLTS
    private:
     const NnApiSupportLibrary* mNnApi = nullptr;
 #endif
 
    private:
+    bool mValid = true;
     ANeuralNetworksEvent* mEvent = nullptr;
 };
 
@@ -507,27 +519,43 @@ class Compilation {
     }
 
     Result getPreferredMemoryAlignmentForInput(uint32_t index, uint32_t* alignment) const {
-        return static_cast<Result>(
-                NNAPI_CALL(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput(
-                        mCompilation, index, alignment)));
+        if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
+            return static_cast<Result>(
+                    NNAPI_CALL(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput(
+                            mCompilation, index, alignment)));
+        } else {
+            return Result::FEATURE_LEVEL_TOO_LOW;
+        }
     };
 
     Result getPreferredMemoryPaddingForInput(uint32_t index, uint32_t* padding) const {
-        return static_cast<Result>(
-                NNAPI_CALL(ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput(
-                        mCompilation, index, padding)));
+        if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
+            return static_cast<Result>(
+                    NNAPI_CALL(ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput(
+                            mCompilation, index, padding)));
+        } else {
+            return Result::FEATURE_LEVEL_TOO_LOW;
+        }
     };
 
     Result getPreferredMemoryAlignmentForOutput(uint32_t index, uint32_t* alignment) const {
-        return static_cast<Result>(
-                NNAPI_CALL(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput(
-                        mCompilation, index, alignment)));
+        if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
+            return static_cast<Result>(
+                    NNAPI_CALL(ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput(
+                            mCompilation, index, alignment)));
+        } else {
+            return Result::FEATURE_LEVEL_TOO_LOW;
+        }
     };
 
     Result getPreferredMemoryPaddingForOutput(uint32_t index, uint32_t* padding) const {
-        return static_cast<Result>(
-                NNAPI_CALL(ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput(
-                        mCompilation, index, padding)));
+        if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
+            return static_cast<Result>(
+                    NNAPI_CALL(ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput(
+                            mCompilation, index, padding)));
+        } else {
+            return Result::FEATURE_LEVEL_TOO_LOW;
+        }
     };
 
     ANeuralNetworksCompilation* getHandle() const { return mCompilation; }
@@ -612,13 +640,21 @@ class Execution {
     }
 
     Result enableInputAndOutputPadding(bool enable) {
-        return static_cast<Result>(NNAPI_CALL(
-                ANeuralNetworksExecution_enableInputAndOutputPadding(mExecution, enable)));
+        if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
+            return static_cast<Result>(NNAPI_CALL(
+                    ANeuralNetworksExecution_enableInputAndOutputPadding(mExecution, enable)));
+        } else {
+            return Result::FEATURE_LEVEL_TOO_LOW;
+        }
     }
 
     Result setReusable(bool reusable) {
-        return static_cast<Result>(
-                NNAPI_CALL(ANeuralNetworksExecution_setReusable(mExecution, reusable)));
+        if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
+            return static_cast<Result>(
+                    NNAPI_CALL(ANeuralNetworksExecution_setReusable(mExecution, reusable)));
+        } else {
+            return Result::FEATURE_LEVEL_TOO_LOW;
+        }
     }
 
 #ifndef NNTEST_SLTS

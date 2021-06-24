@@ -17,21 +17,24 @@
 #define LOG_TAG "ShimConverter"
 
 #include "ShimConverter.h"
+
+#include <aidlcommonsupport/NativeHandle.h>
 #include <android-base/logging.h>
+#include <android-base/mapped_file.h>
 #include <android-base/scopeguard.h>
 #include <android/hardware_buffer.h>
 #include <cutils/native_handle.h>
+#include <nnapi/TypeUtils.h>
+#include <nnapi/hal/aidl/Conversions.h>
+#include <nnapi/hal/aidl/Utils.h>
 #include <sys/mman.h>
 #include <vndk/hardware_buffer.h>
 
 #include <algorithm>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
-
-#include <nnapi/TypeUtils.h>
-#include <nnapi/hal/aidl/Conversions.h>
-#include <nnapi/hal/aidl/Utils.h>
 
 using namespace ::android::nn::sl_wrapper;
 
@@ -55,6 +58,15 @@ ANeuralNetworksModel* convertSubgraphFromHAL(
     const auto& subgraph = subgraphIndex == 0 ? model.main : model.referenced[subgraphIndex - 1];
     ::android::nn::sl_wrapper::Model resultModel(nnapi);
 
+    auto getExtensionName = [&](uint16_t prefix) -> const std::string* {
+        for (const auto& nameToPrefix : model.extensionNameToPrefix) {
+            if (prefix == nameToPrefix.prefix) {
+                return &nameToPrefix.name;
+            }
+        }
+        return nullptr;
+    };
+
     for (int i = 0; i < subgraph.operands.size(); ++i) {
         const auto& operand = subgraph.operands[i];
 
@@ -71,11 +83,45 @@ ANeuralNetworksModel* convertSubgraphFromHAL(
                     params.scales, static_cast<uint32_t>(params.channelDim));
         }
 
-        resultModel.addOperand(&operandType);
+        if (::android::nn::isExtension(static_cast<::android::nn::OperandType>(operand.type))) {
+            uint16_t extensionPrefix =
+                    ::android::nn::getExtensionPrefix(static_cast<uint32_t>(operand.type));
+            uint16_t typeWithinExtension =
+                    ::android::nn::getTypeWithinExtension(static_cast<uint32_t>(operand.type));
+
+            auto* extensionName = getExtensionName(extensionPrefix);
+            if (extensionName == nullptr) {
+                LOG(ERROR) << "Unknown extension prefix " << extensionPrefix;
+                *errorStatus = ErrorStatus::INVALID_ARGUMENT;
+                return nullptr;
+            }
+            resultModel.getExtensionOperandType(*extensionName, typeWithinExtension,
+                                                &operandType.operandType.type);
+            if (!resultModel.isValid()) {
+                LOG(ERROR) << "Failed to get extension operand with index " << i;
+                *errorStatus = ErrorStatus::INVALID_ARGUMENT;
+                return nullptr;
+            }
+        }
+
+        uint32_t operandIndex = resultModel.addOperand(&operandType);
         if (!resultModel.isValid()) {
-            LOG(ERROR) << "Failed to add operand with index" << i;
+            LOG(ERROR) << "Failed to add operand with index " << i;
             *errorStatus = ErrorStatus::INVALID_ARGUMENT;
             return nullptr;
+        }
+
+        if (operand.extraParams &&
+            operand.extraParams->getTag() == OperandExtraParams::Tag::extension) {
+            const auto& extensionData =
+                    operand.extraParams->get<OperandExtraParams::Tag::extension>();
+            resultModel.setOperandExtensionData(operandIndex, extensionData.data(),
+                                                extensionData.size());
+            if (!resultModel.isValid()) {
+                LOG(ERROR) << "Failed to add extension data for operand with index " << i;
+                *errorStatus = ErrorStatus::INVALID_ARGUMENT;
+                return nullptr;
+            }
         }
 
         switch (operand.lifetime) {
@@ -131,7 +177,7 @@ ANeuralNetworksModel* convertSubgraphFromHAL(
         }
 
         if (!resultModel.isValid()) {
-            LOG(ERROR) << "Failed to add operand with index" << i;
+            LOG(ERROR) << "Failed to add operand with index " << i;
             *errorStatus = ErrorStatus::INVALID_ARGUMENT;
             return nullptr;
         }
@@ -142,10 +188,32 @@ ANeuralNetworksModel* convertSubgraphFromHAL(
 
         std::vector<uint32_t> inputs(operation.inputs.begin(), operation.inputs.end());
         std::vector<uint32_t> outputs(operation.outputs.begin(), operation.outputs.end());
-        resultModel.addOperation(static_cast<int>(operation.type), inputs, outputs);
+
+        int operationType = static_cast<int>(operation.type);
+        if (::android::nn::isExtension(static_cast<::android::nn::OperationType>(operationType))) {
+            uint16_t extensionPrefix =
+                    ::android::nn::getExtensionPrefix(static_cast<uint32_t>(operationType));
+            uint16_t typeWithinExtension =
+                    ::android::nn::getTypeWithinExtension(static_cast<uint32_t>(operationType));
+            auto* extensionName = getExtensionName(extensionPrefix);
+            if (extensionName == nullptr) {
+                LOG(ERROR) << "Unknown extension prefix " << extensionPrefix;
+                *errorStatus = ErrorStatus::INVALID_ARGUMENT;
+                return nullptr;
+            }
+            resultModel.getExtensionOperationType(*extensionName, typeWithinExtension,
+                                                  &operationType);
+            if (!resultModel.isValid()) {
+                LOG(ERROR) << "Failed to get extension operation with index " << i;
+                *errorStatus = ErrorStatus::INVALID_ARGUMENT;
+                return nullptr;
+            }
+        }
+
+        resultModel.addOperation(operationType, inputs, outputs);
 
         if (!resultModel.isValid()) {
-            LOG(ERROR) << "Failed to add operation with index" << i;
+            LOG(ERROR) << "Failed to add operation with index " << i;
             *errorStatus = ErrorStatus::INVALID_ARGUMENT;
             return nullptr;
         }
@@ -341,106 +409,86 @@ std::optional<ShimConvertedModel> convertFromHAL(const NnApiSupportLibrary* nnap
     return ShimConvertedModel{.memory = std::move(memoryPools), .models = std::move(result)};
 }
 
-namespace {
-
-uint32_t roundUpToMultiple(uint32_t value, uint32_t multiple) {
-    return (value + multiple - 1) / multiple * multiple;
-}
-
-}  // namespace
-
 std::unique_ptr<::android::nn::sl_wrapper::Memory> convertFromHAL(
         const NnApiSupportLibrary* nnapi, const neuralnetworks::Memory& pool) {
-    if (pool.name == "ashmem") {
-        size_t size = pool.size;
-        int fd = pool.handle.fds[0].get();
+    using Tag = neuralnetworks::Memory::Tag;
+    switch (pool.getTag()) {
+        case Tag::ashmem: {
+            const auto& ashmem = pool.get<Tag::ashmem>();
+            size_t size = ashmem.size;
+            int fd = ashmem.fd.get();
 
-        auto memory = std::make_unique<::android::nn::sl_wrapper::Memory>(
-                nnapi, size, PROT_READ | PROT_WRITE, fd, 0, /*ownsFd=*/false);
-        if (!memory->isValid()) {
-            return nullptr;
+            auto memory = std::make_unique<::android::nn::sl_wrapper::Memory>(
+                    nnapi, size, PROT_READ | PROT_WRITE, fd, 0, /*ownsFd=*/false);
+            if (!memory->isValid()) {
+                return nullptr;
+            }
+            return memory;
         }
-        return memory;
-    } else if (pool.name == "mmap_fd") {
-        size_t size = pool.size;
-        int fd = pool.handle.fds[0].get();
-        int prot = pool.handle.ints[0];
-        size_t offset = ::android::nn::getOffsetFromInts(pool.handle.ints[1], pool.handle.ints[2]);
+        case Tag::mappableFile: {
+            const auto& mappableFile = pool.get<Tag::mappableFile>();
+            size_t size = mappableFile.length;
+            int fd = mappableFile.fd.get();
+            int prot = mappableFile.prot & (PROT_READ | PROT_WRITE);
+            size_t offset = mappableFile.offset;
 
-        auto memory = std::make_unique<::android::nn::sl_wrapper::Memory>(nnapi, size, prot, fd,
-                                                                          offset, /*ownsFd=*/false);
-
-        if (!memory->isValid()) {
-            return nullptr;
+            auto memory = std::make_unique<::android::nn::sl_wrapper::Memory>(
+                    nnapi, size, prot, fd, offset, /*ownsFd=*/false);
+            if (!memory->isValid()) {
+                return nullptr;
+            }
+            return memory;
         }
-        return memory;
-    } else if (pool.name == "hardware_buffer_blob") {
-        const auto numFds = pool.handle.fds.size();
-        const auto numInts = pool.handle.ints.size();
-        auto handle = native_handle_create(numFds, numInts);
-        const auto handleGuard = ::android::base::make_scope_guard([handle] {
-            native_handle_close(handle);
-            native_handle_delete(handle);
-        });
+        case Tag::hardwareBuffer: {
+            const auto& hardwareBuffer = pool.get<Tag::hardwareBuffer>();
 
-        std::fill(handle->data + 0, handle->data + handle->numFds, -1);
-        for (int i = 0; i < numFds; ++i) {
-            int fd = dup(pool.handle.fds[i].get());
-            if (fd == -1) {
+            native_handle_t* handle = ::android::dupFromAidl(hardwareBuffer.handle);
+            if (handle == nullptr) {
                 LOG(ERROR) << "Dup of the hardware_buffer_blob memory pool failed";
                 return nullptr;
             }
-            handle->data[i] = fd;
-        }
-        for (int i = 0; i < numInts; ++i) {
-            handle->data[numFds + i] = pool.handle.ints[i];
-        }
-        const auto size = pool.size;
-        const auto format = AHARDWAREBUFFER_FORMAT_BLOB;
-        const auto usage =
-                AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN | AHARDWAREBUFFER_USAGE_CPU_WRITE_OFTEN;
-        const uint32_t width = size;
-        const uint32_t height = 1;  // height is always 1 for BLOB mode AHardwareBuffer.
-        const uint32_t layers = 1;  // layers is always 1 for BLOB mode AHardwareBuffer.
-
-        AHardwareBuffer* hardwareBuffer = nullptr;
-
-        // AHardwareBuffer_createFromHandle() might fail because an allocator
-        // expects a specific stride value. In that case, we try to guess it by
-        // aligning the width to small powers of 2.
-        ::android::status_t status = ::android::UNKNOWN_ERROR;
-        for (uint32_t alignment : {1, 4, 32, 64, 128, 2, 8, 16}) {
-            const uint32_t stride = roundUpToMultiple(width, alignment);
-            AHardwareBuffer_Desc desc{
-                    .width = width,
-                    .height = height,
-                    .layers = layers,
-                    .format = format,
-                    .usage = usage,
-                    .stride = stride,
-            };
-            status = AHardwareBuffer_createFromHandle(
-                    &desc, handle, AHARDWAREBUFFER_CREATE_FROM_HANDLE_METHOD_CLONE,
-                    &hardwareBuffer);
-            if (status == ::android::NO_ERROR) {
-                break;
+            const auto handleGuard = ::android::base::make_scope_guard([handle] {
+                native_handle_close(handle);
+                native_handle_delete(handle);
+            });
+            for (size_t i = 0; i < handle->numFds; ++i) {
+                if (handle->data[i] == -1) {
+                    LOG(ERROR) << "Dup of the hardware_buffer_blob memory pool failed";
+                    return nullptr;
+                }
             }
+
+            const AHardwareBuffer_Desc desc{
+                    .width = static_cast<uint32_t>(hardwareBuffer.description.width),
+                    .height = static_cast<uint32_t>(hardwareBuffer.description.height),
+                    .layers = static_cast<uint32_t>(hardwareBuffer.description.layers),
+                    .format = static_cast<uint32_t>(hardwareBuffer.description.format),
+                    .usage = static_cast<uint64_t>(hardwareBuffer.description.usage),
+                    .stride = static_cast<uint32_t>(hardwareBuffer.description.stride),
+            };
+            AHardwareBuffer* ahwb = nullptr;
+            const ::android::status_t status = AHardwareBuffer_createFromHandle(
+                    &desc, handle, AHARDWAREBUFFER_CREATE_FROM_HANDLE_METHOD_CLONE, &ahwb);
+            if (status != ::android::NO_ERROR) {
+                LOG(ERROR) << "createFromHandle failed";
+                return nullptr;
+            }
+
+            const bool isBlob = desc.format == AHARDWAREBUFFER_FORMAT_BLOB;
+            const size_t size = isBlob ? desc.width : 0;
+
+            // Takes ownership of hardwareBuffer, handle gets closed
+            auto memory =
+                    std::make_unique<::android::nn::sl_wrapper::Memory>(nnapi, ahwb,
+                                                                        /*ownAHB=*/true, size);
+            if (!memory->isValid()) {
+                return nullptr;
+            }
+            return memory;
         }
-
-        if (status != ::android::NO_ERROR) {
-            LOG(ERROR) << "createFromHandle failed";
-            return nullptr;
-        }
-
-        // Takes ownership of hardwareBuffer, handle gets closed
-        auto memory = std::make_unique<::android::nn::sl_wrapper::Memory>(nnapi, hardwareBuffer,
-                                                                          /*ownAHB=*/true, size);
-
-        return memory;
-    } else {
-        LOG(ERROR) << "Can't convert to SL Memory, unknown pool name: " << pool.name;
-        return nullptr;
     }
+    LOG(ERROR) << "Can't convert to SL Memory, unknown pool tag: " << pool.getTag();
+    return nullptr;
 }
 
 }  // namespace aidl::android::hardware::neuralnetworks

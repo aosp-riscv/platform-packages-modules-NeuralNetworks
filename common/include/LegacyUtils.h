@@ -193,13 +193,10 @@ bool tensorHasUnspecifiedDimensions(OperandType type, const Dimensions& dimensio
 bool tensorHasUnspecifiedDimensions(const Operand& operand);
 bool tensorHasUnspecifiedDimensions(const ANeuralNetworksOperandType* type);
 
-// Returns the number of padding bytes needed to align data of the
-// specified length.  It aligns object of length:
-// 2, 3 on a 2 byte boundary,
-// 4+ on a 4 byte boundary.
-// We may want to have different alignments for tensors.
-// TODO: This is arbitrary, more a proof of concept.  We need
-// to determine what this should be.
+// Returns the number of padding bytes needed to align data starting at `index` with `length` number
+// of bytes such that `index` + returned number of padding bytes is aligned. Refer to
+// `getAlignmentForLength` for more information on alignment (such as what the current alignments
+// are for different data lengths).
 uint32_t alignBytesNeeded(uint32_t index, size_t length);
 
 // Does a detailed LOG(INFO) of the model

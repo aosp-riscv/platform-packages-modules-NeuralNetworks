@@ -55,9 +55,14 @@ cc_defaults {
     header_libs: [
         "libneuralnetworks_headers",
     ],
+    cflags: [
+        "-DNN_COMPATIBILITY_LIBRARY_BUILD",
+    ],
     static_libs: [
         "android.hardware.common-V2-ndk_platform",
+        "android.hardware.graphics.common-V2-ndk_platform",
         "android.hardware.neuralnetworks-V1-ndk_platform",
+        "libaidlcommonsupport",
         "libarect",
         "libcutils",
         "libneuralnetworks_shim_static",
@@ -91,38 +96,4 @@ cc_binary {
     defaults: ["NeuralNetworksShimDriverAidl_server_defaults"],
     init_rc: ["config/android.hardware.neuralnetworks-shim-service-sample.rc"],
     vintf_fragments: ["config/android.hardware.neuralnetworks-shim-service-sample.xml"],
-}
-
-cc_binary {
-    name: "android.hardware.neuralnetworks-shell-service-sample",
-    defaults: ["neuralnetworks_defaults"],
-    srcs: [
-        "InvalidInterfaces.cpp",
-        "ShellServiceSample.cpp",
-    ],
-    header_libs: [
-        "libnativewindow_headers",
-        "libneuralnetworks_headers",
-    ],
-    static_libs: [
-        "libarect",
-        "libneuralnetworks_common",
-        "neuralnetworks_utils_hal_aidl",
-    ],
-    shared_libs: [
-        "android.hardware.common-V2-ndk_platform",
-        "android.hardware.neuralnetworks-V1-ndk_platform",
-        "libbase",
-        "libbinder_ndk",
-        "libcutils",
-        "libhidlbase",
-        "liblog",
-        "libnativewindow",
-        "libneuralnetworks_shim",
-        "libutils",
-    ],
-    relative_install_path: "hw",
-    proprietary: true,
-    init_rc: ["config/android.hardware.neuralnetworks-shell-service-sample.rc"],
-    vintf_fragments: ["config/android.hardware.neuralnetworks-shell-service-sample.xml"],
 }

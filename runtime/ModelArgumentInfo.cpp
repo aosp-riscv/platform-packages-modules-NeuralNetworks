@@ -123,6 +123,29 @@ int ModelArgumentInfo::updateDimensionInfo(const Operand& operand,
     return ANEURALNETWORKS_NO_ERROR;
 }
 
+Request::Argument ModelArgumentInfo::createRequestArgument() const {
+    switch (mState) {
+        case ModelArgumentInfo::POINTER: {
+            Request::Argument arg = {.lifetime = Request::Argument::LifeTime::POINTER,
+                                     .location = mLocationAndLength,
+                                     .dimensions = mDimensions};
+            arg.location.pointer = mBuffer;
+            return arg;
+        }
+        case ModelArgumentInfo::MEMORY:
+            return {.lifetime = Request::Argument::LifeTime::POOL,
+                    .location = mLocationAndLength,
+                    .dimensions = mDimensions};
+        case ModelArgumentInfo::HAS_NO_VALUE:
+            return {.lifetime = Request::Argument::LifeTime::NO_VALUE};
+        case ModelArgumentInfo::UNSPECIFIED:
+            LOG(FATAL) << "Invalid state: UNSPECIFIED";
+            return {};
+    };
+    LOG(FATAL) << "Invalid state: " << mState;
+    return {};
+}
+
 std::vector<Request::Argument> createRequestArguments(
         const std::vector<ModelArgumentInfo>& argumentInfos,
         const std::vector<DataLocation>& ptrArgsLocations) {
@@ -138,12 +161,8 @@ std::vector<Request::Argument> createRequestArguments(
                               .dimensions = info.dimensions()};
                 break;
             case ModelArgumentInfo::MEMORY:
-                ioInfos[i] = {.lifetime = Request::Argument::LifeTime::POOL,
-                              .location = info.locationAndLength(),
-                              .dimensions = info.dimensions()};
-                break;
             case ModelArgumentInfo::HAS_NO_VALUE:
-                ioInfos[i] = {.lifetime = Request::Argument::LifeTime::NO_VALUE};
+                ioInfos[i] = info.createRequestArgument();
                 break;
             default:
                 CHECK(false);

@@ -39,6 +39,7 @@ namespace hardware = android::hardware;
 using WrapperResult = test_wrapper::Result;
 using Type = test_wrapper::Type;
 using android::sp;
+using android::nn::isAhwbBlob;
 
 namespace {
 
@@ -281,6 +282,10 @@ class MemoryDomainTest : public MemoryDomainTestBase,
     const AllocateReturn kAllocateReturn = std::get<2>(GetParam());
 };
 
+bool isAshmem(const SharedMemory& memory) {
+    return memory != nullptr && std::holds_alternative<Memory::Ashmem>(memory->handle);
+}
+
 // Test device memory allocation on a compilation with only a single partition.
 TEST_P(MemoryDomainTest, SinglePartition) {
     createAndRegisterDriver(
@@ -310,9 +315,9 @@ TEST_P(MemoryDomainTest, SinglePartition) {
             const auto& memory = m->getMemory();
             EXPECT_TRUE(validate(memory).ok());
             if (kUseV1_2Driver) {
-                EXPECT_EQ(memory->name, "ashmem");
+                EXPECT_TRUE(isAshmem(memory));
             } else {
-                EXPECT_EQ(memory->name, "hardware_buffer_blob");
+                EXPECT_TRUE(isAhwbBlob(memory));
             }
         }
     }
@@ -348,9 +353,9 @@ TEST_P(MemoryDomainTest, MultiplePartitions) {
                 const auto& memory = m->getMemory();
                 EXPECT_TRUE(validate(memory).ok());
                 if (kUseV1_2Driver) {
-                    EXPECT_EQ(memory->name, "ashmem");
+                    EXPECT_TRUE(isAshmem(memory));
                 } else {
-                    EXPECT_EQ(memory->name, "hardware_buffer_blob");
+                    EXPECT_TRUE(isAhwbBlob(memory));
                 }
             }
         }
@@ -372,9 +377,9 @@ TEST_P(MemoryDomainTest, MultiplePartitions) {
             const auto& memory = m->getMemory();
             EXPECT_TRUE(validate(memory).ok());
             if (kUseV1_2Driver) {
-                EXPECT_EQ(memory->name, "ashmem");
+                EXPECT_TRUE(isAshmem(memory));
             } else {
-                EXPECT_EQ(memory->name, "hardware_buffer_blob");
+                EXPECT_TRUE(isAhwbBlob(memory));
             }
         }
     }
@@ -395,9 +400,9 @@ TEST_P(MemoryDomainTest, MultiplePartitions) {
             const auto& memory = m->getMemory();
             EXPECT_TRUE(validate(memory).ok());
             if (kUseV1_2Driver) {
-                EXPECT_EQ(memory->name, "ashmem");
+                EXPECT_TRUE(isAshmem(memory));
             } else {
-                EXPECT_EQ(memory->name, "hardware_buffer_blob");
+                EXPECT_TRUE(isAhwbBlob(memory));
             }
         }
     }

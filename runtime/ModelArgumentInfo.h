@@ -56,6 +56,10 @@ class ModelArgumentInfo {
         return mBuffer;
     }
 
+    const std::vector<uint32_t>& initialDimensions() const {
+        CHECK(mState == POINTER || mState == MEMORY);
+        return mInitialDimensions;
+    }
     const std::vector<uint32_t>& dimensions() const {
         CHECK(mState == POINTER || mState == MEMORY);
         return mDimensions;
@@ -99,6 +103,10 @@ class ModelArgumentInfo {
         mIsSufficient = true;
     }
 
+    // Convert ModelArgumentInfo to canonical Request::Argument. Unlike createRequestArguments,
+    // this method will keep the pointer type in the canonical type.
+    Request::Argument createRequestArgument() const;
+
    private:
     int updateDimensionInfo(const Operand& operand, const ANeuralNetworksOperandType* newType);
 
@@ -128,7 +136,7 @@ class ModelArgumentInfo {
     bool mIsSufficient = true;
 };
 
-// Convert ModelArgumentInfo to HIDL Request::Argument. For pointer arguments, use the location
+// Convert ModelArgumentInfo to canonical Request::Argument. For pointer arguments, use the location
 // information in ptrArgsLocations.
 std::vector<Request::Argument> createRequestArguments(
         const std::vector<ModelArgumentInfo>& argumentInfos,

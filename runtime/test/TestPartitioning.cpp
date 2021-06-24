@@ -30,6 +30,7 @@
 #include <queue>
 #include <set>
 #include <string>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -153,7 +154,6 @@ namespace V1_2 = ::android::hardware::neuralnetworks::V1_2;
 namespace V1_3 = ::android::hardware::neuralnetworks::V1_3;
 using CompilationBuilder = ::android::nn::CompilationBuilder;
 using Device = ::android::nn::Device;
-using SharedDevice = ::android::nn::SharedDevice;
 using DeviceManager = ::android::nn::DeviceManager;
 using ExecutePreference = ::android::nn::test_wrapper::ExecutePreference;
 using ExecutePriority = ::android::nn::test_wrapper::ExecutePriority;
@@ -162,6 +162,7 @@ using ExecutionStep = ::android::nn::ExecutionStep;
 using HalCacheToken = ::android::nn::HalCacheToken;
 using HalVersion = ::android::nn::HalVersion;
 using HidlModel = V1_3::Model;
+using IOType = ::android::nn::IOType;
 using LogicalStep = ::android::nn::LogicalStep;
 using ModelBuilder = ::android::nn::ModelBuilder;
 using Operand = ::android::nn::Operand;
@@ -169,6 +170,9 @@ using Operation = ::android::nn::Operation;
 using OptionalTimePoint = ::android::nn::OptionalTimePoint;
 using Result = ::android::nn::test_wrapper::Result;
 using SampleDriver = ::android::nn::sample_driver::SampleDriver;
+using SharedDevice = ::android::nn::SharedDevice;
+using SourceOperandIndex = ::android::nn::SourceOperandIndex;
+using StepRole = ::android::nn::StepRole;
 using WrapperCompilation = ::android::nn::test_wrapper::Compilation;
 using WrapperExecution = ::android::nn::test_wrapper::Execution;
 using WrapperModel = ::android::nn::test_wrapper::Model;
@@ -973,6 +977,11 @@ class PartitioningTest : public ::testing::Test {
     using RemapVectorType = ExecutionStep::RemapVectorType;
     using StepModelOutputSetType = ExecutionStep::StepModelOutputSetType;
 
+    // Used for PartitioningTest::checkExecutionPlanSteps.
+    static constexpr const char* kIfStep = "IF";
+    static constexpr const char* kWhileStep = "WHILE";
+    static constexpr const char* kGotoStep = "GOTO";
+
     virtual void SetUp() {}
 
     // From a vector of DeviceSpecification, create a vector of
@@ -1145,6 +1154,48 @@ class PartitioningTest : public ::testing::Test {
         }
         devices.push_back(DeviceManager::getCpuDevice());
         return devices;
+    }
+
+    static std::string stepsToString(const std::vector<std::string>& steps) {
+        std::stringstream ss;
+        ss << "[ ";
+        for (const auto& step : steps) {
+            ss << step << " ";
+        }
+        ss << "]";
+        return ss.str();
+    }
+
+    // Checks the type of each logical step in an execution plan.
+    // Each entry of "expected" is either: kIfStep for IfStep, kWhileStep for WhileStep,
+    // kGotoStep for GotoStep, or the device name for ExecutionStep.
+    void checkExecutionPlanSteps(const ExecutionPlan& plan,
+                                 const std::vector<std::string>& expected) {
+        ASSERT_GT(expected.size(), 0u);
+
+        std::vector<std::string> actual;
+        if (expected.size() == 1) {
+            ASSERT_EQ(plan.forTest_getKind(), ExecutionPlan::Kind::SIMPLE);
+            actual.emplace_back(plan.forTest_simpleGetDevice()->getName());
+        } else {
+            ASSERT_EQ(plan.forTest_getKind(), ExecutionPlan::Kind::COMPOUND);
+            const auto& steps = plan.forTest_compoundGetSteps();
+            for (const auto& step : steps) {
+                if (step->isIf()) {
+                    actual.emplace_back(kIfStep);
+                } else if (step->isWhile()) {
+                    actual.emplace_back(kWhileStep);
+                } else if (step->isGoto()) {
+                    actual.emplace_back(kGotoStep);
+                } else if (step->isExecution()) {
+                    actual.emplace_back(step->executionStep()->getDevice()->getName());
+                } else {
+                    ASSERT_FALSE(true) << "Unknown LogicalStep";
+                }
+            }
+        }
+        ASSERT_TRUE(actual == expected)
+                << "expected: " << stepsToString(expected) << ", actual: " << stepsToString(actual);
     }
 
     /*-- Graph comparision ----------------------------------------------------------------*/
@@ -3114,15 +3165,7 @@ TEST_F(ControlFlowPartitioningTest, IF_Interpreted) {
     ASSERT_EQ(models[0]->partitionTheWork(devices, ExecutePreference::PREFER_LOW_POWER,
                                           ExecutePriority::DEFAULT, {}, &plan),
               ANEURALNETWORKS_NO_ERROR);
-    ASSERT_EQ(plan.forTest_getKind(), ExecutionPlan::Kind::COMPOUND);
-    const auto& steps = plan.forTest_compoundGetSteps();
-    ASSERT_EQ(steps.size(), size_t(4));
-    ASSERT_TRUE(steps[0]->isIf());
-    ASSERT_TRUE(steps[1]->isExecution());
-    ASSERT_TRUE(steps[2]->isGoto());
-    ASSERT_TRUE(steps[3]->isExecution());
-    ASSERT_EQ(steps[1]->executionStep()->getDevice()->getName(), "V1_0");
-    ASSERT_EQ(steps[3]->executionStep()->getDevice()->getName(), "V1_0");
+    checkExecutionPlanSteps(plan, {kIfStep, "V1_0", kGotoStep, "V1_0"});
 }
 
 TEST_F(ControlFlowPartitioningTest, WHILE_Interpreted) {
@@ -3136,17 +3179,8 @@ TEST_F(ControlFlowPartitioningTest, WHILE_Interpreted) {
     ASSERT_EQ(models[0]->partitionTheWork(devices, ExecutePreference::PREFER_LOW_POWER,
                                           ExecutePriority::DEFAULT, {}, &plan),
               ANEURALNETWORKS_NO_ERROR);
-    ASSERT_EQ(plan.forTest_getKind(), ExecutionPlan::Kind::COMPOUND);
-    const auto& steps = plan.forTest_compoundGetSteps();
-    ASSERT_EQ(steps.size(), size_t(5));
-    ASSERT_TRUE(steps[0]->isWhile());
-    ASSERT_TRUE(steps[1]->isExecution());
-    ASSERT_TRUE(steps[2]->isGoto());
-    ASSERT_TRUE(steps[3]->isExecution());
-    ASSERT_TRUE(steps[4]->isGoto());
-    ASSERT_EQ(steps[1]->executionStep()->getDevice()->getName(),
-              DeviceManager::getCpuDevice()->getName());
-    ASSERT_EQ(steps[3]->executionStep()->getDevice()->getName(), "V1_0");
+    const auto& cpuDeviceName = DeviceManager::getCpuDevice()->getName();
+    checkExecutionPlanSteps(plan, {kWhileStep, cpuDeviceName, kGotoStep, "V1_0", kGotoStep});
 }
 
 TEST_F(ControlFlowPartitioningTest, IF_SimplePlan) {
@@ -3164,8 +3198,7 @@ TEST_F(ControlFlowPartitioningTest, IF_SimplePlan) {
     ASSERT_EQ(models[0]->partitionTheWork(devices, ExecutePreference::PREFER_LOW_POWER,
                                           ExecutePriority::DEFAULT, {}, &plan),
               ANEURALNETWORKS_NO_ERROR);
-    ASSERT_EQ(plan.forTest_getKind(), ExecutionPlan::Kind::SIMPLE);
-    ASSERT_EQ(plan.forTest_simpleGetDevice()->getName(), "ALL");
+    checkExecutionPlanSteps(plan, {"ALL"});
 }
 
 TEST_F(ControlFlowPartitioningTest, WHILE_SimplePlan) {
@@ -3183,8 +3216,7 @@ TEST_F(ControlFlowPartitioningTest, WHILE_SimplePlan) {
     ASSERT_EQ(models[0]->partitionTheWork(devices, ExecutePreference::PREFER_LOW_POWER,
                                           ExecutePriority::DEFAULT, {}, &plan),
               ANEURALNETWORKS_NO_ERROR);
-    ASSERT_EQ(plan.forTest_getKind(), ExecutionPlan::Kind::SIMPLE);
-    ASSERT_EQ(plan.forTest_simpleGetDevice()->getName(), "ALL");
+    checkExecutionPlanSteps(plan, {"ALL"});
 }
 
 void ControlFlowPartitioningTest::testIfUnknownSize(Dimensioned dimensionedMain,
@@ -3212,8 +3244,7 @@ void ControlFlowPartitioningTest::testIfUnknownSize(Dimensioned dimensionedMain,
                                           ExecutePriority::DEFAULT, {}, &plan),
               ANEURALNETWORKS_NO_ERROR);
     // The control flow interpreter does not support unknown size (b/132458982).
-    ASSERT_EQ(plan.forTest_getKind(), ExecutionPlan::Kind::SIMPLE);
-    ASSERT_EQ(plan.forTest_simpleGetDevice()->getName(), DeviceManager::getCpuDevice()->getName());
+    checkExecutionPlanSteps(plan, {DeviceManager::getCpuDevice()->getName()});
 }
 
 TEST_F(ControlFlowPartitioningTest, IF_UnknownSize) {
@@ -3256,8 +3287,7 @@ void ControlFlowPartitioningTest::testWhileUnknownSize(Dimensioned dimensionedMa
                                           ExecutePriority::DEFAULT, {}, &plan),
               ANEURALNETWORKS_NO_ERROR);
     // The control flow interpreter does not support unknown size (b/132458982).
-    ASSERT_EQ(plan.forTest_getKind(), ExecutionPlan::Kind::SIMPLE);
-    ASSERT_EQ(plan.forTest_simpleGetDevice()->getName(), DeviceManager::getCpuDevice()->getName());
+    checkExecutionPlanSteps(plan, {DeviceManager::getCpuDevice()->getName()});
 }
 
 TEST_F(ControlFlowPartitioningTest, WHILE_UnknownSize) {
@@ -3273,6 +3303,341 @@ TEST_F(ControlFlowPartitioningTest, WHILE_UnknownSize) {
             }
         }
     }
+}
+
+// Test the memory step role analysis of the partitioning implementation.
+class MemoryStepRoleTest : public PartitioningTest {
+   protected:
+    // A tuple of {device_name, input/output}
+    using TestStepRole = std::tuple<std::string, IOType>;
+
+    void SetUp() override {
+        PartitioningTest::SetUp();
+        mModel = std::make_unique<PartitioningModel>();
+    }
+
+    static std::string toString(SourceOperandIndex index) {
+        return "{" + std::to_string(index.first) + ", " + std::to_string(index.second) + "}";
+    }
+
+    static std::string toString(const std::set<TestStepRole>& roles) {
+        std::stringstream ss;
+        ss << "[ ";
+        for (const auto& [deviceName, type] : roles) {
+            ss << "{" << deviceName << ", " << (type == IOType::INPUT ? "INPUT" : "OUTPUT") << "} ";
+        }
+        ss << "]";
+        return ss.str();
+    }
+
+    void finishAndPartitionModelForDevices(const std::vector<std::shared_ptr<Device>>& devices) {
+        mModel->finish();
+        ASSERT_TRUE(mModel->isValid());
+        ASSERT_EQ(mModel->partitionTheWork(devices, ExecutePreference::PREFER_LOW_POWER,
+                                           ExecutePriority::DEFAULT, {}, &mPlan),
+                  ANEURALNETWORKS_NO_ERROR);
+    }
+
+    void checkStepRolesOfInput(uint32_t index, const std::set<TestStepRole>& expected) const {
+        SCOPED_TRACE("Input: " + std::to_string(index));
+        std::set<TestStepRole> actual;
+        mPlan.forEachStepRoleOfInput(
+                index, [&actual](const auto* preparedModel, IOType type, uint32_t) {
+                    actual.emplace(preparedModel->getDevice()->getName(), type);
+                });
+        EXPECT_TRUE(expected == actual)
+                << "expected: " << toString(expected) << ", actual: " << toString(actual);
+    }
+
+    void checkStepRolesOfOutput(uint32_t index, const std::set<TestStepRole>& expected) const {
+        SCOPED_TRACE("Output: " + std::to_string(index));
+        std::set<TestStepRole> actual;
+        mPlan.forEachStepRoleOfOutput(
+                index, [&actual](const auto* preparedModel, IOType type, uint32_t) {
+                    actual.emplace(preparedModel->getDevice()->getName(), type);
+                });
+        EXPECT_TRUE(expected == actual)
+                << "expected: " << toString(expected) << ", actual: " << toString(actual);
+    }
+
+    void checkStepRolesOfSourceOperand(SourceOperandIndex index,
+                                       const std::set<TestStepRole>& expected) const {
+        SCOPED_TRACE("SourceOperandIndex: " + toString(index));
+        std::set<TestStepRole> actual;
+        mPlan.forTest_compoundForEachStepRoleOfSourceOperand(
+                index, [&actual](const auto* preparedModel, IOType type, uint32_t) {
+                    actual.emplace(preparedModel->getDevice()->getName(), type);
+                });
+        EXPECT_TRUE(expected == actual)
+                << "expected: " << toString(expected) << ", actual: " << toString(actual);
+    }
+
+    std::unique_ptr<PartitioningModel> mModel;
+    ExecutionPlan mPlan;
+};
+
+// Test a graph with 3 operations, each operation in a separate partition:
+//     opnd2 = OP0(opnd0, opnd1)
+//     opnd4 = OP1(opnd1, opnd3)
+//     opnd5 = OP2(opnd2, opnd4)
+TEST_F(MemoryStepRoleTest, NoControlFlow) {
+    const uint32_t opnd0 = mModel->addFloatOperand();
+    const uint32_t opnd1 = mModel->addFloatOperand();
+    const uint32_t opnd2 = mModel->addOperation2To1V1_0(0, opnd0, opnd1);
+    const uint32_t opnd3 = mModel->addFloatOperand();
+    const uint32_t opnd4 = mModel->addOperation2To1V1_0(1, opnd1, opnd3);
+    const uint32_t opnd5 = mModel->addOperation2To1V1_0(2, opnd2, opnd4);
+    mModel->identifyInputsAndOutputs({opnd0, opnd1, opnd3}, {opnd2, opnd5});
+
+    // This will result in 3 partitions:
+    // deviceA handles op0, deviceB handles op1, deviceC handles op2.
+    const auto devices = makeDevices(
+            {{"deviceA", 0.8, ~0U}, {"deviceB", 0.5, 1 << 1}, {"deviceC", 0.5, 1 << 2}});
+    finishAndPartitionModelForDevices(devices);
+    checkExecutionPlanSteps(mPlan, {"deviceB", "deviceA", "deviceC"});
+
+    // Check the step roles of the main model inputs and outputs:
+    //
+    // input0 and input2 are each exclusive for a single partition.
+    checkStepRolesOfInput(0, {{"deviceA", IOType::INPUT}});
+    checkStepRolesOfInput(2, {{"deviceB", IOType::INPUT}});
+    // input1 is shared by two operations in different partitions.
+    checkStepRolesOfInput(1, {{"deviceA", IOType::INPUT}, {"deviceB", IOType::INPUT}});
+    // output0 is a model output that is a downstream input.
+    checkStepRolesOfOutput(0, {{"deviceA", IOType::OUTPUT}, {"deviceC", IOType::INPUT}});
+    // output1 is only used in a single partition.
+    checkStepRolesOfOutput(1, {{"deviceC", IOType::OUTPUT}});
+
+    // Check the step roles of the partition boundary temporaries that we will allocate memory on
+    // behalf of (see ExecutionPlan::makeController for the allocation logic):
+    //
+    // opnd4 is a partition boundary temporary.
+    checkStepRolesOfSourceOperand({0, opnd4},
+                                  {{"deviceB", IOType::OUTPUT}, {"deviceC", IOType::INPUT}});
+}
+
+// Test a graph with an interpreted IF operation.
+TEST_F(MemoryStepRoleTest, InterpretedIf) {
+    auto thenModel = std::make_unique<PartitioningModel>();
+    const uint32_t thenOpnd0 = thenModel->addFloatOperand();
+    const uint32_t thenOpnd1 = thenModel->addFloatOperand();
+    const uint32_t thenOpnd2 = thenModel->addOperation2To1V1_0(0, thenOpnd0, thenOpnd1);
+    thenModel->identifyInputsAndOutputs({thenOpnd0, thenOpnd1}, {thenOpnd2});
+    thenModel->finish();
+    EXPECT_TRUE(thenModel->isValid());
+
+    auto elseModel = std::make_unique<PartitioningModel>();
+    const uint32_t elseOpnd0 = elseModel->addFloatOperand();
+    const uint32_t elseOpnd1 = elseModel->addFloatOperand();
+    const uint32_t elseOpnd2 = elseModel->addOperation2To1V1_0(1, elseOpnd0, elseOpnd1);
+    elseModel->identifyInputsAndOutputs({elseOpnd0, elseOpnd1}, {elseOpnd2});
+    elseModel->finish();
+    EXPECT_TRUE(elseModel->isValid());
+
+    const uint32_t mainOpnd0 = mModel->addBooleanOperand();
+    const uint32_t mainOpnd1 = mModel->addFloatOperand();
+    const uint32_t mainOpnd2 = mModel->addFloatOperand();
+    const uint32_t mainOpnd3 = mModel->addFloatOperand();
+    mModel->addIfOperation(mainOpnd0, *thenModel, *elseModel, {mainOpnd1, mainOpnd2}, {mainOpnd3});
+    mModel->identifyInputsAndOutputs({mainOpnd0, mainOpnd1, mainOpnd2}, {mainOpnd3});
+
+    // deviceA handles op0, deviceB handles op1.
+    const auto devices = makeDevices({{"deviceA", 0.8, ~0U}, {"deviceB", 0.5, 1 << 1}});
+    finishAndPartitionModelForDevices(devices);
+    checkExecutionPlanSteps(mPlan, {kIfStep, "deviceA", kGotoStep, "deviceB"});
+
+    // Check the step roles of the main model inputs and outputs:
+    //
+    // input0 is a condition operand of the interpreted IF that will only be read by the runtime.
+    checkStepRolesOfInput(0, {});
+    // input1 and input2 are outer inputs of the interpreted IF. The memories may be directly used
+    // by the input operands of the then and else model.
+    checkStepRolesOfInput(1, {{"deviceA", IOType::INPUT}, {"deviceB", IOType::INPUT}});
+    checkStepRolesOfInput(2, {{"deviceA", IOType::INPUT}, {"deviceB", IOType::INPUT}});
+    // output0 is the outer output of the interpreted IF. The memory may be directly
+    // used by the output operands of the then and else model.
+    checkStepRolesOfOutput(0, {{"deviceA", IOType::OUTPUT}, {"deviceB", IOType::OUTPUT}});
+
+    // There is no partition boundary temporary in this model that we will allocate memory on
+    // behalf of (see ExecutionPlan::makeController for the allocation logic).
+}
+
+// Test a graph with an interpreted WHILE operation.
+TEST_F(MemoryStepRoleTest, InterpretedWhile) {
+    // Condition model:
+    //     condOpnd3 = OP0(condOpnd0, condOpnd1)
+    //     condOpnd4 = EQUAL(condOpnd2, condOpnd3)
+    auto condModel = std::make_unique<PartitioningModel>();
+    const uint32_t condOpnd0 = condModel->addFloatOperand();
+    const uint32_t condOpnd1 = condModel->addFloatOperand();
+    const uint32_t condOpnd2 = condModel->addFloatOperand();
+    const uint32_t condOpnd3 = condModel->addOperation2To1V1_0(0, condOpnd0, condOpnd1);
+    const uint32_t condOpnd4 = condModel->addExplicitOperationXTo1(
+            ANEURALNETWORKS_EQUAL, {condOpnd2, condOpnd3}, WrapperType::TENSOR_BOOL8);
+    condModel->identifyInputsAndOutputs({condOpnd0, condOpnd1, condOpnd2}, {condOpnd4});
+    condModel->finish();
+    EXPECT_TRUE(condModel->isValid());
+
+    // Body model:
+    //     bodyOpnd3 = OP1(bodyOpnd0, bodyOpnd1)
+    //     bodyOpnd4 = OP1(bodyOpnd0, bodyOpnd2)
+    auto bodyModel = std::make_unique<PartitioningModel>();
+    const uint32_t bodyOpnd0 = bodyModel->addFloatOperand();
+    const uint32_t bodyOpnd1 = bodyModel->addFloatOperand();
+    const uint32_t bodyOpnd2 = bodyModel->addFloatOperand();
+    const uint32_t bodyOpnd3 = bodyModel->addOperation2To1V1_0(1, bodyOpnd0, bodyOpnd1);
+    const uint32_t bodyOpnd4 = bodyModel->addOperation2To1V1_0(1, bodyOpnd0, bodyOpnd2);
+    bodyModel->identifyInputsAndOutputs({bodyOpnd0, bodyOpnd1, bodyOpnd2}, {bodyOpnd3, bodyOpnd4});
+    bodyModel->finish();
+    EXPECT_TRUE(bodyModel->isValid());
+
+    const uint32_t mainOpnd0 = mModel->addFloatOperand();
+    const uint32_t mainOpnd1 = mModel->addFloatOperand();
+    const uint32_t mainOpnd2 = mModel->addFloatOperand();
+    const uint32_t mainOpnd3 = mModel->addFloatOperand();
+    mModel->addWhileOperation(*condModel, *bodyModel, {mainOpnd0, mainOpnd1, mainOpnd2},
+                              {mainOpnd3});
+    mModel->identifyInputsAndOutputs({mainOpnd0, mainOpnd1, mainOpnd2}, {mainOpnd3});
+
+    // deviceA handles the cond model, deviceB handles the body model.
+    const auto devices = makeDevices({{"deviceA",
+                                       0.8,
+                                       ~0U,
+                                       PartitioningDriver::OEMNo,
+                                       HalVersion::LATEST,
+                                       {V1_3::OperationType::EQUAL}},
+                                      {"deviceB", 0.5, 1 << 1}});
+    finishAndPartitionModelForDevices(devices);
+    checkExecutionPlanSteps(mPlan, {kWhileStep, "deviceA", kGotoStep, "deviceB", kGotoStep});
+
+    // The subgraph indexes of the condition and body models of the WHILE operation.
+    const uint32_t condModelIndex = 1;
+    const uint32_t bodyModelIndex = 2;
+
+    // Check the step roles of the main model inputs and outputs:
+    //
+    // input0 (input-output), input1 (state-only), and input2 (input-only) are outer inputs of the
+    // interpreted WHILE. The memories may be directly used by the input operands of the condition
+    // and body models.
+    checkStepRolesOfInput(0, {{"deviceA", IOType::INPUT}, {"deviceB", IOType::INPUT}});
+    checkStepRolesOfInput(1, {{"deviceA", IOType::INPUT}, {"deviceB", IOType::INPUT}});
+    checkStepRolesOfInput(2, {{"deviceA", IOType::INPUT}, {"deviceB", IOType::INPUT}});
+    // output0 is an outer output of the interpreted WHILE that will only be written by the runtime.
+    checkStepRolesOfOutput(0, {});
+
+    // Check the step roles of the partition boundary temporaries that we will allocate memory on
+    // behalf of (see ExecutionPlan::makeController for the allocation logic):
+    //
+    // condOpnd4 is output of the interpreted WHILE condition model.
+    checkStepRolesOfSourceOperand({condModelIndex, condOpnd4}, {{"deviceA", IOType::OUTPUT}});
+    // bodyOpnd3 (input-output) and bodyOpnd4 (state-only) are outputs of the interpreted WHILE body
+    // model. The memories may be directly used by the input operands of the condition and body
+    // models.
+    checkStepRolesOfSourceOperand(
+            {bodyModelIndex, bodyOpnd3},
+            {{"deviceA", IOType::INPUT}, {"deviceB", IOType::INPUT}, {"deviceB", IOType::OUTPUT}});
+    checkStepRolesOfSourceOperand(
+            {bodyModelIndex, bodyOpnd4},
+            {{"deviceA", IOType::INPUT}, {"deviceB", IOType::INPUT}, {"deviceB", IOType::OUTPUT}});
+}
+
+// Test a graph with nested interpreted control flow operations: a WHILE operation with IF operation
+// in the body model.
+TEST_F(MemoryStepRoleTest, NestedInterpretedControlFlow) {
+    auto condModel = std::make_unique<PartitioningModel>();
+    const uint32_t condOpnd0 = condModel->addFloatOperand();
+    const uint32_t condOpnd1 = condModel->addFloatOperand();
+    const uint32_t condOpnd2 = condModel->addBooleanOperand();
+    const uint32_t condOpnd3 = condModel->addExplicitOperationXTo1(
+            ANEURALNETWORKS_EQUAL, {condOpnd0, condOpnd1}, WrapperType::TENSOR_BOOL8);
+    condModel->identifyInputsAndOutputs({condOpnd0, condOpnd1, condOpnd2}, {condOpnd3});
+    condModel->finish();
+    EXPECT_TRUE(condModel->isValid());
+
+    auto thenModel = std::make_unique<PartitioningModel>();
+    const uint32_t thenOpnd0 = thenModel->addFloatOperand();
+    const uint32_t thenOpnd1 = thenModel->addFloatOperand();
+    const uint32_t thenOpnd2 = thenModel->addOperation2To1V1_0(0, thenOpnd0, thenOpnd1);
+    thenModel->identifyInputsAndOutputs({thenOpnd0, thenOpnd1}, {thenOpnd2});
+    thenModel->finish();
+    EXPECT_TRUE(thenModel->isValid());
+
+    auto elseModel = std::make_unique<PartitioningModel>();
+    const uint32_t elseOpnd0 = elseModel->addFloatOperand();
+    const uint32_t elseOpnd1 = elseModel->addFloatOperand();
+    const uint32_t elseOpnd2 = elseModel->addOperation2To1V1_0(1, elseOpnd0, elseOpnd1);
+    elseModel->identifyInputsAndOutputs({elseOpnd0, elseOpnd1}, {elseOpnd2});
+    elseModel->finish();
+    EXPECT_TRUE(elseModel->isValid());
+
+    auto bodyModel = std::make_unique<PartitioningModel>();
+    const uint32_t bodyOpnd0 = bodyModel->addFloatOperand();
+    const uint32_t bodyOpnd1 = bodyModel->addFloatOperand();
+    const uint32_t bodyOpnd2 = bodyModel->addBooleanOperand();
+    const uint32_t bodyOpnd3 = bodyModel->addFloatOperand();
+    bodyModel->addIfOperation(bodyOpnd2, *thenModel, *elseModel, {bodyOpnd0, bodyOpnd1},
+                              {bodyOpnd3});
+    bodyModel->identifyInputsAndOutputs({bodyOpnd0, bodyOpnd1, bodyOpnd2}, {bodyOpnd3});
+    bodyModel->finish();
+    EXPECT_TRUE(bodyModel->isValid());
+
+    const uint32_t mainOpnd0 = mModel->addFloatOperand();
+    const uint32_t mainOpnd1 = mModel->addFloatOperand();
+    const uint32_t mainOpnd2 = mModel->addBooleanOperand();
+    const uint32_t mainOpnd3 = mModel->addFloatOperand();
+    mModel->addWhileOperation(*condModel, *bodyModel, {mainOpnd0, mainOpnd1, mainOpnd2},
+                              {mainOpnd3});
+    mModel->identifyInputsAndOutputs({mainOpnd0, mainOpnd1, mainOpnd2}, {mainOpnd3});
+
+    // deviceA handles the cond model, deviceB handles the then model,
+    // deviceC handles the else model.
+    const auto devices = makeDevices({{"deviceA",
+                                       0.8,
+                                       ~0U,
+                                       PartitioningDriver::OEMNo,
+                                       HalVersion::LATEST,
+                                       {V1_3::OperationType::EQUAL}},
+                                      {"deviceB", 0.5, 1 << 0},
+                                      {"deviceC", 0.5, 1 << 1}});
+    finishAndPartitionModelForDevices(devices);
+    checkExecutionPlanSteps(mPlan, {kWhileStep, "deviceA", kGotoStep, kIfStep, "deviceB", kGotoStep,
+                                    "deviceC", kGotoStep});
+
+    // The subgraph indexes of the condition and body models of the WHILE operation.
+    const uint32_t condModelIndex = 1;
+    const uint32_t bodyModelIndex = 2;
+
+    // Check the step roles of the main model inputs and outputs:
+    //
+    // input0 and input1 are outer inputs of the interpreted WHILE. The memories may be directly
+    // used by the input operands of the condition and body models, and then be directly used by the
+    // input operands of the then and else model of the interpreted IF in the body model.
+    checkStepRolesOfInput(
+            0,
+            {{"deviceA", IOType::INPUT}, {"deviceB", IOType::INPUT}, {"deviceC", IOType::INPUT}});
+    checkStepRolesOfInput(
+            1,
+            {{"deviceA", IOType::INPUT}, {"deviceB", IOType::INPUT}, {"deviceC", IOType::INPUT}});
+    // input2 is also an outer input of the interpreted WHILE. The memory has no step role in the
+    // condition model. In the body model, the memory will be used by the condition operand of the
+    // interpreted IF that will only be read by the runtime.
+    checkStepRolesOfInput(2, {});
+    // output0 is an outer output of the interpreted WHILE that will only be written by the runtime.
+    checkStepRolesOfOutput(0, {});
+
+    // Check the step roles of the partition boundary temporaries that we will allocate memory on
+    // behalf of (see ExecutionPlan::makeController for the allocation logic):
+    //
+    // condOpnd2 is output of the interpreted WHILE condition model.
+    checkStepRolesOfSourceOperand({condModelIndex, condOpnd3}, {{"deviceA", IOType::OUTPUT}});
+    // bodyOpnd3 is output of the interpreted WHILE body model. The memories may be directly used by
+    // the input operands of the condition and body models, and then be directly used by the
+    // input operands of the then and else model of the interpreted IF in the body model.
+    checkStepRolesOfSourceOperand({bodyModelIndex, bodyOpnd3}, {{"deviceA", IOType::INPUT},
+                                                                {"deviceB", IOType::INPUT},
+                                                                {"deviceB", IOType::OUTPUT},
+                                                                {"deviceC", IOType::INPUT},
+                                                                {"deviceC", IOType::OUTPUT}});
 }
 
 }  // namespace

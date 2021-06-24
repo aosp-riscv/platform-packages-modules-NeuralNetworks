@@ -43,7 +43,6 @@ class Device final : public IDevice {
     const std::string& getVersionString() const override;
     Version getFeatureLevel() const override;
     DeviceType getType() const override;
-    bool isUpdatable() const override;
     const std::vector<Extension>& getSupportedExtensions() const override;
     const Capabilities& getCapabilities() const override;
     std::pair<uint32_t, uint32_t> getNumberOfCacheFilesNeeded() const override;

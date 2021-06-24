@@ -55,6 +55,7 @@ cc_library_static {
         // Needed by neuralnetworks_supportlibrary_loader
         // Should be removed after doing b/117845862
         "-DNNTEST_SLTS",
+        "-DNN_COMPATIBILITY_LIBRARY_BUILD",
         "-Wall",
         "-Werror",
     ],
@@ -67,10 +68,11 @@ cc_library_static {
     static_libs: [
         "android.hardware.common-V2-ndk_platform",
         "android.hardware.neuralnetworks-V1-ndk_platform",
+        "libaidlcommonsupport",
         "libarect",
         "libcutils",
+        "libneuralnetworks_common",
         "neuralnetworks_supportlibrary_loader",
-        "neuralnetworks_types",
         "neuralnetworks_utils_hal_aidl",
         "neuralnetworks_utils_hal_common",
     ],
@@ -85,56 +87,6 @@ cc_library_static {
     export_include_dirs: [
         "public",
     ],
-}
-
-cc_library_shared {
-    name: "libneuralnetworks_shim",
-    llndk_stubs: "libneuralnetworks_shim.llndk",
-    version_script: "libneuralnetworks_shim.map.txt",
-    apex_available: [
-        "com.android.neuralnetworks",
-        "test_com.android.neuralnetworks",
-    ],
-    licenses: ["Android-Apache-2.0"],
-    vendor_available: true,
-    min_sdk_version: "30",
-    whole_static_libs: [
-        "libneuralnetworks_shim_static",
-    ],
-    header_libs: [
-        "libneuralnetworks_headers",
-    ],
-    stubs: {
-        symbol_file: "libneuralnetworks_shim.map.txt",
-        versions: ["31"],
-    },
-    static_libs: [
-        "android.hardware.common-V2-ndk_platform",
-        "android.hardware.neuralnetworks-V1-ndk_platform",
-        "libcutils",
-        "neuralnetworks_supportlibrary_loader",
-        "neuralnetworks_types",
-        "neuralnetworks_utils_hal_aidl",
-        "neuralnetworks_utils_hal_common",
-    ],
-    shared_libs: [
-        "libbase",
-        "libbinder_ndk",
-        "libhidlbase",
-        "libhidlmemory",
-        "liblog",
-        "libnativewindow",
-    ],
-    export_include_dirs: [
-        "public",
-    ],
-}
-
-llndk_library {
-    name: "libneuralnetworks_shim.llndk",
-    symbol_file: "libneuralnetworks_shim.map.txt",
-    export_include_dirs: ["public"],
-    licenses: ["Android-Apache-2.0"],
 }
 
 cc_library_static {
@@ -150,6 +102,7 @@ cc_library_static {
         "-DNNTEST_COMPUTE_MODE",
         "-DNNTEST_ONLY_PUBLIC_API",
         "-DNNTEST_SLTS",
+        "-DNN_COMPATIBILITY_LIBRARY_BUILD",
         "-Wall",
         "-Werror",
     ],

@@ -32,59 +32,43 @@
 #include "OperandTypes.h"
 #include "OperationTypes.h"
 #include "Result.h"
+#include "TypeUtils.h"
+#include "Validation.h"
 
 namespace android::nn {
-namespace {
 
-constexpr size_t safeDivideRoundedUp(size_t numerator, size_t denominator) {
-    CHECK_NE(denominator, 0u);
-    CHECK_LE(numerator, std::numeric_limits<size_t>::max() - denominator);
-    return (numerator + denominator - 1) / denominator;
-}
-
-constexpr size_t safeMultiply(size_t a, size_t b) {
-    if (b == 0) {
-        return 0;
-    }
-    CHECK_LE(a, std::numeric_limits<size_t>::max() / b);
-    return a * b;
-}
-
-std::vector<AlignedData> allocateAligned(const uint8_t* data, size_t length) {
-    constexpr size_t kElementSize = sizeof(AlignedData);
-    const size_t numberElements = safeDivideRoundedUp(length, kElementSize);
-    std::vector<AlignedData> output(numberElements);
-    std::memcpy(output.data(), data, length);
-    return output;
-}
-
-}  // anonymous namespace
+// Ensure that std::vector<uint8_t>::data() will always have sufficient alignment to hold all NNAPI
+// primitive types. "4" is chosen because that is the maximum alignment returned by
+// `getAlignmentForLength`. However, this value will have to be changed if `getAlignmentForLength`
+// returns a larger alignment.
+static_assert(__STDCPP_DEFAULT_NEW_ALIGNMENT__ >= 4, "`New` alignment is not sufficient");
 
 Model::OperandValues::OperandValues() {
     constexpr size_t kNumberBytes = 4 * 1024;
-    constexpr size_t kElementSize = sizeof(AlignedData);
-    constexpr size_t kNumberElements = safeDivideRoundedUp(kNumberBytes, kElementSize);
-    mData.reserve(kNumberElements);
+    mData.reserve(kNumberBytes);
 }
 
 Model::OperandValues::OperandValues(const uint8_t* data, size_t length)
-    : mData(allocateAligned(data, length)) {}
+    : mData(data, data + length) {}
 
 DataLocation Model::OperandValues::append(const uint8_t* data, size_t length) {
-    const size_t offset = size();
-    auto contents = allocateAligned(data, length);
-    mData.insert(mData.end(), contents.begin(), contents.end());
-    CHECK_LE(offset, std::numeric_limits<uint32_t>::max());
+    CHECK_GT(length, 0u);
     CHECK_LE(length, std::numeric_limits<uint32_t>::max());
+    const size_t alignment = getAlignmentForLength(length);
+    const size_t offset = roundUp(size(), alignment);
+    CHECK_LE(offset, std::numeric_limits<uint32_t>::max());
+    mData.resize(offset + length);
+    CHECK_LE(size(), std::numeric_limits<uint32_t>::max());
+    std::memcpy(mData.data() + offset, data, length);
     return {.offset = static_cast<uint32_t>(offset), .length = static_cast<uint32_t>(length)};
 }
 
 const uint8_t* Model::OperandValues::data() const {
-    return reinterpret_cast<const uint8_t*>(mData.data());
+    return mData.data();
 }
 
 size_t Model::OperandValues::size() const {
-    return safeMultiply(mData.size(), sizeof(AlignedData));
+    return mData.size();
 }
 
 Capabilities::OperandPerformanceTable::OperandPerformanceTable(
@@ -129,18 +113,12 @@ SyncFence SyncFence::createAsSignaled() {
 }
 
 SyncFence SyncFence::create(base::unique_fd fd) {
-    std::vector<base::unique_fd> fds;
-    fds.push_back(std::move(fd));
-    return SyncFence(std::make_shared<const Handle>(Handle{
-            .fds = std::move(fds),
-            .ints = {},
-    }));
+    CHECK(fd.ok());
+    return SyncFence(std::make_shared<const Handle>(std::move(fd)));
 }
 
 Result<SyncFence> SyncFence::create(SharedHandle syncFence) {
-    const bool isValid =
-            (syncFence != nullptr && syncFence->fds.size() == 1 && syncFence->ints.empty());
-    if (!isValid) {
+    if (!validate(syncFence).ok()) {
         return NN_ERROR() << "Invalid sync fence handle passed to SyncFence::create";
     }
     return SyncFence(std::move(syncFence));
@@ -153,7 +131,7 @@ SyncFence::FenceState SyncFence::syncWait(OptionalTimeout optionalTimeout) const
         return FenceState::SIGNALED;
     }
 
-    const int fd = mSyncFence->fds.front().get();
+    const int fd = mSyncFence->get();
     const int timeout = optionalTimeout.value_or(Timeout{-1}).count();
 
     // This implementation is directly based on the ::sync_wait() implementation.
@@ -199,7 +177,7 @@ bool SyncFence::hasFd() const {
 }
 
 int SyncFence::getFd() const {
-    return mSyncFence == nullptr ? -1 : mSyncFence->fds.front().get();
+    return mSyncFence == nullptr ? -1 : mSyncFence->get();
 }
 
 }  // namespace android::nn

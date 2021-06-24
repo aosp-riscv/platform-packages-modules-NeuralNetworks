@@ -23,6 +23,13 @@
 #include "NeuralNetworksSupportLibraryImpl.h"
 #include "NeuralNetworksTypes.h"
 
+// TODO: replace __ANDROID_API_FUTURE__with 31 when it's official (b/178144708)
+// This is required for __builtin_available guards around functionality
+// introduced in FL5/API31.
+#ifndef __NNAPI_FL5_MIN_ANDROID_API__
+#define __NNAPI_FL5_MIN_ANDROID_API__ __ANDROID_API_FUTURE__
+#endif
+
 /**
  * Helper struct, derived from the latest NnApiSLDriverImpl.
  *

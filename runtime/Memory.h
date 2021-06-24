@@ -95,7 +95,6 @@ class ObjectTracker {
 };
 
 using CompilationRole = std::tuple<const CompilationBuilder*, IOType, uint32_t>;
-using StepRoleCallback = std::function<void(const RuntimePreparedModel*, IOType, uint32_t)>;
 
 struct MemoryDescriptor {
     std::vector<uint32_t> dimensions;
@@ -176,7 +175,7 @@ class RuntimeMemory {
     Request::MemoryPool getMemoryPool() const;
     const SharedMemory& getMemory() const { return kMemory; }
     const SharedBuffer& getIBuffer() const { return kBuffer; }
-    virtual uint32_t getSize() const { return getMemory()->size; }
+    virtual uint32_t getSize() const { return nn::getSize(getMemory()); }
     virtual std::optional<RunTimePoolInfo> getRunTimePoolInfo() const;
 
     MemoryValidatorBase& getValidator() const {
@@ -279,7 +278,7 @@ class MemoryAshmem : public RuntimeMemory {
     uint8_t* getPointer() const;
 
     std::optional<RunTimePoolInfo> getRunTimePoolInfo() const override {
-        return RunTimePoolInfo::createFromExistingBuffer(getPointer(), kMemory->size);
+        return RunTimePoolInfo::createFromExistingBuffer(getPointer(), nn::getSize(kMemory));
     }
 
     // prefer using MemoryAshmem::create
@@ -333,7 +332,7 @@ class MemoryRuntimeAHWB : public RuntimeMemory {
     uint8_t* getPointer() const;
 
     std::optional<RunTimePoolInfo> getRunTimePoolInfo() const override {
-        return RunTimePoolInfo::createFromExistingBuffer(getPointer(), kMemory->size);
+        return RunTimePoolInfo::createFromExistingBuffer(getPointer(), nn::getSize(kMemory));
     }
 
     // prefer using MemoryRuntimeAHWB::create

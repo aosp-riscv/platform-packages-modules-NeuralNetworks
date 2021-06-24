@@ -29,35 +29,14 @@
 #include "nnapi/Result.h"
 #include "nnapi/Types.h"
 
-// Forward declare AHardwareBuffer
-extern "C" typedef struct AHardwareBuffer AHardwareBuffer;
-
 namespace android::nn {
-
-// RAII wrapper for AHardwareBuffer
-class HardwareBufferHandle {
-   public:
-    // Precondition: handle != nullptr
-    HardwareBufferHandle(AHardwareBuffer* handle, bool takeOwnership);
-
-    AHardwareBuffer* get() const;
-
-   private:
-    using Deleter = std::add_pointer_t<void(AHardwareBuffer*)>;
-    std::unique_ptr<AHardwareBuffer, Deleter> mHandle;
-};
-
-struct Memory {
-    std::variant<Handle, HardwareBufferHandle> handle;
-    size_t size = 0;
-    std::string name;
-};
 
 class MutableMemoryBuilder {
    public:
     explicit MutableMemoryBuilder(uint32_t poolIndex);
 
-    DataLocation append(size_t length);
+    DataLocation append(size_t length, size_t alignment = kMinMemoryAlignment,
+                        size_t padding = kMinMemoryPadding);
     bool empty() const;
 
     GeneralResult<SharedMemory> finish();
@@ -111,8 +90,16 @@ GeneralResult<SharedMemory> createSharedMemoryFromFd(size_t size, int prot, int 
 // Precondition: ahwb != nullptr
 GeneralResult<SharedMemory> createSharedMemoryFromAHWB(AHardwareBuffer* ahwb, bool takeOwnership);
 
+// Precondition: memory != nullptr
+size_t getSize(const SharedMemory& memory);
+
+bool isAhwbBlob(const Memory::HardwareBuffer& memory);
+
+// Precondition: memory != nullptr
+bool isAhwbBlob(const SharedMemory& memory);
+
 struct Mapping {
-    std::variant<void*, const void*> pointer;
+    std::variant<const void*, void*> pointer;
     size_t size;
     std::any context;
 };

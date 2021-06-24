@@ -33,6 +33,7 @@
 #include <utility>
 #include <vector>
 
+#include "AndroidVersionUtil.h"
 #include "GeneratedTestUtils.h"
 #include "TestHarness.h"
 #include "TestNeuralNetworksWrapper.h"
@@ -65,6 +66,8 @@ class GeneratedTests : public GeneratedTestBase {
     bool shouldSkipTest();
 
     std::optional<Compilation> compileModel(const Model& model);
+    void executeInternal(const Compilation& compilation, const TestModel& testModel,
+                         bool testReusableExecution);
     void executeWithCompilation(const Compilation& compilation, const TestModel& testModel);
     void executeOnce(const Model& model, const TestModel& testModel);
     void executeMultithreadedOwnCompilation(const Model& model, const TestModel& testModel);
@@ -236,12 +239,15 @@ static void copyResultsFromDeviceMemories(const TestModel& testModel,
     }
 }
 
-void GeneratedTests::executeWithCompilation(const Compilation& compilation,
-                                            const TestModel& testModel) {
-    NNTRACE_APP(NNTRACE_PHASE_EXECUTION, "executeWithCompilation example");
+void GeneratedTests::executeInternal(const Compilation& compilation, const TestModel& testModel,
+                                     bool testReusableExecution) {
+    NNTRACE_APP(NNTRACE_PHASE_EXECUTION, "executeInternal example");
 
     Execution execution(&compilation);
-    execution.setReusable(mTestReusableExecution);
+    if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
+        execution.setReusable(testReusableExecution);
+    }
+
     std::vector<TestBuffer> outputs;
     std::vector<Memory> inputMemories, outputMemories;
 
@@ -263,7 +269,7 @@ void GeneratedTests::executeWithCompilation(const Compilation& compilation,
         }
 
         {
-            NNTRACE_APP(NNTRACE_PHASE_RESULTS, "executeWithCompilation example");
+            NNTRACE_APP(NNTRACE_PHASE_RESULTS, "executeInternal example");
             if (mExpectFailure) {
                 ASSERT_NE(result, Result::NO_ERROR);
                 return;
@@ -287,8 +293,19 @@ void GeneratedTests::executeWithCompilation(const Compilation& compilation,
     };
 
     computeAndCheckResults();
-    if (mTestReusableExecution) {
+    if (testReusableExecution) {
         computeAndCheckResults();
+    }
+}
+
+void GeneratedTests::executeWithCompilation(const Compilation& compilation,
+                                            const TestModel& testModel) {
+    // Single-time and reusable executions have different code paths, so test both.
+    executeInternal(compilation, testModel, /*testReusableExecution=*/false);
+    if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
+        if (mTestReusableExecution) {
+            executeInternal(compilation, testModel, /*testReusableExecution=*/true);
+        }
     }
 }
 
@@ -298,22 +315,26 @@ static bool isPowerOfTwo(uint32_t x) {
 
 static void validateCompilationMemoryPreferences(const Compilation& compilation,
                                                  const TestModel& testModel) {
-    for (uint32_t i = 0; i < testModel.main.inputIndexes.size(); i++) {
-        SCOPED_TRACE("Input index: " + std::to_string(i));
-        uint32_t alignment = 0, padding = 0;
-        ASSERT_EQ(compilation.getPreferredMemoryAlignmentForInput(i, &alignment), Result::NO_ERROR);
-        ASSERT_EQ(compilation.getPreferredMemoryPaddingForInput(i, &padding), Result::NO_ERROR);
-        EXPECT_TRUE(isPowerOfTwo(alignment)) << "alignment: " << alignment;
-        EXPECT_TRUE(isPowerOfTwo(padding)) << "padding: " << padding;
-    }
-    for (uint32_t i = 0; i < testModel.main.outputIndexes.size(); i++) {
-        SCOPED_TRACE("Output index: " + std::to_string(i));
-        uint32_t alignment = 0, padding = 0;
-        ASSERT_EQ(compilation.getPreferredMemoryAlignmentForOutput(i, &alignment),
-                  Result::NO_ERROR);
-        ASSERT_EQ(compilation.getPreferredMemoryPaddingForOutput(i, &padding), Result::NO_ERROR);
-        EXPECT_TRUE(isPowerOfTwo(alignment)) << "alignment: " << alignment;
-        EXPECT_TRUE(isPowerOfTwo(padding)) << "padding: " << padding;
+    if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
+        for (uint32_t i = 0; i < testModel.main.inputIndexes.size(); i++) {
+            SCOPED_TRACE("Input index: " + std::to_string(i));
+            uint32_t alignment = 0, padding = 0;
+            ASSERT_EQ(compilation.getPreferredMemoryAlignmentForInput(i, &alignment),
+                      Result::NO_ERROR);
+            ASSERT_EQ(compilation.getPreferredMemoryPaddingForInput(i, &padding), Result::NO_ERROR);
+            EXPECT_TRUE(isPowerOfTwo(alignment)) << "alignment: " << alignment;
+            EXPECT_TRUE(isPowerOfTwo(padding)) << "padding: " << padding;
+        }
+        for (uint32_t i = 0; i < testModel.main.outputIndexes.size(); i++) {
+            SCOPED_TRACE("Output index: " + std::to_string(i));
+            uint32_t alignment = 0, padding = 0;
+            ASSERT_EQ(compilation.getPreferredMemoryAlignmentForOutput(i, &alignment),
+                      Result::NO_ERROR);
+            ASSERT_EQ(compilation.getPreferredMemoryPaddingForOutput(i, &padding),
+                      Result::NO_ERROR);
+            EXPECT_TRUE(isPowerOfTwo(alignment)) << "alignment: " << alignment;
+            EXPECT_TRUE(isPowerOfTwo(padding)) << "padding: " << padding;
+        }
     }
 }
 

@@ -61,6 +61,8 @@ Result<Version> validate(const std::vector<BufferRole>& bufferRoles);
 Result<Version> validate(const std::vector<SyncFence>& syncFences);
 
 // Validate request applied to model.
+// This function assumes that `model` has already been validated, and the returned Version does not
+// account for the version the model.
 Result<Version> validateRequestForModel(const Request& request, const Model& model,
                                         bool allowUnspecifiedOutput = true);
 

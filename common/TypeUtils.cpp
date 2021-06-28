@@ -720,8 +720,7 @@ std::ostream& operator<<(std::ostream& os, const Operation& operation) {
 }
 
 static std::ostream& operator<<(std::ostream& os, const Handle& handle) {
-    return os << "<handle with " << handle.fds.size() << " fds and " << handle.ints.size()
-              << " ints>";
+    return os << (handle.ok() ? "<valid handle>" : "<invalid handle>");
 }
 
 std::ostream& operator<<(std::ostream& os, const SharedHandle& handle) {
@@ -747,6 +746,11 @@ static std::ostream& operator<<(std::ostream& os, const Memory::HardwareBuffer& 
         return os << "<empty HardwareBuffer::Handle>";
     }
     return os << (isAhwbBlob(memory) ? "<AHardwareBuffer blob>" : "<non-blob AHardwareBuffer>");
+}
+
+static std::ostream& operator<<(std::ostream& os, const Memory::Unknown::Handle& handle) {
+    return os << "<handle with " << handle.fds.size() << " fds and " << handle.ints.size()
+              << " ints>";
 }
 
 static std::ostream& operator<<(std::ostream& os, const Memory::Unknown& memory) {

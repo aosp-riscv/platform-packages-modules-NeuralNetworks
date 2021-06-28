@@ -53,6 +53,7 @@ enum class Type {
     TENSOR_QUANT8_SYMM_PER_CHANNEL = ANEURALNETWORKS_TENSOR_QUANT8_SYMM_PER_CHANNEL,
     TENSOR_QUANT16_ASYMM = ANEURALNETWORKS_TENSOR_QUANT16_ASYMM,
     TENSOR_QUANT8_SYMM = ANEURALNETWORKS_TENSOR_QUANT8_SYMM,
+    TENSOR_QUANT8_ASYMM_SIGNED = ANEURALNETWORKS_TENSOR_QUANT8_ASYMM_SIGNED,
     MODEL = ANEURALNETWORKS_MODEL,
 };
 
@@ -375,9 +376,14 @@ class Event {
    public:
 #ifdef NNTEST_SLTS
     Event(const NnApiSupportLibrary* nnapi) : mNnApi(nnapi) {}
+    Event(const NnApiSupportLibrary* nnapi, int syncFd) : mNnApi(nnapi) {
 #else
     Event() {}
+    Event(int syncFd) {
 #endif
+        mValid = NNAPI_CALL(ANeuralNetworksEvent_createFromSyncFenceFd(syncFd, &mEvent)) ==
+                 ANEURALNETWORKS_NO_ERROR;
+    }
 
     ~Event() {
         if (mEvent) {
@@ -427,12 +433,15 @@ class Event {
                 NNAPI_CALL(ANeuralNetworksEvent_getSyncFenceFd(mEvent, sync_fence_fd)));
     }
 
+    bool isValid() const { return mValid; }
+
 #ifdef NNTEST_SLTS
    private:
     const NnApiSupportLibrary* mNnApi = nullptr;
 #endif
 
    private:
+    bool mValid = true;
     ANeuralNetworksEvent* mEvent = nullptr;
 };
 

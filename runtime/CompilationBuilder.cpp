@@ -134,12 +134,8 @@ int CompilationBuilder::setCaching(const std::string& cacheDir, const uint8_t* t
 }
 
 static GeneralResult<SharedHandle> createCacheHandle(int fd) {
-    std::vector<base::unique_fd> fds;
-    fds.push_back(NN_TRY(dupFd(fd)));
-    return std::make_shared<const Handle>(Handle{
-            .fds = std::move(fds),
-            .ints = {},
-    });
+    base::unique_fd duplicatedFd = NN_TRY(dupFd(fd));
+    return std::make_shared<const Handle>(std::move(duplicatedFd));
 }
 
 static GeneralResult<std::vector<SharedHandle>> createCacheHandleVec(const int* fds,

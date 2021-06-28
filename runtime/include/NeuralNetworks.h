@@ -2082,7 +2082,7 @@ int ANeuralNetworksExecution_enableInputAndOutputPadding(ANeuralNetworksExecutio
  *              an index into the inputs list passed to
  *              {@link ANeuralNetworksModel_identifyInputsAndOutputs}. It is not
  *              the index associated with {@link ANeuralNetworksModel_addOperand}.
- * @param alignment The returned preferred alignment. It will be a power of 2.
+ * @param alignment The returned preferred alignment in bytes. It will be a power of 2.
  *
  * @return ANEURALNETWORKS_NO_ERROR if successful.
  *         ANEURALNETWORKS_UNEXPECTED_NULL if either compilation or alignment is NULL.
@@ -2120,7 +2120,7 @@ int ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput(
  *              an index into the inputs list passed to
  *              {@link ANeuralNetworksModel_identifyInputsAndOutputs}. It is not
  *              the index associated with {@link ANeuralNetworksModel_addOperand}.
- * @param padding The returned preferred padding. It will be a power of 2.
+ * @param padding The returned preferred padding in bytes. It will be a power of 2.
  *
  * @return ANEURALNETWORKS_NO_ERROR if successful.
  *         ANEURALNETWORKS_UNEXPECTED_NULL if either compilation or padding is NULL.
@@ -2152,7 +2152,7 @@ int ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput(
  *              an index into the outputs list passed to
  *              {@link ANeuralNetworksModel_identifyInputsAndOutputs}. It is not
  *              the index associated with {@link ANeuralNetworksModel_addOperand}.
- * @param alignment The returned perferred alignment. It will be a power of 2.
+ * @param alignment The returned perferred alignment in bytes. It will be a power of 2.
  *
  * @return ANEURALNETWORKS_NO_ERROR if successful.
  *         ANEURALNETWORKS_UNEXPECTED_NULL if either compilation or alignment is NULL.
@@ -2190,7 +2190,7 @@ int ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput(
  *              an index into the outputs list passed to
  *              {@link ANeuralNetworksModel_identifyInputsAndOutputs}. It is not
  *              the index associated with {@link ANeuralNetworksModel_addOperand}.
- * @param padding The returned perferred padding. It will be a power of 2.
+ * @param padding The returned perferred padding in bytes. It will be a power of 2.
  *
  * @return ANEURALNETWORKS_NO_ERROR if successful.
  *         ANEURALNETWORKS_UNEXPECTED_NULL if either compilation or padding is NULL.
@@ -2212,7 +2212,8 @@ int ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput(
  * on the same execution sequentially, either by means of
  * {@link ANeuralNetworksExecution_burstCompute}, {@link ANeuralNetworksExecution_compute},
  * {@link ANeuralNetworksExecution_startCompute} or
- * {@link ANeuralNetworksExecution_startComputeWithDependencies}.
+ * {@link ANeuralNetworksExecution_startComputeWithDependencies}: The application may schedule and
+ * evaluate a computation again from the completed state of a reusable execution.
  *
  * This function may only be invoked when the execution is in the preparation state.
  *

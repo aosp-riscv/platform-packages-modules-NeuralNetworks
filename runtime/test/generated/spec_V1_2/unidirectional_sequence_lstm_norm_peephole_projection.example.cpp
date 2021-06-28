@@ -63,7 +63,7 @@ const TestModel& get_test_model() {
                             .scale = 0.0f,
                             .type = TestOperandType::TENSOR_FLOAT32,
                             .zeroPoint = 0
-                        }, { // recurrent_to_intput_weights
+                        }, { // recurrent_to_input_weights
                             .channelQuant = {},
                             .data = TestBuffer::createFromVector<float>({-0.2f, -0.3f, 0.4f, 0.1f, -0.5f, 0.9f, -0.2f, -0.3f, -0.7f, 0.05f, -0.2f, -0.6f}),
                             .dimensions = {4, 3},
@@ -380,7 +380,7 @@ const TestModel& get_test_model_all_inputs_as_internal() {
                             .scale = 0.0f,
                             .type = TestOperandType::TENSOR_FLOAT32,
                             .zeroPoint = 0
-                        }, { // recurrent_to_intput_weights
+                        }, { // recurrent_to_input_weights
                             .channelQuant = {},
                             .data = TestBuffer::createFromVector<float>({}),
                             .dimensions = {4, 3},
@@ -770,7 +770,7 @@ const TestModel& get_test_model_all_inputs_as_internal() {
                             .scale = 0.0f,
                             .type = TestOperandType::INT32,
                             .zeroPoint = 0
-                        }, { // recurrent_to_intput_weights_new
+                        }, { // recurrent_to_input_weights_new
                             .channelQuant = {},
                             .data = TestBuffer::createFromVector<float>({-0.2f, -0.3f, 0.4f, 0.1f, -0.5f, 0.9f, -0.2f, -0.3f, -0.7f, 0.05f, -0.2f, -0.6f}),
                             .dimensions = {4, 3},

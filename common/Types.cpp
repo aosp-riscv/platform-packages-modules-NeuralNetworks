@@ -33,6 +33,7 @@
 #include "OperationTypes.h"
 #include "Result.h"
 #include "TypeUtils.h"
+#include "Validation.h"
 
 namespace android::nn {
 
@@ -112,18 +113,12 @@ SyncFence SyncFence::createAsSignaled() {
 }
 
 SyncFence SyncFence::create(base::unique_fd fd) {
-    std::vector<base::unique_fd> fds;
-    fds.push_back(std::move(fd));
-    return SyncFence(std::make_shared<const Handle>(Handle{
-            .fds = std::move(fds),
-            .ints = {},
-    }));
+    CHECK(fd.ok());
+    return SyncFence(std::make_shared<const Handle>(std::move(fd)));
 }
 
 Result<SyncFence> SyncFence::create(SharedHandle syncFence) {
-    const bool isValid =
-            (syncFence != nullptr && syncFence->fds.size() == 1 && syncFence->ints.empty());
-    if (!isValid) {
+    if (!validate(syncFence).ok()) {
         return NN_ERROR() << "Invalid sync fence handle passed to SyncFence::create";
     }
     return SyncFence(std::move(syncFence));
@@ -136,7 +131,7 @@ SyncFence::FenceState SyncFence::syncWait(OptionalTimeout optionalTimeout) const
         return FenceState::SIGNALED;
     }
 
-    const int fd = mSyncFence->fds.front().get();
+    const int fd = mSyncFence->get();
     const int timeout = optionalTimeout.value_or(Timeout{-1}).count();
 
     // This implementation is directly based on the ::sync_wait() implementation.
@@ -182,7 +177,7 @@ bool SyncFence::hasFd() const {
 }
 
 int SyncFence::getFd() const {
-    return mSyncFence == nullptr ? -1 : mSyncFence->fds.front().get();
+    return mSyncFence == nullptr ? -1 : mSyncFence->get();
 }
 
 }  // namespace android::nn

@@ -66,6 +66,7 @@ constexpr uint32_t kMaxNumberOfCacheFiles = 32;
  */
 constexpr uint8_t kExtensionTypeBits = 16;
 constexpr uint8_t kExtensionPrefixBits = 16;
+constexpr uint32_t kTypeWithinExtensionMask = 0xFFFF;
 
 constexpr uint32_t kDefaultRequestMemoryAlignment = 64;
 constexpr uint32_t kDefaultRequestMemoryPadding = 64;
@@ -620,11 +621,7 @@ struct Operand {
     ExtraParams extraParams;
 };
 
-struct Handle {
-    std::vector<base::unique_fd> fds;
-    std::vector<int> ints;
-};
-
+using Handle = base::unique_fd;
 using SharedHandle = std::shared_ptr<const Handle>;
 
 struct Memory {
@@ -648,6 +645,10 @@ struct Memory {
     };
 
     struct Unknown {
+        struct Handle {
+            std::vector<base::unique_fd> fds;
+            std::vector<int> ints;
+        };
         Handle handle;
         size_t size;
         std::string name;

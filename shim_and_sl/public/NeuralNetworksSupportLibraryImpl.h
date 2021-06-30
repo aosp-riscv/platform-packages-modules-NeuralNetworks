@@ -280,13 +280,13 @@ int SL_ANeuralNetworksDevice_forEachVendorExtensionOperandTypeInformation(
  * a strict superset of NnApiSLDriverImplFL(N), and NnApiSLDriverImplFL(M)* can
  * be reinterpret_cast to NnApiSLDriverImplFL(N)* safely.
  */
-struct NnApiSLDriverImpl {
+typedef struct {
     /**
      * Version of the NnApiSLDriverImpl struct. Uses {@link FeatureLevelCode} values
      * for versioning.
      */
     int64_t implFeatureLevel;
-};
+} NnApiSLDriverImpl;
 
 /**
  * NnApiSLDriverImpl for an Updatable SL Driver implementing {@link
@@ -294,7 +294,7 @@ struct NnApiSLDriverImpl {
  *
  * This struct must set its implFeatureLevel to {@link ANEURALNETWORKS_FEATURE_LEVEL_5}.
  */
-struct NnApiSLDriverImplFL5 {
+typedef struct {
     /**
      * Base type with version information. Allows to cast a pointer of this type
      * to NnApiSLDriverImpl* with valid version information.
@@ -1025,6 +1025,6 @@ struct NnApiSLDriverImplFL5 {
     int (*SL_ANeuralNetworksDevice_forEachVendorExtensionOperandTypeInformation)(
             const ANeuralNetworksDevice* device, uint32_t vendorExtensionIndex, void* context,
             void (*callback)(SL_ANeuralNetworksExtensionOperandTypeInformation, void*));
-};
+} NnApiSLDriverImplFL5;
 
 __END_DECLS

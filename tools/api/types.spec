@@ -7520,6 +7520,7 @@ struct ExtensionNameAndPrefix {
 %kind canonical
 constexpr uint8_t kExtensionTypeBits = 16;
 constexpr uint8_t kExtensionPrefixBits = 16;
+constexpr uint32_t kTypeWithinExtensionMask = 0xFFFF;
 %else
 enum ExtensionTypeEncoding : uint8_t {
     HIGH_BITS_PREFIX = 16,

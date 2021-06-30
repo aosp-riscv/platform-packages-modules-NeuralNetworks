@@ -37,7 +37,7 @@ class DefaultExecution final : public IExecution {
           kRequest(std::move(request)),
           kMeasure(measure),
           kLoopTimeoutDuration(loopTimeoutDuration) {
-        CHECK(preparedModel != nullptr);
+        CHECK(kPreparedModel != nullptr);
     }
 
     ExecutionResult<std::pair<std::vector<OutputShape>, Timing>> compute(

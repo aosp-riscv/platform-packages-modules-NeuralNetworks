@@ -1596,6 +1596,7 @@ int ANeuralNetworksExecution_startComputeWithDependencies(
             // TODO(miaowang): support dynamic output shape only with memory domain.
             // For now just return empty output shapes.
             [r](ErrorStatus status) { return r->finishComputation(status, {}); });
+    close(syncFenceToSignal);
     if (n != ANEURALNETWORKS_NO_ERROR) {
         *event = nullptr;
     } else {

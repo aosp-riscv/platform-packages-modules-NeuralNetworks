@@ -996,9 +996,8 @@ int ExecutionBuilder::computeFenced(const std::vector<int>& waitFor,
     VLOG(EXECUTION) << "ExecutionBuilder::computeFenced";
     int result;
     const auto deadline = makeDeadline(mTimeoutDuration);
-    std::tie(result, mSyncFenceFd, mFencedExecutionCallback) =
+    std::tie(result, *syncFence, mFencedExecutionCallback) =
             computeFencedInternal(waitFor, timeoutDurationAfterFence, deadline);
-    *syncFence = mSyncFenceFd;
     // If there is an error, call finishComputation to mark the computation as completed.
     // Otherwise, we will call finishComputation in SyncFenceEvent::wait().
     if (result != ANEURALNETWORKS_NO_ERROR) {

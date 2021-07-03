@@ -166,8 +166,6 @@ class ExecutionBuilder {
 
     bool updateMemories();
 
-    bool hasSyncFence() const { return mSyncFenceFd > 0; }
-
     const ModelBuilder* mModel;
     const ExecutionPlan* mPlan;
 
@@ -242,10 +240,6 @@ class ExecutionBuilder {
     // It is only evaluated once at the first time it's needed.
     std::optional<bool> mOutputsFullySpecified;
     bool areOutputsFullySpecified();
-
-    // The sync fence fd that is created in the computeFenced call, if any.
-    // (Sometimes no sync fence fd will be created.)
-    int mSyncFenceFd = -1;
 
     // The callback used to query execution related info in the case of fenced
     // execution; otherwise, nullptr.  If the execution plan has multiple steps,

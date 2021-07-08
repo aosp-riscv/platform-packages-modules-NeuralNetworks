@@ -446,6 +446,9 @@ Result<Version> validate(OperationType opType, const IOperationValidationContext
     NN_RET_CHECK_EQ(context->getNumInputs(), kNumInputs);
     NN_RET_CHECK_EQ(context->getNumOutputs(), kNumOutputs);
     auto inputType = context->getInputType(kInputTensor1);
+    const Shape& input1 = context->getInputShape(kInputTensor1);
+    const Shape& input2 = context->getInputShape(kInputTensor2);
+    const Shape& output = context->getOutputShape(kOutputTensor);
     if (inputType == OperandType::TENSOR_FLOAT32) {
         minSupportedVersion = combineVersions(minSupportedVersion, Version::ANDROID_OC_MR1);
     } else if (inputType == OperandType::TENSOR_FLOAT16) {
@@ -456,22 +459,22 @@ Result<Version> validate(OperationType opType, const IOperationValidationContext
         } else if (opType == OperationType::DIV) {
             NN_RET_CHECK_FAIL() << "Unsupported tensor type for operation DIV";
         } else if (opType == OperationType::MUL) {
-            Shape output = context->getOutputShape(kOutputTensor);
-            Shape input1 = context->getInputShape(kInputTensor1);
-            Shape input2 = context->getInputShape(kInputTensor2);
             NN_RET_CHECK_GT(output.scale, input1.scale * input2.scale);
             minSupportedVersion = combineVersions(minSupportedVersion, Version::ANDROID_OC_MR1);
         } else {
             minSupportedVersion = combineVersions(minSupportedVersion, Version::ANDROID_OC_MR1);
         }
-    } else if (inputType == OperandType::TENSOR_QUANT8_ASYMM_SIGNED ||
-               inputType == OperandType::TENSOR_INT32) {
+    } else if (inputType == OperandType::TENSOR_QUANT8_ASYMM_SIGNED) {
+        if (opType == OperationType::MUL) {
+            NN_RET_CHECK_GT(output.scale, input1.scale * input2.scale);
+        }
+        minSupportedVersion = combineVersions(minSupportedVersion, Version::ANDROID_R);
+    } else if (inputType == OperandType::TENSOR_INT32) {
         minSupportedVersion = combineVersions(minSupportedVersion, Version::ANDROID_R);
     } else {
         NN_RET_CHECK_FAIL() << "Unsupported tensor type for operation " << opType;
     }
-    const Shape& input1 = context->getInputShape(kInputTensor1);
-    const Shape& input2 = context->getInputShape(kInputTensor2);
+
     if (hasKnownRank(input1) && hasKnownRank(input2)) {
         NN_RET_CHECK_LE(getNumberOfDimensions(input1), 4);
         NN_RET_CHECK_LE(getNumberOfDimensions(input2), 4);

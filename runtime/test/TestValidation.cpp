@@ -18,6 +18,7 @@
 #include <android-base/scopeguard.h>
 // android/log.h contains __INTRODUCED_IN() macro and must be included before
 // sharedmem.h
+#include <android/hardware_buffer.h>
 #include <android/log.h>
 #include <android/sharedmem.h>
 #include <gtest/gtest.h>
@@ -3750,6 +3751,38 @@ TEST_F(ValidationTestMemoryDesc, CreateMemory) {
     EXPECT_EQ(ANeuralNetworksMemory_createFromDesc(mDesc, &memory), ANEURALNETWORKS_BAD_STATE);
 
     ANeuralNetworksMemory_free(memory);
+}
+
+TEST(ValidationTestMemory, CreateFromFd) {
+    const size_t memorySize = 20;
+    int memoryFd = ASharedMemory_create("nnMemory", memorySize);
+    ASSERT_GT(memoryFd, 0);
+
+    EXPECT_EQ(ANeuralNetworksMemory_createFromFd(memorySize, PROT_READ | PROT_WRITE, memoryFd, 0,
+                                                 nullptr),
+              ANEURALNETWORKS_UNEXPECTED_NULL);
+
+    close(memoryFd);
+}
+
+TEST(ValidationTestMemory, CreateFromAHardwareBuffer) {
+    const size_t memorySize = 20;
+    AHardwareBuffer_Desc desc{
+            .width = memorySize,
+            .height = 1,
+            .layers = 1,
+            .format = AHARDWAREBUFFER_FORMAT_BLOB,
+            .usage = AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN | AHARDWAREBUFFER_USAGE_CPU_WRITE_OFTEN,
+    };
+    AHardwareBuffer* buffer = nullptr;
+    ASSERT_EQ(AHardwareBuffer_allocate(&desc, &buffer), 0);
+    EXPECT_EQ(ANeuralNetworksMemory_createFromAHardwareBuffer(buffer, nullptr),
+              ANEURALNETWORKS_UNEXPECTED_NULL);
+    AHardwareBuffer_release(buffer);
+
+    ANeuralNetworksMemory* memory = nullptr;
+    EXPECT_EQ(ANeuralNetworksMemory_createFromAHardwareBuffer(nullptr, &memory),
+              ANEURALNETWORKS_UNEXPECTED_NULL);
 }
 
 TEST_F(ValidationTestMemoryDesc, MemoryCopying) {

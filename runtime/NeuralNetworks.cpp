@@ -1021,7 +1021,13 @@ int ANeuralNetworksMemory_copy(const ANeuralNetworksMemory* src, const ANeuralNe
 int ANeuralNetworksMemory_createFromFd(size_t size, int prot, int fd, size_t offset,
                                        ANeuralNetworksMemory** memory) {
     NNTRACE_RT(NNTRACE_PHASE_PREPARATION, "ANeuralNetworksMemory_createFromFd");
-    *memory = nullptr;  // WARNING: b/138965390
+    if (memory != nullptr) {
+        *memory = nullptr;
+    }
+    if (!memory) {
+        LOG(ERROR) << "ANeuralNetworksMemory_createFromFd passed a nullptr";
+        return ANEURALNETWORKS_UNEXPECTED_NULL;
+    }
     int n = ANEURALNETWORKS_NO_ERROR;
     std::unique_ptr<MemoryFd> m;
     std::tie(n, m) = MemoryFd::create(size, prot, fd, offset);
@@ -1035,7 +1041,13 @@ int ANeuralNetworksMemory_createFromFd(size_t size, int prot, int fd, size_t off
 int ANeuralNetworksMemory_createFromAHardwareBuffer(const AHardwareBuffer* ahwb,
                                                     ANeuralNetworksMemory** memory) {
     NNTRACE_RT(NNTRACE_PHASE_PREPARATION, "ANeuralNetworksMemory_createFromAHardwareBuffer");
-    *memory = nullptr;  // WARNING: b/138965390
+    if (memory != nullptr) {
+        *memory = nullptr;
+    }
+    if (!ahwb || !memory) {
+        LOG(ERROR) << "ANeuralNetworksMemory_createFromAHardwareBuffer passed a nullptr";
+        return ANEURALNETWORKS_UNEXPECTED_NULL;
+    }
     int n = ANEURALNETWORKS_NO_ERROR;
     std::unique_ptr<MemoryAHWB> m;
     std::tie(n, m) = MemoryAHWB::create(*ahwb);

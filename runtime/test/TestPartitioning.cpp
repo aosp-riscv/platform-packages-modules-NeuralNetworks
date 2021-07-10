@@ -27,6 +27,7 @@
 #include <iostream>
 #include <map>
 #include <memory>
+#include <numeric>
 #include <queue>
 #include <set>
 #include <string>
@@ -639,6 +640,14 @@ std::vector<uint32_t> dimensions(Dimensioned dimensioned) {
     }
 }
 
+// "dimensioned" must be a fully specified kind
+uint32_t numberOfElements(Dimensioned dimensioned) {
+    auto dims = dimensions(dimensioned);
+    uint32_t result = std::reduce(dims.begin(), dims.end(), 1u, std::multiplies<>());
+    CHECK_GT(result, 0u);
+    return result;
+}
+
 std::string toString(Dimensioned dimensioned) {
     switch (dimensioned) {
         default:
@@ -692,6 +701,16 @@ class PartitioningModel : private WrapperModel {
     }
     uint32_t addBooleanOperand(Dimensioned dimensioned = Dimensioned::YES) {
         return addOperand(WrapperType::TENSOR_BOOL8, dimensioned);
+    }
+    uint32_t addFloatZeroOperand(Dimensioned dimensioned = Dimensioned::YES) {
+        uint32_t opnd = addFloatOperand(dimensioned);
+        std::vector<float> values(numberOfElements(dimensioned), 0.0f);
+        uint32_t size = values.size() * sizeof(float);
+        // Make sure the values are immediately copied so that it is safe to free the buffer after
+        // the setOperandValue call
+        CHECK_LE(size, ANEURALNETWORKS_MAX_SIZE_OF_IMMEDIATELY_COPIED_VALUES);
+        setOperandValue(opnd, values.data(), size);
+        return opnd;
     }
 
     // Create an operand of the specified type, and return the corresponding
@@ -2188,6 +2207,44 @@ TEST_F(PartitioningTest, Perf) {
          type <= static_cast<uint32_t>(V1_3::OperandTypeRange::OEM_MAX); ++type) {
         TestType(static_cast<V1_3::OperandType>(type));
     }
+}
+
+TEST_F(PartitioningTest, ZeroInputStepModel) {
+    PartitioningModel model;
+    const uint32_t opnd0 = model.addFloatZeroOperand();
+    const uint32_t opnd1 = model.addOperation1To1V1_3(0, opnd0);
+    const uint32_t opnd2 = model.addFloatOperand();
+    const uint32_t opnd3 = model.addOperation2To1V1_0(1, opnd1, opnd2);
+    model.identifyInputsAndOutputs({opnd2}, {opnd3});
+    ASSERT_EQ(model.finish(), Result::NO_ERROR);
+
+    // This will result in 2 partitions: deviceA handles op0, deviceB handles op1.
+    // The partition for deviceA does not have any model input, and should result in full CPU
+    // fallback.
+    const auto devices = makeDevices({{"deviceA", 0.8, ~0U}, {"deviceB", 0.5, 1 << 1}});
+    PartitioningCompilation compilation(&model, devices);
+    ASSERT_EQ(compilation.finish(), Result::NO_ERROR);
+    const auto& cpuDeviceName = DeviceManager::getCpuDevice()->getName();
+    checkExecutionPlanSteps(compilation.getExecutionPlan(), {cpuDeviceName});
+}
+
+TEST_F(PartitioningTest, ZeroOutputStepModel) {
+    PartitioningModel model;
+    const uint32_t opnd0 = model.addFloatOperand();
+    const uint32_t opnd1 = model.addOperation1To1V1_3(0, opnd0);
+    const uint32_t opnd2 = model.addFloatOperand();
+    model.addOperation2To1V1_0(1, opnd1, opnd2);
+    model.identifyInputsAndOutputs({opnd0, opnd2}, {opnd1});
+    ASSERT_EQ(model.finish(), Result::NO_ERROR);
+
+    // This will result in 2 partitions: deviceA handles op0, deviceB handles op1.
+    // The partition for deviceB does not have any model output, and should result in full CPU
+    // fallback.
+    const auto devices = makeDevices({{"deviceA", 0.8, ~0U}, {"deviceB", 0.5, 1 << 1}});
+    PartitioningCompilation compilation(&model, devices);
+    ASSERT_EQ(compilation.finish(), Result::NO_ERROR);
+    const auto& cpuDeviceName = DeviceManager::getCpuDevice()->getName();
+    checkExecutionPlanSteps(compilation.getExecutionPlan(), {cpuDeviceName});
 }
 
 // Test dynamic temporaries and related parts of the partitioning implementation.

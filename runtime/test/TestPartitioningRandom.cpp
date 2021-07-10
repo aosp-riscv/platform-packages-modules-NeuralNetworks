@@ -1113,28 +1113,41 @@ TEST_P(RandomPartitioningTest, Test) {
 
     // Partitioned compilation.
     //
-    // For a test case without both (a) unknown intermediate operand sizes and
-    // (b) partitions scheduled on pre-HAL 1.2 (pre-Android Q) devices, we
-    // require the partitioning to succeed without CPU fallback.  For a test
-    // case with both (a) and (b), we retry with a fallback if the non-fallback
-    // partitioning fails and require the fallback to succeed.
+    // If a test case has both (a) unknown intermediate operand sizes and
+    // (b) partitions scheduled on pre-HAL 1.2 (pre-Android Q) devices, fallback
+    // is needed if the non-fallback partitioning fails.
     //
     // The issue is that prior to HAL 1.2, an output operand must have a known
     // size provided either in the Model or in the Request; and in the case of
     // partitioning, an intermediate operand of the original model that becomes
     // an output operand of a partition won't have a known size provided in the
     // Request.
+    //
+    // If a test case has a step model with no inputs or no outputs, fallback is needed.
+    // This is because our HAL specification requires a model to have at least one
+    // input and one output.
+    //
+    // If a fallback is needed, we retry the compilation with a fallback and require
+    // the fallback to succeed. Otherwise, we require the partitioning to succeed
+    // without CPU fallback.
     TestCompilation cNoFallback(&model, devices);
     TestCompilation cWithFallback(&model, devices);
-    bool fallbackNeeded = false;
     ASSERT_EQ(cNoFallback.setPartitioning(DeviceManager::kPartitioningWithoutFallback),
               Result::NO_ERROR);
     auto compilationResult = cNoFallback.finish();
-    if (compilationResult == Result::OP_FAILED && hasUnknownDimensions &&
-        cNoFallback.getExecutionPlan().hasDynamicTemporaries() &&
-        std::any_of(devices.begin(), devices.end(), [](const std::shared_ptr<Device>& device) {
-            return device->getFeatureLevel() < nn::kHalVersionV1_2ToApi.featureLevel;
-        })) {
+    const bool fallbackNeededForDynamicTemporaries =
+            compilationResult == Result::OP_FAILED && hasUnknownDimensions &&
+            cNoFallback.getExecutionPlan().hasDynamicTemporaries() &&
+            std::any_of(devices.begin(), devices.end(), [](const std::shared_ptr<Device>& device) {
+                return device->getFeatureLevel() < nn::kHalVersionV1_2ToApi.featureLevel;
+            });
+    const bool fallbackNeededForStepModelWithNoInputsOrNoOutputs =
+            cNoFallback.getExecutionPlan().forTest_hasStepModelWithNoInputsOrNoOutputs();
+    const bool fallbackNeeded = fallbackNeededForDynamicTemporaries ||
+                                fallbackNeededForStepModelWithNoInputsOrNoOutputs;
+    if (fallbackNeeded) {
+        ASSERT_EQ(compilationResult, Result::OP_FAILED);
+
         ASSERT_EQ(cWithFallback.setPartitioning(DeviceManager::kPartitioningWithFallback),
                   Result::NO_ERROR);
         compilationResult = cWithFallback.finish();
@@ -1142,7 +1155,6 @@ TEST_P(RandomPartitioningTest, Test) {
         ASSERT_EQ(cWithFallback.getExecutionPlan().forTest_getKind(), ExecutionPlan::Kind::SIMPLE);
         ASSERT_EQ(cWithFallback.getExecutionPlan().forTest_simpleGetDevice(),
                   DeviceManager::getCpuDevice());
-        fallbackNeeded = true;
     } else {
         ASSERT_EQ(compilationResult, Result::NO_ERROR);
 

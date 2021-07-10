@@ -766,6 +766,15 @@ int ExecutionStep::finishStepModel(const ModelBuilder* mainModel, bool* hasOutpu
     mStepModelOutputs.insert(mStepModelOutputs.end(), mTempsAsStepModelOutputs.begin(),
                              mTempsAsStepModelOutputs.end());
 
+    // A step model with no inputs or no outputs is an invalid model. Note that we would like to
+    // attempt full CPU fallback if allowed, so we return OP_FAILED here rather than BAD_DATA from
+    // model validation.
+    if (hasNoInputsOrNoOutputs()) {
+        VLOG(COMPILATION) << "ExecutionStep::finishStepModel: finishing step model with no inputs "
+                             "or no outputs";
+        return ANEURALNETWORKS_OP_FAILED;
+    }
+
     if (mSourceModelIndex == kMainModelInSourceModels) {
         std::map<uint32_t, uint32_t> mainModelOperandToInputIndex;
         for (uint32_t i = 0, n = mainModel->inputCount(); i < n; ++i) {
@@ -1950,6 +1959,17 @@ std::set<uint32_t> ExecutionPlan::forTest_flatGetDynamicTemporaries() const {
 
 bool ExecutionPlan::hasDynamicTemporaries() const {
     return mBody->hasDynamicTemporaries();
+}
+
+bool ExecutionPlan::forTest_hasStepModelWithNoInputsOrNoOutputs() const {
+    return mBody->hasStepModelWithNoInputsOrNoOutputs();
+}
+
+bool ExecutionPlan::CompoundBody::hasStepModelWithNoInputsOrNoOutputs() const {
+    return std::any_of(mSteps.begin(), mSteps.end(), [](const auto& logicalStep) {
+        const ExecutionStep* step = logicalStep->tryExecutionStep();
+        return step != nullptr && step->hasNoInputsOrNoOutputs();
+    });
 }
 
 const uint8_t* ExecutionPlan::forTest_simpleGetCacheToken() const {

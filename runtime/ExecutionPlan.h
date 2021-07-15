@@ -304,6 +304,10 @@ class ExecutionStep {
             const std::map<SourceOperandIndex, ConstantReferenceLocation>&
                     sourceOperandToConstantReference) const;
 
+    bool hasNoInputsOrNoOutputs() const {
+        return mStepModelInputs.empty() || mStepModelOutputs.empty();
+    }
+
     void dump() const;
 
     // For test only, get the transformed cache token.
@@ -773,6 +777,7 @@ class ExecutionPlan {
     //     model not contain any control flow operations.
     std::set<uint32_t> forTest_flatGetDynamicTemporaries() const;
     const uint8_t* forTest_simpleGetCacheToken() const;
+    bool forTest_hasStepModelWithNoInputsOrNoOutputs() const;
 
    private:
     // Becomes a new COMPOUND step if mState == EMPTY, otherwise does nothing.
@@ -831,6 +836,7 @@ class ExecutionPlan {
                            int32_t priority, const OptionalTimePoint& deadline,
                            int simulateFailureResultCode) = 0;
         virtual bool hasDynamicTemporaries() const = 0;
+        virtual bool hasStepModelWithNoInputsOrNoOutputs() const = 0;
         virtual void forEachStepRoleOfInput(uint32_t index,
                                             const StepRoleCallback& callback) const = 0;
         virtual void forEachStepRoleOfOutput(uint32_t index,
@@ -847,6 +853,7 @@ class ExecutionPlan {
         int finish(const SourceModels* sourceModels, int32_t executionPreference, int32_t priority,
                    const OptionalTimePoint& deadline, int simulateFailureResultCode) override;
         bool hasDynamicTemporaries() const override { return false; }
+        bool hasStepModelWithNoInputsOrNoOutputs() const override { return false; }
         void forEachStepRoleOfInput(uint32_t index,
                                     const StepRoleCallback& callback) const override;
         void forEachStepRoleOfOutput(uint32_t index,
@@ -867,6 +874,7 @@ class ExecutionPlan {
         int finish(const SourceModels* sourceModels, int32_t executionPreference, int32_t priority,
                    const OptionalTimePoint& deadline, int simulateFailureResultCode) override;
         bool hasDynamicTemporaries() const override { return mHasDynamicTemporaries; }
+        bool hasStepModelWithNoInputsOrNoOutputs() const override;
         void forEachStepRoleOfInput(uint32_t index,
                                     const StepRoleCallback& callback) const override;
         void forEachStepRoleOfOutput(uint32_t index,

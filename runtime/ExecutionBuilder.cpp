@@ -906,7 +906,7 @@ std::tuple<int, int, ExecuteFencedInfoCallback> CompoundExecutionBuilder::comput
 
     // Initiate waitForFds, syncFence for the first step.
     std::vector<int> waitForFds = waitFor;
-    int syncFence = -1;
+    base::unique_fd syncFence;
     ExecuteFencedInfoCallback executeFencedInfoCallback;
 
     std::shared_ptr<ExecutionPlan::Controller> controller = mPlan->makeController(this, nullptr);
@@ -915,7 +915,7 @@ std::tuple<int, int, ExecuteFencedInfoCallback> CompoundExecutionBuilder::comput
 
         // Get the current step of the execution.
         std::shared_ptr<StepExecutor> executor;
-        int n = mPlan->next(controller, &executor, nullptr, nullptr, syncFence);
+        int n = mPlan->next(controller, &executor, nullptr, nullptr, syncFence.get());
         if (n != ANEURALNETWORKS_NO_ERROR) {
             // During the interpreted execution of control flow, a loop timeout
             // might occur in ExecutionPlan::next().
@@ -929,7 +929,7 @@ std::tuple<int, int, ExecuteFencedInfoCallback> CompoundExecutionBuilder::comput
         // If the code reached the end of the plan without error, then return
         // with no error.
         if (executor == nullptr) {
-            return {ANEURALNETWORKS_NO_ERROR, syncFence, executeFencedInfoCallback};
+            return {ANEURALNETWORKS_NO_ERROR, syncFence.release(), executeFencedInfoCallback};
         }
 
         // Attempt to compute a single step of the execution.
@@ -937,10 +937,10 @@ std::tuple<int, int, ExecuteFencedInfoCallback> CompoundExecutionBuilder::comput
                 executor->computeFenced(waitForFds, timeoutDurationAfterFence, deadline);
 
         // Update waitForFds, syncFence for the next step.
-        syncFence = syncFd;
+        syncFence.reset(syncFd);
         executeFencedInfoCallback = callback;
         waitForFds.clear();
-        if (syncFd > 0) {
+        if (syncFd >= 0) {
             waitForFds = {syncFd};
         }
 
@@ -966,8 +966,7 @@ std::tuple<int, int, ExecuteFencedInfoCallback> CompoundExecutionBuilder::comput
         return {ANEURALNETWORKS_OP_FAILED, -1, nullptr};
     }
     auto [fullN, fullOutputShapes, _] = cpuFallbackFull(this);
-    syncFence = -1;
-    return {fullN, syncFence, nullptr};
+    return {fullN, -1, nullptr};
 }
 
 int ExecutionBuilder::computeFenced(const std::vector<int>& waitFor,

@@ -103,7 +103,7 @@ cc_library_static {
         "tensorflow_headers",
     ],
     shared_libs: [
-        "android.hardware.neuralnetworks-V1-ndk_platform",
+        "android.hardware.neuralnetworks-V1-ndk",
         "android.hardware.neuralnetworks@1.0",
         "android.hardware.neuralnetworks@1.1",
         "android.hardware.neuralnetworks@1.2",
@@ -198,7 +198,7 @@ cc_library_static {
         "operations/Tile.cpp",
     ],
     shared_libs: [
-        "android.hardware.neuralnetworks-V1-ndk_platform",
+        "android.hardware.neuralnetworks-V1-ndk",
         "android.hardware.neuralnetworks@1.0",
         "android.hardware.neuralnetworks@1.1",
         "android.hardware.neuralnetworks@1.2",
@@ -485,7 +485,7 @@ cc_defaults {
         "libutils",
     ],
     static_libs: [
-        "android.hardware.neuralnetworks-V1-ndk_platform",
+        "android.hardware.neuralnetworks-V1-ndk",
         "android.hardware.neuralnetworks@1.0",
         "android.hardware.neuralnetworks@1.1",
         "android.hardware.neuralnetworks@1.2",

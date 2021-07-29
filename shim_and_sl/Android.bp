@@ -66,8 +66,8 @@ cc_library_static {
         "include",
     ],
     static_libs: [
-        "android.hardware.common-V2-ndk_platform",
-        "android.hardware.neuralnetworks-V1-ndk_platform",
+        "android.hardware.common-V2-ndk",
+        "android.hardware.neuralnetworks-V1-ndk",
         "libaidlcommonsupport",
         "libarect",
         "libcutils",

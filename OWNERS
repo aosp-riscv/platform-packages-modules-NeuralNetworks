@@ -9,5 +9,6 @@ pszczepaniak@google.com
 slavash@google.com
 vddang@google.com
 xusongw@google.com
+ianhua@google.com
 
 include platform/packages/modules/common:/MODULES_OWNERS  # see go/mainline-owners-policy

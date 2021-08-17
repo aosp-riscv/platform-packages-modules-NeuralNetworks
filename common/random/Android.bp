@@ -20,7 +20,7 @@ package {
 
 cc_library_headers {
     name: "philox_random_headers",
-    host_supported: false,
+    host_supported: true,
     vendor_available: true,
     export_include_dirs: ["."],
     apex_available: [
@@ -32,7 +32,7 @@ cc_library_headers {
 
 cc_library_static {
     name: "philox_random",
-    host_supported: false,
+    host_supported: true,
     vendor_available: true,
     apex_available: [
         "//apex_available:platform",

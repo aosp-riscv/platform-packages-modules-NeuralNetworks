@@ -45,6 +45,7 @@
 #include "ModelBuilder.h"
 #include "NeuralNetworksExtensions.h"
 #include "NeuralNetworksOEM.h"
+#include "Telemetry.h"
 
 #ifdef NN_COMPATIBILITY_LIBRARY_BUILD
 #include "NeuralNetworksSupportLibraryImpl.h"
@@ -1251,7 +1252,10 @@ int ANeuralNetworksCompilation_finish(ANeuralNetworksCompilation* compilation) {
         return ANEURALNETWORKS_UNEXPECTED_NULL;
     }
     CompilationBuilder* c = reinterpret_cast<CompilationBuilder*>(compilation);
-    return c->finish();
+    int result = c->finish();
+    telemetry::onCompilationFinish(c, result);
+
+    return result;
 }
 
 int ANeuralNetworksCompilation_setPriority(ANeuralNetworksCompilation* compilation, int priority) {
@@ -1607,7 +1611,9 @@ int ANeuralNetworksExecution_startComputeWithDependencies(
             syncFenceToSignal, r->getExecuteFencedInfoCallback(),
             // TODO(miaowang): support dynamic output shape only with memory domain.
             // For now just return empty output shapes.
-            [r](ErrorStatus status) { return r->finishComputation(status, {}); });
+            [r](ErrorStatus status) {
+                return r->finishComputation(status, {}, ExecutionMode::ASYNC_WITH_DEPS);
+            });
     close(syncFenceToSignal);
     if (n != ANEURALNETWORKS_NO_ERROR) {
         *event = nullptr;

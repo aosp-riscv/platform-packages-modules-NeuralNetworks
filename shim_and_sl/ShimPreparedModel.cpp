@@ -240,6 +240,14 @@ class ShimFencedExecutionCallback : public BnFencedExecutionCallback {
                        return r;
                    });
 
+    const auto guard = ::android::base::make_scope_guard([this, deps] {
+        for (auto& dep : deps) {
+            if (dep != nullptr) {
+                mNnapi->ANeuralNetworksEvent_free(const_cast<ANeuralNetworksEvent*>(dep));
+            }
+        }
+    });
+
     SLW2SAS_RETURN_IF_ERROR(createResult);
 
     Event e(mNnapi.get());

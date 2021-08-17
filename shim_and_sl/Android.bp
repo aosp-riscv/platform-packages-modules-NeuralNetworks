@@ -21,6 +21,7 @@
 
 cc_library_headers {
     name: "neuralnetworks_supportlibrary_types_ndk",
+    host_supported: false,
     export_include_dirs: ["public"],
     licenses: ["Android-Apache-2.0"],
     sdk_version: "current",
@@ -66,8 +67,8 @@ cc_library_static {
         "include",
     ],
     static_libs: [
-        "android.hardware.common-V2-ndk_platform",
-        "android.hardware.neuralnetworks-V1-ndk_platform",
+        "android.hardware.common-V2-ndk",
+        "android.hardware.neuralnetworks-V1-ndk",
         "libaidlcommonsupport",
         "libarect",
         "libcutils",
@@ -91,6 +92,7 @@ cc_library_static {
 
 cc_library_static {
     name: "neuralnetworks_supportlibrary_loader",
+    host_supported: false,
     srcs: [
         "SupportLibrary.cpp",
         "SupportLibraryWrapper.cpp",

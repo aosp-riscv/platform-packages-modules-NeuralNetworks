@@ -42,13 +42,16 @@
  *   - DO NOT CHANGE THE LAYOUT OR SIZE OF STRUCTURES
  */
 
-#include <android/hardware_buffer.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/cdefs.h>
 
 #include "NeuralNetworksTypes.h"
+
+#ifdef __ANDROID__
+#include <android/hardware_buffer.h>
+#endif  // __ANDROID__
 
 // This is required for building libneuralnetworks_cl,
 // the symbols have same names as in NDK, but
@@ -59,11 +62,8 @@
 #define __NNAPI_INTRODUCED_IN(x) __INTRODUCED_IN(x)
 #endif
 
-// TODO: replace __ANDROID_API_FUTURE__with 31 when it's official (b/178144708)
-// This is required for __builtin_available guards around functionality
-// introduced in FL5/API31.
 #ifndef __NNAPI_FL5_MIN_ANDROID_API__
-#define __NNAPI_FL5_MIN_ANDROID_API__ __ANDROID_API_FUTURE__
+#define __NNAPI_FL5_MIN_ANDROID_API__ __ANDROID_API_S__
 #endif
 
 __BEGIN_DECLS
@@ -759,9 +759,11 @@ int ANeuralNetworksExecution_burstCompute(ANeuralNetworksExecution* execution,
  *
  * @see AHardwareBuffer
  */
+#ifdef __ANDROID__
 int ANeuralNetworksMemory_createFromAHardwareBuffer(const AHardwareBuffer* ahwb,
                                                     ANeuralNetworksMemory** memory)
         __NNAPI_INTRODUCED_IN(29);
+#endif  // __ANDROID__
 
 /**
 

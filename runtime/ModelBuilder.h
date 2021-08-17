@@ -26,6 +26,7 @@
 #include <vector>
 
 #include "Memory.h"
+#include "ModelArchHasher.h"
 #include "NeuralNetworks.h"
 
 namespace android {
@@ -64,6 +65,7 @@ class ModelBuilder {
 
     bool hasOEMOperation() const { return mHasOEMOperation; }
     bool hasExtensionOperation() const { return mHasExtensionOperation; }
+    bool hasControlFlow() const { return mHasControlFlow; }
 
     // explicitDeviceList is true if the list of devices was provided explicitly
     // via the ANeuralNetworksModel_createForDevices API (which has certain
@@ -130,6 +132,8 @@ class ModelBuilder {
     int partitionTheWork(const std::vector<std::shared_ptr<Device>>& devices, uint32_t preference,
                          uint32_t priority, const OptionalTimePoint& deadline, ExecutionPlan* plan,
                          int simulateFailureResultCode = ANEURALNETWORKS_NO_ERROR) const;
+
+    const uint8_t* getModelArchHash() const;
 
    private:
     // TODO(b/132322449): move partitionTheWork, findBestDeviceForEachOperation,
@@ -234,6 +238,12 @@ class ModelBuilder {
     // Main subgraphs of models referenced by operands in this model. Required
     // for validateOperation().
     std::vector<Model::Subgraph> mReferencedSubgraphsForValidation;
+
+    // Does the model contain control flow operands or operations?
+    bool mHasControlFlow = false;
+
+    // Model architecture hash, used for telemetry.
+    uint8_t mModelArchHash[BYTE_SIZE_OF_MODEL_ARCH_HASH];
 
     class ModelMaker;
 };

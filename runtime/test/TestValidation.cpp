@@ -18,7 +18,6 @@
 #include <android-base/scopeguard.h>
 // android/log.h contains __INTRODUCED_IN() macro and must be included before
 // sharedmem.h
-#include <android/hardware_buffer.h>
 #include <android/log.h>
 #include <android/sharedmem.h>
 #include <gtest/gtest.h>
@@ -35,6 +34,13 @@
 #include "AndroidVersionUtil.h"
 #include "NeuralNetworks.h"
 #include "NeuralNetworksOEM.h"
+#include "TmpDirectoryUtils.h"
+
+#ifdef __ANDROID__
+#include <android/hardware_buffer.h>
+#else  // __ANDROID__
+#include <android-base/file.h>
+#endif  // __ANDROID__
 
 #ifndef NNTEST_ONLY_PUBLIC_API
 #include "NeuralNetworksExtensions.h"
@@ -249,7 +255,13 @@ class ValidationTestMemoryDesc : public ValidationTestCompilation {
     }
 
     ANeuralNetworksMemory* createAshmem(uint32_t size) {
+#ifdef __ANDROID__
         int fd = ASharedMemory_create("nnMemory", size);
+#else   // __ANDROID__
+        TemporaryFile tmpFile;
+        int fd = tmpFile.release();
+        CHECK_EQ(ftruncate(fd, size), 0);
+#endif  // __ANDROID__
         EXPECT_GT(fd, 0);
         mFds.push_back(fd);
         ANeuralNetworksMemory* ashmem = nullptr;
@@ -610,7 +622,13 @@ TEST_F(ValidationTestModel, SetOperandValueFromMemory) {
     EXPECT_EQ(ANeuralNetworksModel_addOperand(mModel, &floatType), ANEURALNETWORKS_NO_ERROR);
 
     const size_t memorySize = 20;
+#ifdef __ANDROID__
     int memoryFd = ASharedMemory_create("nnMemory", memorySize);
+#else   // __ANDROID__
+    TemporaryFile tmpFile;
+    int memoryFd = tmpFile.release();
+    CHECK_EQ(ftruncate(memoryFd, memorySize), 0);
+#endif  // __ANDROID__
     ASSERT_GT(memoryFd, 0);
 
     ANeuralNetworksMemory* memory;
@@ -655,6 +673,7 @@ TEST_F(ValidationTestModel, SetOperandValueFromMemory) {
     close(memoryFd);
 }
 
+#ifdef __ANDROID__
 TEST_F(ValidationTestModel, SetOperandValueFromAHardwareBuffer) {
     uint32_t dimensions[]{1};
     ANeuralNetworksOperandType quant8Type{.type = ANEURALNETWORKS_TENSOR_QUANT8_ASYMM,
@@ -724,6 +743,7 @@ TEST_F(ValidationTestModel, SetOperandValueFromAHardwareBufferBlob) {
     ANeuralNetworksMemory_free(memory);
     AHardwareBuffer_release(buffer);
 }
+#endif  // __ANDROID__
 
 TEST_F(ValidationTestModel, SetOperandValueFromModel) {
     uint32_t dimensions[] = {2};
@@ -1110,11 +1130,11 @@ TEST_F(ValidationTestCompilation, SetPreference) {
 // Also see TEST_F(ValidationTestCompilationForDevices_1, SetCaching)
 TEST_F(ValidationTestCompilation, SetCaching) {
     std::vector<uint8_t> token(ANEURALNETWORKS_BYTE_SIZE_OF_CACHE_TOKEN, 0);
-    EXPECT_EQ(ANeuralNetworksCompilation_setCaching(nullptr, "/data/local/tmp", token.data()),
+    EXPECT_EQ(ANeuralNetworksCompilation_setCaching(nullptr, NN_TMP_DIR, token.data()),
               ANEURALNETWORKS_UNEXPECTED_NULL);
     EXPECT_EQ(ANeuralNetworksCompilation_setCaching(mCompilation, nullptr, token.data()),
               ANEURALNETWORKS_UNEXPECTED_NULL);
-    EXPECT_EQ(ANeuralNetworksCompilation_setCaching(mCompilation, "/data/local/tmp", nullptr),
+    EXPECT_EQ(ANeuralNetworksCompilation_setCaching(mCompilation, NN_TMP_DIR, nullptr),
               ANEURALNETWORKS_UNEXPECTED_NULL);
 }
 
@@ -1235,7 +1255,7 @@ TEST_F(ValidationTestCompilation, Finish) {
     EXPECT_EQ(ANeuralNetworksCompilation_setTimeout(mCompilation, kShortWaitInNanoseconds),
               ANEURALNETWORKS_BAD_STATE);
     std::vector<uint8_t> token(ANEURALNETWORKS_BYTE_SIZE_OF_CACHE_TOKEN, 0);
-    EXPECT_EQ(ANeuralNetworksCompilation_setCaching(mCompilation, "/data/local/tmp", token.data()),
+    EXPECT_EQ(ANeuralNetworksCompilation_setCaching(mCompilation, NN_TMP_DIR, token.data()),
               ANEURALNETWORKS_BAD_STATE);
     EXPECT_EQ(ANeuralNetworksCompilation_finish(mCompilation), ANEURALNETWORKS_BAD_STATE);
 }
@@ -1310,7 +1330,13 @@ TEST_F(ValidationTestCompilation, ExecutionUsability) {
                     ANEURALNETWORKS_NO_ERROR);
 
             const size_t memorySize = std::max(sizeof(in0), sizeof(out0));
+#ifdef __ANDROID__
             int memoryFd = ASharedMemory_create("nnMemory", memorySize);
+#else   // __ANDROID__
+            TemporaryFile tmpFile;
+            int memoryFd = tmpFile.release();
+            CHECK_EQ(ftruncate(memoryFd, memorySize), 0);
+#endif  // __ANDROID__
             ASSERT_GT(memoryFd, 0);
             ANeuralNetworksMemory* memory;
             EXPECT_EQ(ANeuralNetworksMemory_createFromFd(memorySize, PROT_READ | PROT_WRITE,
@@ -1673,7 +1699,13 @@ TEST_F(ValidationTestExecution, SetOutputEnablePadding) {
 
 TEST_F(ValidationTestExecution, SetInputFromMemory) {
     const size_t memorySize = 20;
+#ifdef __ANDROID__
     int memoryFd = ASharedMemory_create("nnMemory", memorySize);
+#else   // __ANDROID__
+    TemporaryFile tmpFile;
+    int memoryFd = tmpFile.release();
+    CHECK_EQ(ftruncate(memoryFd, memorySize), 0);
+#endif  // __ANDROID__
     ASSERT_GT(memoryFd, 0);
 
     ANeuralNetworksMemory* memory;
@@ -1738,7 +1770,13 @@ TEST_F(ValidationTestExecution, SetInputFromMemory) {
 TEST_F(ValidationTestExecution, SetInputFromMemoryEnablePadding) {
     if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
         const size_t memorySize = 20;
+#ifdef __ANDROID__
         int memoryFd = ASharedMemory_create("nnMemory", memorySize);
+#else   // __ANDROID__
+        TemporaryFile tmpFile;
+        int memoryFd = tmpFile.release();
+        CHECK_EQ(ftruncate(memoryFd, memorySize), 0);
+#endif  // __ANDROID__
         ASSERT_GT(memoryFd, 0);
 
         ANeuralNetworksMemory* memory;
@@ -1762,6 +1800,7 @@ TEST_F(ValidationTestExecution, SetInputFromMemoryEnablePadding) {
     }
 }
 
+#ifdef __ANDROID__
 TEST_F(ValidationTestExecution, SetInputFromAHardwareBufferBlob) {
     const size_t memorySize = 20;
 
@@ -1842,13 +1881,20 @@ TEST_F(ValidationTestExecution, SetInputFromAHardwareBufferBlobEnablePadding) {
         GTEST_SKIP();
     }
 }
+#endif  // __ANDROID__
 
 TEST_F(ValidationTestExecution, SetOutputFromMemory) {
     ANeuralNetworksExecution* execution;
     EXPECT_EQ(ANeuralNetworksExecution_create(mCompilation, &execution), ANEURALNETWORKS_NO_ERROR);
 
     const size_t memorySize = 20;
+#ifdef __ANDROID__
     int memoryFd = ASharedMemory_create("nnMemory", memorySize);
+#else   // __ANDROID__
+    TemporaryFile tmpFile;
+    int memoryFd = tmpFile.release();
+    CHECK_EQ(ftruncate(memoryFd, memorySize), 0);
+#endif  // __ANDROID__
     ASSERT_GT(memoryFd, 0);
 
     ANeuralNetworksMemory* memory;
@@ -1918,7 +1964,13 @@ TEST_F(ValidationTestExecution, SetOutputFromMemoryEnablePadding) {
                   ANEURALNETWORKS_NO_ERROR);
 
         const size_t memorySize = 20;
+#ifdef __ANDROID__
         int memoryFd = ASharedMemory_create("nnMemory", memorySize);
+#else   // __ANDROID__
+        TemporaryFile tmpFile;
+        int memoryFd = tmpFile.release();
+        CHECK_EQ(ftruncate(memoryFd, memorySize), 0);
+#endif  // __ANDROID__
         ASSERT_GT(memoryFd, 0);
 
         ANeuralNetworksMemory* memory;
@@ -1943,6 +1995,7 @@ TEST_F(ValidationTestExecution, SetOutputFromMemoryEnablePadding) {
     }
 }
 
+#ifdef __ANDROID__
 TEST_F(ValidationTestExecution, SetOutputFromAHardwareBufferBlob) {
     const size_t memorySize = 20;
 
@@ -2024,13 +2077,20 @@ TEST_F(ValidationTestExecution, SetOutputFromAHardwareBufferBlobEnablePadding) {
         GTEST_SKIP();
     }
 }
+#endif  // __ANDROID__
 
 TEST_F(ValidationTestExecution, EnablePaddingAfterSetInputOutput) {
     if (__builtin_available(android __NNAPI_FL5_MIN_ANDROID_API__, *)) {
         ANeuralNetworksExecution* execution;
         char buffer[20];
         const size_t memorySize = 20;
+#ifdef __ANDROID__
         int memoryFd = ASharedMemory_create("nnMemory", memorySize);
+#else   // __ANDROID__
+        TemporaryFile tmpFile;
+        int memoryFd = tmpFile.release();
+        CHECK_EQ(ftruncate(memoryFd, memorySize), 0);
+#endif  // __ANDROID__
         ASSERT_GT(memoryFd, 0);
 
         ANeuralNetworksMemory* memory;
@@ -2622,7 +2682,13 @@ TEST_F(ValidationTestBurst, FreeMemoryBeforeBurst) {
     int32_t input2[] = {0};
 
     const size_t memorySize = sizeof(output0);
+#ifdef __ANDROID__
     int memoryFd = ASharedMemory_create("nnMemory", memorySize);
+#else   // __ANDROID__
+    TemporaryFile tmpFile;
+    int memoryFd = tmpFile.release();
+    CHECK_EQ(ftruncate(memoryFd, memorySize), 0);
+#endif  // __ANDROID__
     ASSERT_GT(memoryFd, 0);
 
     ANeuralNetworksMemory* memory;
@@ -2663,7 +2729,13 @@ TEST_F(ValidationTestBurst, FreeBurstBeforeMemory) {
     float input0[] = {1.0f, 1.0f}, input1[] = {2.0f, 2.0f}, output0[2];
     int32_t input2[] = {0};
     const size_t memorySize = sizeof(output0);
+#ifdef __ANDROID__
     int memoryFd = ASharedMemory_create("nnMemory", memorySize);
+#else   // __ANDROID__
+    TemporaryFile tmpFile;
+    int memoryFd = tmpFile.release();
+    CHECK_EQ(ftruncate(memoryFd, memorySize), 0);
+#endif  // __ANDROID__
     ASSERT_GT(memoryFd, 0);
 
     ANeuralNetworksMemory* memory;
@@ -2858,14 +2930,14 @@ TEST_F(ValidationTestCompilationForDevices_1, SetPreference) {
 // Also see TEST_F(ValidationTestCompilation, SetCaching)
 TEST_F(ValidationTestCompilationForDevices_1, SetCaching) {
     std::vector<uint8_t> token(ANEURALNETWORKS_BYTE_SIZE_OF_CACHE_TOKEN, 0);
-    EXPECT_EQ(ANeuralNetworksCompilation_setCaching(nullptr, "/data/local/tmp", token.data()),
+    EXPECT_EQ(ANeuralNetworksCompilation_setCaching(nullptr, NN_TMP_DIR, token.data()),
               ANEURALNETWORKS_UNEXPECTED_NULL);
     if (!mCompilation) {
         return;
     }
     EXPECT_EQ(ANeuralNetworksCompilation_setCaching(mCompilation, nullptr, token.data()),
               ANEURALNETWORKS_UNEXPECTED_NULL);
-    EXPECT_EQ(ANeuralNetworksCompilation_setCaching(mCompilation, "/data/local/tmp", nullptr),
+    EXPECT_EQ(ANeuralNetworksCompilation_setCaching(mCompilation, NN_TMP_DIR, nullptr),
               ANEURALNETWORKS_UNEXPECTED_NULL);
 }
 
@@ -2898,7 +2970,7 @@ TEST_F(ValidationTestCompilationForDevices_1, Finish) {
     EXPECT_EQ(ANeuralNetworksCompilation_setTimeout(mCompilation, kShortWaitInNanoseconds),
               ANEURALNETWORKS_BAD_STATE);
     std::vector<uint8_t> token(ANEURALNETWORKS_BYTE_SIZE_OF_CACHE_TOKEN, 0);
-    EXPECT_EQ(ANeuralNetworksCompilation_setCaching(mCompilation, "/data/local/tmp", token.data()),
+    EXPECT_EQ(ANeuralNetworksCompilation_setCaching(mCompilation, NN_TMP_DIR, token.data()),
               ANEURALNETWORKS_BAD_STATE);
     EXPECT_EQ(ANeuralNetworksCompilation_finish(mCompilation), ANEURALNETWORKS_BAD_STATE);
 }
@@ -3755,7 +3827,13 @@ TEST_F(ValidationTestMemoryDesc, CreateMemory) {
 
 TEST(ValidationTestMemory, CreateFromFd) {
     const size_t memorySize = 20;
+#ifdef __ANDROID__
     int memoryFd = ASharedMemory_create("nnMemory", memorySize);
+#else   // __ANDROID__
+    TemporaryFile tmpFile;
+    int memoryFd = tmpFile.release();
+    CHECK_EQ(ftruncate(memoryFd, memorySize), 0);
+#endif  // __ANDROID__
     ASSERT_GT(memoryFd, 0);
 
     EXPECT_EQ(ANeuralNetworksMemory_createFromFd(memorySize, PROT_READ | PROT_WRITE, memoryFd, 0,
@@ -3765,6 +3843,7 @@ TEST(ValidationTestMemory, CreateFromFd) {
     close(memoryFd);
 }
 
+#ifdef __ANDROID__
 TEST(ValidationTestMemory, CreateFromAHardwareBuffer) {
     const size_t memorySize = 20;
     AHardwareBuffer_Desc desc{
@@ -3784,6 +3863,7 @@ TEST(ValidationTestMemory, CreateFromAHardwareBuffer) {
     EXPECT_EQ(ANeuralNetworksMemory_createFromAHardwareBuffer(nullptr, &memory),
               ANEURALNETWORKS_UNEXPECTED_NULL);
 }
+#endif  // __ANDROID__
 
 TEST_F(ValidationTestMemoryDesc, MemoryCopying) {
     uint32_t goodSize = sizeof(float) * 2, badSize1 = sizeof(float), badSize2 = sizeof(float) * 4;

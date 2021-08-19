@@ -44,6 +44,7 @@
 #include "Manager.h"
 #include "ModelArgumentInfo.h"
 #include "ModelBuilder.h"
+#include "Telemetry.h"
 #include "TypeManager.h"
 
 namespace android {
@@ -436,6 +437,12 @@ std::optional<uint64_t> ExecutionBuilder::getTimeoutDuration() const {
     return mTimeoutDuration;
 }
 
+TimePoint ExecutionBuilder::getComputeStartTimePoint() const {
+    CHECK(computationStarted()) << "getComputeStartTimePoint called before "
+                                << "execution has started.";
+    return mComputeStartTimePoint;
+}
+
 int ExecutionBuilder::setLoopTimeout(uint64_t duration) {
     if (computationStarted()) {
         LOG(ERROR) << "ANeuralNetworksExecution_setLoopTimeout called after the "
@@ -585,12 +592,12 @@ bool ExecutionBuilder::areOutputsFullySpecified() {
     return mOutputsFullySpecified.value();
 }
 
-int ExecutionBuilder::prepareForCompute(const char* name) {
+int ExecutionBuilder::prepareForCompute(const char* name, ExecutionMode mode) {
     if (!checkAndSetComputationState(name)) {
         return ANEURALNETWORKS_BAD_STATE;
     }
     if (int n = getValidationResultCode(); n != ANEURALNETWORKS_NO_ERROR) {
-        return finishComputation(n, {});
+        return finishComputation(n, {}, mode);
     }
     return ANEURALNETWORKS_NO_ERROR;
 }
@@ -972,7 +979,8 @@ std::tuple<int, int, ExecuteFencedInfoCallback> CompoundExecutionBuilder::comput
 int ExecutionBuilder::computeFenced(const std::vector<int>& waitFor,
                                     uint64_t timeoutDurationAfterFence, int* syncFence) {
     CHECK(syncFence != nullptr);
-    NN_RETURN_IF_ERROR(prepareForCompute("startComputeWithDependencies"));
+    NN_RETURN_IF_ERROR(
+            prepareForCompute("startComputeWithDependencies", ExecutionMode::ASYNC_WITH_DEPS));
     if (timeoutDurationAfterFence > 0) {
         if (!mCompilation->mExplicitDeviceList || (mCompilation->mDevices.size() != 1)) {
             LOG(ERROR)
@@ -980,18 +988,19 @@ int ExecutionBuilder::computeFenced(const std::vector<int>& waitFor,
                        "duration on an ANeuralNetworksExecution "
                        "created from an ANeuralNetworksCompilation that was not created by "
                        "ANeuralNetworksCompilation_createForDevices with numDevices = 1";
-            return finishComputation(ANEURALNETWORKS_BAD_DATA, {});
+            return finishComputation(ANEURALNETWORKS_BAD_DATA, {}, ExecutionMode::ASYNC_WITH_DEPS);
         }
     }
     if (!areOutputsFullySpecified()) {
         LOG(ERROR) << "ANeuralNetworksExecution_startComputeWithDependencies"
                       " not all outputs have fully specified dimensions";
-        return finishComputation(ANEURALNETWORKS_BAD_DATA, {});
+        return finishComputation(ANEURALNETWORKS_BAD_DATA, {}, ExecutionMode::ASYNC_WITH_DEPS);
     }
 
     // Unlike ExecutionBuilder::compute, we do not need to reset output dimensions here because
     // fenced executions do not support dynamic output shape.
 
+    mComputeStartTimePoint = Clock::now();
     VLOG(EXECUTION) << "ExecutionBuilder::computeFenced";
     int result;
     const auto deadline = makeDeadline(mTimeoutDuration);
@@ -1002,7 +1011,7 @@ int ExecutionBuilder::computeFenced(const std::vector<int>& waitFor,
     if (result != ANEURALNETWORKS_NO_ERROR) {
         // TODO(miaowang): support dynamic output shape only with memory domain.
         // For now just return empty output shapes.
-        result = finishComputation(result, {});
+        result = finishComputation(result, {}, ExecutionMode::ASYNC_WITH_DEPS);
     }
     return result;
 }
@@ -1018,7 +1027,10 @@ int ExecutionBuilder::compute(std::shared_ptr<ExecutionCallback>* synchronizatio
     }
 
     const char* name = burstBuilder ? "burstCompute" : synchronous ? "compute" : "startCompute";
-    NN_RETURN_IF_ERROR(prepareForCompute(name));
+    const ExecutionMode mode = burstBuilder
+                                       ? ExecutionMode::BURST
+                                       : synchronous ? ExecutionMode::SYNC : ExecutionMode::ASYNC;
+    NN_RETURN_IF_ERROR(prepareForCompute(name, mode));
 
     // Validate input memory dimensions. We need to do the validation in every computation because
     // the memory dimensions may change between computations.
@@ -1026,7 +1038,7 @@ int ExecutionBuilder::compute(std::shared_ptr<ExecutionCallback>* synchronizatio
         if (p.state() == ModelArgumentInfo::MEMORY) {
             const RuntimeMemory* memory = mMemories[p.locationAndLength().poolIndex];
             if (!memory->getValidator().validateInputDimensions(p.dimensions())) {
-                return finishComputation(ANEURALNETWORKS_OP_FAILED, {});
+                return finishComputation(ANEURALNETWORKS_OP_FAILED, {}, mode);
             }
         }
     }
@@ -1039,6 +1051,7 @@ int ExecutionBuilder::compute(std::shared_ptr<ExecutionCallback>* synchronizatio
     }
 
     const auto deadline = makeDeadline(mTimeoutDuration);
+    mComputeStartTimePoint = Clock::now();
     if (synchronous) {
         if (burstBuilder) {
             VLOG(EXECUTION) << "ExecutionBuilder::compute (synchronous API, burst)";
@@ -1049,7 +1062,7 @@ int ExecutionBuilder::compute(std::shared_ptr<ExecutionCallback>* synchronizatio
         if (mMeasureTiming) {
             mTimingWithoutFencedExecutionCallback = timing;
         }
-        return finishComputation(n, outputShapes);
+        return finishComputation(n, outputShapes, mode);
     } else /* asynchronous */ {
         // TODO: For asynchronous execution, entire plan-based-path should run in an
         // asynchronous thread -- take the asynchronous thread logic out of
@@ -1066,8 +1079,8 @@ int ExecutionBuilder::compute(std::shared_ptr<ExecutionCallback>* synchronizatio
         // abstracted in the NN API as an "event".
         auto executionCallback = std::make_shared<ExecutionCallback>();
         executionCallback->setOnFinish(
-                [this](ErrorStatus error, const std::vector<OutputShape>& outputShapes) {
-                    return finishComputation(error, outputShapes);
+                [this, mode](ErrorStatus error, const std::vector<OutputShape>& outputShapes) {
+                    return finishComputation(error, outputShapes, mode);
                 });
         const auto asyncStartCompute = [this, deadline, executionCallback] {
             const auto [n, outputShapes, timing] = computeInternal(deadline, nullptr);
@@ -1149,7 +1162,8 @@ bool ExecutionBuilder::updateMemories() {
     return true;
 }
 
-int ExecutionBuilder::finishComputation(int result, const std::vector<OutputShape>& outputShapes) {
+int ExecutionBuilder::finishComputation(int result, const std::vector<OutputShape>& outputShapes,
+                                        ExecutionMode mode) {
     const auto status = convertResultCodeToErrorStatus(result);
     if (!updateOutputShapes(status, outputShapes) || !updateMemories()) {
         result = ANEURALNETWORKS_OP_FAILED;
@@ -1178,6 +1192,7 @@ int ExecutionBuilder::finishComputation(int result, const std::vector<OutputShap
         CHECK(mState != State::COMPLETED) << "ExecutionBuilder::finishComputation is called twice";
         mState = State::COMPLETED;
     }
+    telemetry::onExecutionFinish(this, mode, result);
     return result;
 }
 

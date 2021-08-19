@@ -22,6 +22,7 @@ package {
 cc_prebuilt_library_shared {
     name: "neuralnetworks_sample_sl_driver_prebuilt",
 
+    host_supported: false,
     shared_libs: [
         "libbase",
         "libcutils",
@@ -51,6 +52,7 @@ cc_prebuilt_library_shared {
 
 cc_defaults {
     name: "NeuralNetworksShimDriverAidl_defaults",
+    host_supported: false,
     defaults: ["neuralnetworks_defaults"],
     header_libs: [
         "libneuralnetworks_headers",

@@ -51,7 +51,7 @@ license {
 
 cc_library_headers {
     name: "libneuralnetworks_headers",
-    host_supported: false,
+    host_supported: true,
     vendor_available: true,
     export_include_dirs: ["include"],
     apex_available: [
@@ -65,19 +65,20 @@ cc_library_headers {
 
 cc_library_headers {
     name: "libneuralnetworks_headers_ndk",
+    host_supported: true,
     export_include_dirs: ["include"],
     sdk_version: "current",
 }
 
 cc_library_headers {
     name: "libneuralnetworks_private_headers",
-    host_supported: false,
+    host_supported: true,
     export_include_dirs: ["."],
 }
 
 cc_defaults {
     name: "libneuralnetworks_defaults",
-    host_supported: false,
+    host_supported: true,
     use_version_lib: true,
     // b/109953668, disable OpenMP
     // openmp: true,
@@ -90,9 +91,11 @@ cc_defaults {
         "ExecutionPlan.cpp",
         "Manager.cpp",
         "Memory.cpp",
+        "ModelArchHasher.cpp",
         "ModelArgumentInfo.cpp",
         "ModelBuilder.cpp",
         "NeuralNetworks.cpp",
+        "Telemetry.cpp",
         "TypeManager.cpp",
     ],
 
@@ -100,13 +103,17 @@ cc_defaults {
         android: {
             version_script: "libneuralnetworks.map.txt",
             shared_libs: [
-                "liblog",
                 "libnativewindow",
-                "libneuralnetworks_packageinfo",
+                "libvndksupport",
+            ],
+            whole_static_libs: [
+                "libprocpartition",
             ],
         },
         host: {
-            shared_libs: [
+            cflags: [
+                "-D__ANDROID_API__=10000",
+                "-D__INTRODUCED_IN(n)=",
             ],
         },
     },
@@ -141,14 +148,11 @@ cc_defaults {
 
     stl: "libc++_static",
 
-    whole_static_libs: [
-        "libprocpartition",
-    ],
-
     shared_libs: [
         "libbinder_ndk",
         "libcgrouprc",
-        "libvndksupport",
+        "liblog",
+        "libneuralnetworks_packageinfo",
     ],
 
     header_libs: [
@@ -200,6 +204,7 @@ cc_library_static {
         "neuralnetworks_cl_defaults",
         "neuralnetworks_defaults",
     ],
+    host_supported: false,
     apex_available: ["//apex_available:platform"],
     // b/109953668, disable OpenMP
     // openmp: true,
@@ -211,9 +216,12 @@ cc_library_static {
         "ExecutionPlan.cpp",
         "Manager.cpp",
         "Memory.cpp",
+        "ModelArchHasher.cpp",
         "ModelArgumentInfo.cpp",
         "ModelBuilder.cpp",
         "NeuralNetworks.cpp",
+        "SupportLibraryDiagnostic.cpp",
+        "Telemetry.cpp",
         "TypeManager.cpp",
     ],
     static_libs: [

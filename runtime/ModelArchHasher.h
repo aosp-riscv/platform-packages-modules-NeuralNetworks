@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 The Android Open Source Project
+ * Copyright (C) 2020 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,21 +14,19 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "MemoryUtils"
+#ifndef ANDROID_FRAMEWORKS_ML_NN_RUNTIME_MODEL_ARCH_HASHER_H
+#define ANDROID_FRAMEWORKS_ML_NN_RUNTIME_MODEL_ARCH_HASHER_H
 
-#include "MemoryUtils.h"
+#include <nnapi/Types.h>
 
-#include <nnapi/SharedMemory.h>
-#include <nnapi/hal/1.3/Conversions.h>
+namespace android::nn {
 
-using ::android::hardware::hidl_memory;
+// Generated hash from canonical model operations and operands.
+// Weights do not affect this hash.
+bool calcModelArchHash(const Model& model, uint8_t* data);
 
-namespace android {
-namespace nn {
+static const int BYTE_SIZE_OF_MODEL_ARCH_HASH = 32;
 
-hidl_memory allocateSharedMemory(int64_t size) {
-    return hardware::neuralnetworks::V1_3::utils::convert(createSharedMemory(size).value()).value();
-}
+}  // namespace android::nn
 
-}  // namespace nn
-}  // namespace android
+#endif  // ANDROID_FRAMEWORKS_ML_NN_RUNTIME_MODEL_ARCH_HASHER_H

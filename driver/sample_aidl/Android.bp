@@ -21,6 +21,7 @@ package {
 cc_defaults {
     name: "NeuralNetworksSampleDriverAidl_defaults",
     defaults: ["neuralnetworks_defaults"],
+    host_supported: false,
     // b/109953668, disable OpenMP
     // openmp: true,
     srcs: [

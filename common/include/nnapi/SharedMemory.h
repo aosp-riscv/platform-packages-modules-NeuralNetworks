@@ -87,8 +87,10 @@ GeneralResult<SharedMemory> createSharedMemory(size_t size);
 // Precondition: size > 0
 GeneralResult<SharedMemory> createSharedMemoryFromFd(size_t size, int prot, int fd, size_t offset);
 
+#ifdef __ANDROID__
 // Precondition: ahwb != nullptr
 GeneralResult<SharedMemory> createSharedMemoryFromAHWB(AHardwareBuffer* ahwb, bool takeOwnership);
+#endif  // __ANDROID__
 
 // Precondition: memory != nullptr
 size_t getSize(const SharedMemory& memory);

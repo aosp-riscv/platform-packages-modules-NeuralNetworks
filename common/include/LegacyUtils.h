@@ -321,6 +321,24 @@ constexpr auto kHalVersionV1_2ToApi = ApiVersion{.canonical = Version::ANDROID_Q
                                                  .featureLevel = ANEURALNETWORKS_FEATURE_LEVEL_3};
 constexpr auto kHalVersionV1_3ToApi = ApiVersion{.canonical = Version::ANDROID_R,
                                                  .featureLevel = ANEURALNETWORKS_FEATURE_LEVEL_4};
+
+// Utility that measures time period, in nanoseconds, from creation
+// to destruction and stores result in the supplied memory location
+// on destruction
+struct TimeNanoMeasurer {
+    TimePoint start;
+    uint64_t* saveAt;
+
+    explicit TimeNanoMeasurer(uint64_t* saveAt) : start(Clock::now()), saveAt(saveAt) {}
+    ~TimeNanoMeasurer() { *saveAt = currentDuration(start); }
+    DISALLOW_COPY_AND_ASSIGN(TimeNanoMeasurer);
+
+    static inline uint64_t currentDuration(const TimePoint& start) {
+        auto end = Clock::now();
+        return std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+    }
+};
+
 }  // namespace nn
 }  // namespace android
 

@@ -16,8 +16,10 @@
 
 #include "GeneratedTestUtils.h"
 
+#include <android-base/file.h>
 #include <android-base/logging.h>
 #include <android-base/mapped_file.h>
+#include <android-base/unique_fd.h>
 #include <android/sharedmem.h>
 #include <gtest/gtest.h>
 
@@ -64,7 +66,13 @@ class MemoryWithPointer : public Memory {
 #endif  // NNTEST_SLTS
 
         CHECK_GT(size, 0u);
+#ifdef __ANDROID__
         auto fd = base::unique_fd(ASharedMemory_create(nullptr, size));
+#else   // __ANDROID__
+        TemporaryFile tmpFile;
+        base::unique_fd fd(tmpFile.release());
+        CHECK_EQ(ftruncate(fd.get(), size), 0);
+#endif  // __ANDROID__
         EXPECT_TRUE(fd.ok());
         const int protect = PROT_READ | PROT_WRITE;
         const size_t offset = 0;

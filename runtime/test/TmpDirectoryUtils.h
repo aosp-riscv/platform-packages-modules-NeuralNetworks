@@ -14,9 +14,13 @@
  * limitations under the License.
  */
 
-#pragma once
+#ifndef ANDROID_FRAMEWORKS_ML_NN_RUNTIME_TEST_TMP_DIRECTORY_UTILS_H
+#define ANDROID_FRAMEWORKS_ML_NN_RUNTIME_TEST_TMP_DIRECTORY_UTILS_H
 
-#include "SupportLibraryDiagnostic.h"
+#ifdef __ANDROID__
+#define NN_TMP_DIR "/data/local/tmp"
+#else  // __ANDROID__
+#define NN_TMP_DIR "/tmp"
+#endif  // __ANDROID__
 
-ANeuralNetworksDiagnosticCompilationFinishedCallback getOnCompilationFinishedCallback();
-ANeuralNetworksDiagnosticExecutionFinishedCallback getOnExecutionFinishedCallback();
+#endif  // ANDROID_FRAMEWORKS_ML_NN_RUNTIME_TEST_TMP_DIRECTORY_UTILS_H

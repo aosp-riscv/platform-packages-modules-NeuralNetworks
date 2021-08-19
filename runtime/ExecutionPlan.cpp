@@ -1958,11 +1958,11 @@ std::set<uint32_t> ExecutionPlan::forTest_flatGetDynamicTemporaries() const {
 }
 
 bool ExecutionPlan::hasDynamicTemporaries() const {
-    return mBody->hasDynamicTemporaries();
+    return mBody == nullptr ? false : mBody->hasDynamicTemporaries();
 }
 
 bool ExecutionPlan::forTest_hasStepModelWithNoInputsOrNoOutputs() const {
-    return mBody->hasStepModelWithNoInputsOrNoOutputs();
+    return mBody == nullptr ? false : mBody->hasStepModelWithNoInputsOrNoOutputs();
 }
 
 bool ExecutionPlan::CompoundBody::hasStepModelWithNoInputsOrNoOutputs() const {

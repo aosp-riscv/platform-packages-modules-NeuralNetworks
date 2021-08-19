@@ -20,12 +20,13 @@ package {
 
 cc_library_headers {
     name: "libneuralnetworks_common_headers",
-    host_supported: false,
+    host_supported: true,
     export_include_dirs: ["include"],
 }
 
 cc_defaults {
     name: "neuralnetworks_operations",
+    host_supported: true,
     srcs: [
         "OperationResolver.cpp",
         "operations/Activation.cpp",
@@ -79,7 +80,7 @@ cc_library_static {
         "neuralnetworks_defaults",
         "neuralnetworks_operations",
     ],
-    host_supported: false,
+    host_supported: true,
     vendor_available: true,
     apex_available: [
         "//apex_available:platform",
@@ -113,7 +114,6 @@ cc_library_static {
         "libfmq",
         "libhidlbase",
         "libhidlmemory",
-        "libnativewindow",
     ],
     whole_static_libs: [
         "libarect",
@@ -125,6 +125,20 @@ cc_library_static {
         "neuralnetworks_utils_hal_aidl",
         "neuralnetworks_utils_hal_common",
     ],
+    target: {
+        android: {
+            shared_libs: [
+                "libnativewindow",
+            ],
+        },
+        host: {
+            cflags: [
+                "-D__ANDROID_API__=10000",
+                "-D__INTRODUCED_IN(n)=",
+                "-D__assert(a,b,c)=",
+            ],
+        },
+    },
     cflags: [
         "-DTF_LITE_DISABLE_X86_NEON",
         "-Wall",
@@ -146,12 +160,12 @@ cc_library_static {
         "neuralnetworks_defaults",
         "neuralnetworks_operations",
     ],
+    host_supported: true,
     apex_available: [
         "//apex_available:platform",
         "com.android.neuralnetworks",
         "test_com.android.neuralnetworks",
     ],
-    host_supported: false,
     vendor_available: true,
     // b/109953668, disable OpenMP
     // openmp: true,
@@ -211,9 +225,20 @@ cc_library_static {
         "libhidlbase",
         "libhidlmemory",
         "liblog",
-        "libnativewindow",
         "libutils",
     ],
+    target: {
+        android: {
+            shared_libs: ["libnativewindow"],
+        },
+        host: {
+            cflags: [
+                "-D__ANDROID_API__=10000",
+                "-D__INTRODUCED_IN(x)=",
+                "-D__assert(a,b,c)=",
+            ],
+        },
+    },
     header_libs: [
         "gemmlowp_headers",
         "libeigen",
@@ -277,6 +302,7 @@ cc_defaults {
         "neuralnetworks_defaults",
         "neuralnetworks_operations",
     ],
+    host_supported: false,
     apex_available: [
         "//apex_available:platform",
         "com.android.neuralnetworks",
@@ -392,8 +418,7 @@ cc_library_static {
 
 cc_defaults {
     name: "neuralnetworks_utils_defaults",
-    // b/146324523, NNAPI host build capability
-    host_supported: false,
+    host_supported: true,
     vendor_available: true,
     apex_available: [
         "//apex_available:platform",
@@ -406,6 +431,16 @@ cc_defaults {
         "-Werror",
         "-Wextra",
     ],
+    target: {
+        host: {
+            cflags: [
+                "-D__ANDROID_API_S__=31",
+                "-D__ANDROID_API__=10000",
+                "-D__INTRODUCED_IN(x)=",
+                "-D__assert(a,b,c)=",
+            ],
+        },
+    },
 }
 
 cc_library_static {
@@ -413,18 +448,14 @@ cc_library_static {
     defaults: ["neuralnetworks_utils_defaults"],
     srcs: [
         "SharedMemory.cpp",
+        "SharedMemoryAndroid.cpp",
         "TypeUtils.cpp",
         "Types.cpp",
         "Validation.cpp",
     ],
     target: {
         android: {
-            srcs: ["SharedMemoryAndroid.cpp"],
             shared_libs: [
-                "android.hidl.allocator@1.0",
-                "android.hidl.memory@1.0",
-                "libhidlbase",
-                "libhidlmemory",
                 "libnativewindow",
             ],
             static_libs: ["libarect"],
@@ -433,8 +464,12 @@ cc_library_static {
     local_include_dirs: ["include/nnapi"],
     export_include_dirs: ["include"],
     shared_libs: [
+        "android.hidl.allocator@1.0",
+        "android.hidl.memory@1.0",
         "libbase",
         "libcutils",
+        "libhidlbase",
+        "libhidlmemory",
         "libutils",
     ],
     export_shared_lib_headers: [
@@ -446,6 +481,7 @@ cc_library_static {
 
 cc_library_static {
     name: "neuralnetworks_types_cl",
+    host_supported: false,
     defaults: [
         "neuralnetworks_cl_defaults",
         "neuralnetworks_utils_defaults",
@@ -474,12 +510,13 @@ cc_library_static {
 cc_defaults {
     name: "NeuralNetworksTest_common",
     defaults: ["neuralnetworks_float16"],
+    host_supported: true,
     shared_libs: [
         "android.hidl.allocator@1.0",
         "android.hidl.memory@1.0",
+        "libcutils",
         "libhidlbase",
         "libhidlmemory",
-        "libnativewindow",
         "libneuralnetworks",
         "libneuralnetworks_packageinfo",
         "libutils",
@@ -495,6 +532,21 @@ cc_defaults {
         "liblog",
         "libneuralnetworks_common",
     ],
+    target: {
+        android: {
+            shared_libs: [
+                "libnativewindow",
+            ],
+        },
+        host: {
+            cflags: [
+                "-D__ANDROID_API_S__=31",
+                "-D__ANDROID_API__=10000",
+                "-D__INTRODUCED_IN(n)=",
+                "-D__assert(a,b,c)=",
+            ],
+        },
+    },
     cflags: [
         "-Wno-extern-c-compat",
     ],

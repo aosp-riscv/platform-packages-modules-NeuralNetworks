@@ -197,14 +197,16 @@ class Memory {
                          size, protect, fd, offset, &mMemory)) == ANEURALNETWORKS_NO_ERROR;
     }
 
+#ifdef __ANDROID__
 #ifdef NNTEST_SLTS
     Memory(const NnApiSupportLibrary* nnapi, AHardwareBuffer* buffer) : mNnApi(nnapi) {
-#else
+#else   // NNTEST_SLTS
     Memory(AHardwareBuffer* buffer) {
-#endif
+#endif  // NNTEST_SLTS
         mValid = NNAPI_CALL(ANeuralNetworksMemory_createFromAHardwareBuffer(buffer, &mMemory)) ==
                  ANEURALNETWORKS_NO_ERROR;
     }
+#endif  // __ANDROID__
 
     ~Memory() {
         if (mMemory) {

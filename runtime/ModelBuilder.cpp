@@ -30,6 +30,7 @@
 
 #include "CompilationBuilder.h"
 #include "Manager.h"
+#include "ModelArchHasher.h"
 #include "TypeManager.h"
 
 namespace android {
@@ -117,6 +118,7 @@ int ModelBuilder::addOperand(const ANeuralNetworksOperandType& type) {
 
     mOperands.push_back(std::move(operand));
     mHasOEMOperand |= isOemOperand;
+    mHasControlFlow |= (operandType == OperandType::SUBGRAPH);
     return ANEURALNETWORKS_NO_ERROR;
 }
 
@@ -312,6 +314,7 @@ int ModelBuilder::copyLargeValuesToSharedMemory() {
             memcpy(memoryPointer + operand.location.offset, l.buffer, operand.location.length);
         }
     }
+
     return ANEURALNETWORKS_NO_ERROR;
 }
 
@@ -406,6 +409,8 @@ int ModelBuilder::addOperation(ANeuralNetworksOperationType type, uint32_t input
     mOperations.push_back(std::move(operation));
     mHasOEMOperation |= (operationType == OperationType::OEM_OPERATION);
     mHasExtensionOperation |= isExtension(operationType);
+    mHasControlFlow |=
+            (operationType == OperationType::IF || operationType == OperationType::WHILE);
 
     return ANEURALNETWORKS_NO_ERROR;
 }
@@ -533,6 +538,8 @@ int ModelBuilder::finish() {
     removeTrailingArgumentsWithDefaultValues();
 
     mCompletedModel = true;
+    CHECK(calcModelArchHash(modelForValidation, mModelArchHash))
+            << "Failed to calculate model arch hash";
     return ANEURALNETWORKS_NO_ERROR;
 }
 
@@ -975,6 +982,11 @@ void ModelBuilder::ModelMaker::addExtensionWithPrefix(uint16_t prefix) {
             .name = extension->name,
             .prefix = prefix,
     });
+}
+
+const uint8_t* ModelBuilder::getModelArchHash() const {
+    CHECK(mCompletedModel) << "Calling getModelArchHash on non completed model";
+    return mModelArchHash;
 }
 
 #undef NN_VALIDATE_NULL_OR_SIZED

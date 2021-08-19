@@ -21,6 +21,7 @@ package {
 cc_defaults {
     name: "NeuralNetworksSampleDriver_defaults",
     defaults: ["neuralnetworks_defaults"],
+    host_supported: true,
     // b/109953668, disable OpenMP
     // openmp: true,
     srcs: [
@@ -42,24 +43,36 @@ cc_defaults {
         "android.hidl.memory@1.0",
         "libbase",
         "libcutils",
-        "libdl",
         "libfmq",
-        "libhardware",
         "libhidlbase",
         "libhidlmemory",
         "liblog",
-        "libnativewindow",
         "libtextclassifier_hash",
         "libutils",
     ],
     static_libs: [
         "libneuralnetworks_common",
     ],
+    target: {
+        android: {
+            shared_libs: [
+                "libhardware",
+                "libnativewindow",
+            ],
+        },
+        host: {
+            cflags: [
+                "-D__ANDROID_API__=10000",
+                "-D__INTRODUCED_IN(n)=",
+            ],
+        },
+    },
 }
 
 cc_defaults {
     name: "NeuralNetworksSampleDriver_server_defaults",
     defaults: ["NeuralNetworksSampleDriver_defaults"],
+    host_supported: false,
     relative_install_path: "hw",
     proprietary: true,
 }
@@ -130,6 +143,7 @@ cc_library_static {
 cc_library_static {
     name: "neuralnetworks_canonical_sample_driver",
     defaults: ["neuralnetworks_defaults"],
+    host_supported: true,
     vendor_available: true,
     // b/109953668, disable OpenMP
     // openmp: true,
@@ -142,13 +156,26 @@ cc_library_static {
     static_libs: ["libneuralnetworks_common"],
     shared_libs: [
         "libbase",
-        "libnativewindow",
     ],
+    target: {
+        android: {
+            shared_libs: [
+                "libnativewindow",
+            ],
+        },
+        host: {
+            cflags: [
+                "-D__ANDROID_API__=10000",
+                "-D__INTRODUCED_IN(n)=",
+            ],
+        },
+    },
 }
 
 cc_library_shared {
     name: "neuralnetworks_sample_sl_driver",
     defaults: ["neuralnetworks_defaults"],
+    host_supported: false,
     srcs: ["SampleDriverSL.cpp"],
     shared_libs: [
         "libbase",

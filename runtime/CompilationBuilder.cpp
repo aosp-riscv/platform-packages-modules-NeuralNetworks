@@ -57,6 +57,10 @@ int CompilationBuilder::finish() {
     }
     // TODO validate the rest
 
+    // Init telemetry info, start measuring compilation time
+    mTelemetryInfo = {};
+    TimeNanoMeasurer(&mTelemetryInfo->compilationTimeNanos);
+
     const auto deadline = makeDeadline(mTimeoutDuration);
 
     mFinished = true;
@@ -95,6 +99,7 @@ int CompilationBuilder::finish() {
     }
 
     // Fallback to CPU
+    mTelemetryInfo->fallbackToCpuFromError = true;
     VLOG(COMPILATION) << "CompilationBuilder::finish with CPU fallback";
     mPlan.reset();
     mPlan.becomeSingleStep(DeviceManager::getCpuDevice(), mModel);

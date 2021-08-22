@@ -21,6 +21,7 @@ package {
 cc_defaults {
     name: "NeuralNetworksSampleDriverAidl_defaults",
     defaults: ["neuralnetworks_defaults"],
+    host_supported: false,
     // b/109953668, disable OpenMP
     // openmp: true,
     srcs: [
@@ -33,7 +34,7 @@ cc_defaults {
         "libneuralnetworks_headers",
     ],
     shared_libs: [
-        "android.hardware.neuralnetworks-V1-ndk_platform",
+        "android.hardware.neuralnetworks-V1-ndk",
         "android.hardware.neuralnetworks@1.0",
         "android.hardware.neuralnetworks@1.1",
         "android.hardware.neuralnetworks@1.2",

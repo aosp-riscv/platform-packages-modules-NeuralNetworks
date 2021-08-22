@@ -42,13 +42,16 @@
  *   - DO NOT CHANGE THE LAYOUT OR SIZE OF STRUCTURES
  */
 
-#include <android/hardware_buffer.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/cdefs.h>
 
 #include "NeuralNetworksTypes.h"
+
+#ifdef __ANDROID__
+#include <android/hardware_buffer.h>
+#endif  // __ANDROID__
 
 // This is required for building libneuralnetworks_cl,
 // the symbols have same names as in NDK, but
@@ -59,11 +62,8 @@
 #define __NNAPI_INTRODUCED_IN(x) __INTRODUCED_IN(x)
 #endif
 
-// TODO: replace __ANDROID_API_FUTURE__with 31 when it's official (b/178144708)
-// This is required for __builtin_available guards around functionality
-// introduced in FL5/API31.
 #ifndef __NNAPI_FL5_MIN_ANDROID_API__
-#define __NNAPI_FL5_MIN_ANDROID_API__ __ANDROID_API_FUTURE__
+#define __NNAPI_FL5_MIN_ANDROID_API__ __ANDROID_API_S__
 #endif
 
 __BEGIN_DECLS
@@ -759,9 +759,11 @@ int ANeuralNetworksExecution_burstCompute(ANeuralNetworksExecution* execution,
  *
  * @see AHardwareBuffer
  */
+#ifdef __ANDROID__
 int ANeuralNetworksMemory_createFromAHardwareBuffer(const AHardwareBuffer* ahwb,
                                                     ANeuralNetworksMemory** memory)
         __NNAPI_INTRODUCED_IN(29);
+#endif  // __ANDROID__
 
 /**
 
@@ -2082,7 +2084,7 @@ int ANeuralNetworksExecution_enableInputAndOutputPadding(ANeuralNetworksExecutio
  *              an index into the inputs list passed to
  *              {@link ANeuralNetworksModel_identifyInputsAndOutputs}. It is not
  *              the index associated with {@link ANeuralNetworksModel_addOperand}.
- * @param alignment The returned preferred alignment. It will be a power of 2.
+ * @param alignment The returned preferred alignment in bytes. It will be a power of 2.
  *
  * @return ANEURALNETWORKS_NO_ERROR if successful.
  *         ANEURALNETWORKS_UNEXPECTED_NULL if either compilation or alignment is NULL.
@@ -2120,7 +2122,7 @@ int ANeuralNetworksCompilation_getPreferredMemoryAlignmentForInput(
  *              an index into the inputs list passed to
  *              {@link ANeuralNetworksModel_identifyInputsAndOutputs}. It is not
  *              the index associated with {@link ANeuralNetworksModel_addOperand}.
- * @param padding The returned preferred padding. It will be a power of 2.
+ * @param padding The returned preferred padding in bytes. It will be a power of 2.
  *
  * @return ANEURALNETWORKS_NO_ERROR if successful.
  *         ANEURALNETWORKS_UNEXPECTED_NULL if either compilation or padding is NULL.
@@ -2152,7 +2154,7 @@ int ANeuralNetworksCompilation_getPreferredMemoryPaddingForInput(
  *              an index into the outputs list passed to
  *              {@link ANeuralNetworksModel_identifyInputsAndOutputs}. It is not
  *              the index associated with {@link ANeuralNetworksModel_addOperand}.
- * @param alignment The returned perferred alignment. It will be a power of 2.
+ * @param alignment The returned perferred alignment in bytes. It will be a power of 2.
  *
  * @return ANEURALNETWORKS_NO_ERROR if successful.
  *         ANEURALNETWORKS_UNEXPECTED_NULL if either compilation or alignment is NULL.
@@ -2190,7 +2192,7 @@ int ANeuralNetworksCompilation_getPreferredMemoryAlignmentForOutput(
  *              an index into the outputs list passed to
  *              {@link ANeuralNetworksModel_identifyInputsAndOutputs}. It is not
  *              the index associated with {@link ANeuralNetworksModel_addOperand}.
- * @param padding The returned perferred padding. It will be a power of 2.
+ * @param padding The returned perferred padding in bytes. It will be a power of 2.
  *
  * @return ANEURALNETWORKS_NO_ERROR if successful.
  *         ANEURALNETWORKS_UNEXPECTED_NULL if either compilation or padding is NULL.
@@ -2212,7 +2214,8 @@ int ANeuralNetworksCompilation_getPreferredMemoryPaddingForOutput(
  * on the same execution sequentially, either by means of
  * {@link ANeuralNetworksExecution_burstCompute}, {@link ANeuralNetworksExecution_compute},
  * {@link ANeuralNetworksExecution_startCompute} or
- * {@link ANeuralNetworksExecution_startComputeWithDependencies}.
+ * {@link ANeuralNetworksExecution_startComputeWithDependencies}: The application may schedule and
+ * evaluate a computation again from the completed state of a reusable execution.
  *
  * This function may only be invoked when the execution is in the preparation state.
  *

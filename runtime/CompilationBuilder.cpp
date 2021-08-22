@@ -57,6 +57,10 @@ int CompilationBuilder::finish() {
     }
     // TODO validate the rest
 
+    // Init telemetry info, start measuring compilation time
+    mTelemetryInfo = {};
+    TimeNanoMeasurer(&mTelemetryInfo->compilationTimeNanos);
+
     const auto deadline = makeDeadline(mTimeoutDuration);
 
     mFinished = true;
@@ -95,6 +99,7 @@ int CompilationBuilder::finish() {
     }
 
     // Fallback to CPU
+    mTelemetryInfo->fallbackToCpuFromError = true;
     VLOG(COMPILATION) << "CompilationBuilder::finish with CPU fallback";
     mPlan.reset();
     mPlan.becomeSingleStep(DeviceManager::getCpuDevice(), mModel);
@@ -134,12 +139,8 @@ int CompilationBuilder::setCaching(const std::string& cacheDir, const uint8_t* t
 }
 
 static GeneralResult<SharedHandle> createCacheHandle(int fd) {
-    std::vector<base::unique_fd> fds;
-    fds.push_back(NN_TRY(dupFd(fd)));
-    return std::make_shared<const Handle>(Handle{
-            .fds = std::move(fds),
-            .ints = {},
-    });
+    base::unique_fd duplicatedFd = NN_TRY(dupFd(fd));
+    return std::make_shared<const Handle>(std::move(duplicatedFd));
 }
 
 static GeneralResult<std::vector<SharedHandle>> createCacheHandleVec(const int* fds,

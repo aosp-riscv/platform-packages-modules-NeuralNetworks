@@ -346,17 +346,12 @@ static GeneralResult<SharedHandle> createCacheHandle(const std::string& filename
                                                      bool createIfNotExist) {
     auto fd = base::unique_fd(open(filename.c_str(), createIfNotExist ? (O_RDWR | O_CREAT) : O_RDWR,
                                    S_IRUSR | S_IWUSR));
-    if (fd.get() == -1) {
+    if (!fd.ok()) {
         return NN_ERROR(ErrorStatus::GENERAL_FAILURE)
                << "Failed to " << (createIfNotExist ? "open or create" : "open") << " cache file "
                << filename;
     }
-    std::vector<base::unique_fd> fds;
-    fds.push_back(std::move(fd));
-    return std::make_shared<const Handle>(Handle{
-            .fds = std::move(fds),
-            .ints = {},
-    });
+    return std::make_shared<const Handle>(std::move(fd));
 }
 
 // Opens a list of cache files and returns a vector of shared handles. The files
@@ -470,7 +465,7 @@ std::pair<int, std::shared_ptr<RuntimePreparedModel>> DriverDevice::prepareModel
                                            cache.dataCache, token);
     if (!result.ok()) {
         LOG(ERROR) << "IDevice::prepareModel() error: " << result.error().message;
-        return {ANEURALNETWORKS_OP_FAILED, nullptr};  // TODO: confirm
+        return {convertErrorStatusToResultCode(result.error().code), nullptr};
     }
     SharedPreparedModel preparedModel = std::move(result).value();
     CHECK(preparedModel != nullptr)
@@ -1234,6 +1229,7 @@ std::shared_ptr<Device> DeviceManager::forTest_makeDriverDevice(const SharedDevi
 
 #ifndef NN_COMPATIBILITY_LIBRARY_BUILD
 std::vector<std::shared_ptr<DriverDevice>> getDriverDevices() {
+#ifdef __ANDROID__
     const auto& appInfo = AppInfoFetcher::get()->getAppInfo();
     const bool currentProcessIsOnThePlatform =
             appInfo.appIsSystemApp || appInfo.appIsOnVendorImage || appInfo.appIsOnProductImage;
@@ -1248,6 +1244,9 @@ std::vector<std::shared_ptr<DriverDevice>> getDriverDevices() {
         driverDevices.push_back(DriverDevice::create(std::move(device), isDeviceUpdatable));
     }
     return driverDevices;
+#else   // __ANDROID__
+    return {};
+#endif  // __ANDROID__
 }
 #else
 std::vector<std::shared_ptr<DriverDevice>> getDriverDevices() {

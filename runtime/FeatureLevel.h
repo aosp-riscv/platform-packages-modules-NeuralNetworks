@@ -25,6 +25,10 @@ namespace nn {
 // The current feature level of the NNAPI Runtime
 constexpr FeatureLevelCode kCurrentNNAPIRuntimeFeatureLevel = ANEURALNETWORKS_FEATURE_LEVEL_5;
 
+// The current version of the NNAPI APEX module.
+// Keep this value in sync with packages/modules/NeuralNetworks/apex/manifest.json.
+constexpr int64_t kNnapiApexVersion = 319999900;
+
 }  // namespace nn
 }  // namespace android
 

@@ -7520,6 +7520,7 @@ struct ExtensionNameAndPrefix {
 %kind canonical
 constexpr uint8_t kExtensionTypeBits = 16;
 constexpr uint8_t kExtensionPrefixBits = 16;
+constexpr uint32_t kTypeWithinExtensionMask = 0xFFFF;
 %else
 enum ExtensionTypeEncoding : uint8_t {
     HIGH_BITS_PREFIX = 16,
@@ -7549,13 +7550,17 @@ struct Model {
         OperandValues();
         OperandValues(const uint8_t* data, size_t length);
 
+        // Append a segment of memory (starting at `data` with `length` number of bytes) to the back
+        // of `OperandValues`, adding padding as necessary so that the appended data is aligned.
+        // Refer to `getAlignmentForLength` for more information on alignment (such as what the
+        // current alignments are for different data lengths).
         DataLocation append(const uint8_t* data, size_t length);
 
         const uint8_t* data() const;
         size_t size() const;
 
        private:
-        std::vector<AlignedData> mData;
+        std::vector<uint8_t> mData;
     };
 
 %insert-indented 4 ExtensionNameAndPrefix

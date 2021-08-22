@@ -36,8 +36,14 @@ static_assert(offsetof(NnApiSLDriverImpl, implFeatureLevel) == 0,
 
 static_assert(sizeof(NnApiSLDriverImpl) == sizeof(int64_t), "NnApiSLDriverImpl size changed");
 
-// 71 real ones and 1 synthetic placeholder to algin to 8 bytes on 32 bit archs
-static_assert(sizeof(NnApiSLDriverImplFL5) == sizeof(int64_t) + 78 * sizeof(void*),
+// NOTE: NnApiSLDriverImplFL5 is currently aligned to 8 bytes. In prior versions of the Support
+// Library interface, we added a "reserved_placeholder" to force alignment on 32-bit platforms. This
+// may need to be done in the future if this struct again becomes unaligned. This would look like:
+//  /**
+//   * Extra pointer required to align to 8 bytes on 32bit archs.
+//   */
+//  void (*reserved_placeholder1)();
+static_assert(sizeof(NnApiSLDriverImplFL5) == sizeof(int64_t) + 104 * sizeof(void*),
               "NnApiSLDriverImplFL5 size changed");
 
 static_assert(ANNSHIM_NO_ERROR == 0, "ANNSHIM_NO_ERROR has changed");

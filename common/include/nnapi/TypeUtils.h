@@ -52,6 +52,10 @@ inline uint16_t getExtensionPrefix(uint32_t type) {
     return static_cast<uint16_t>(type >> kExtensionTypeBits);
 }
 
+inline uint16_t getTypeWithinExtension(uint32_t type) {
+    return static_cast<uint16_t>(type & kTypeWithinExtensionMask);
+}
+
 std::optional<size_t> getNonExtensionSize(OperandType operandType, const Dimensions& dimensions);
 std::optional<size_t> getNonExtensionSize(const Operand& operand);
 
@@ -69,6 +73,17 @@ std::pair<size_t, std::vector<size_t>> getMemorySizes(const Model& model);
 
 // Round up "size" to the nearest multiple of "multiple". "multiple" must be a power of 2.
 size_t roundUp(size_t size, size_t multiple);
+
+// Returns the alignment for data of the specified length.  It aligns object of length:
+// 2, 3 on a 2 byte boundary,
+// 4+ on a 4 byte boundary.
+// We may want to have different alignments for tensors.
+// TODO: This is arbitrary, more a proof of concept.  We need to determine what this should be.
+//
+// Note that Types.cpp ensures `new` has sufficient alignment for all alignments returned by this
+// function. If this function is changed to return different alignments (e.g., 8 byte boundary
+// alignment), the code check in Types.cpp similarly needs to be updated.
+size_t getAlignmentForLength(size_t length);
 
 // Set of output utility functions.
 std::ostream& operator<<(std::ostream& os, const DeviceStatus& deviceStatus);

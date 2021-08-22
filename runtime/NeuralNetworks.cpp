@@ -45,6 +45,7 @@
 #include "ModelBuilder.h"
 #include "NeuralNetworksExtensions.h"
 #include "NeuralNetworksOEM.h"
+#include "Telemetry.h"
 
 #ifdef NN_COMPATIBILITY_LIBRARY_BUILD
 #include "NeuralNetworksSupportLibraryImpl.h"
@@ -1021,7 +1022,13 @@ int ANeuralNetworksMemory_copy(const ANeuralNetworksMemory* src, const ANeuralNe
 int ANeuralNetworksMemory_createFromFd(size_t size, int prot, int fd, size_t offset,
                                        ANeuralNetworksMemory** memory) {
     NNTRACE_RT(NNTRACE_PHASE_PREPARATION, "ANeuralNetworksMemory_createFromFd");
-    *memory = nullptr;  // WARNING: b/138965390
+    if (memory != nullptr) {
+        *memory = nullptr;
+    }
+    if (!memory) {
+        LOG(ERROR) << "ANeuralNetworksMemory_createFromFd passed a nullptr";
+        return ANEURALNETWORKS_UNEXPECTED_NULL;
+    }
     int n = ANEURALNETWORKS_NO_ERROR;
     std::unique_ptr<MemoryFd> m;
     std::tie(n, m) = MemoryFd::create(size, prot, fd, offset);
@@ -1035,7 +1042,13 @@ int ANeuralNetworksMemory_createFromFd(size_t size, int prot, int fd, size_t off
 int ANeuralNetworksMemory_createFromAHardwareBuffer(const AHardwareBuffer* ahwb,
                                                     ANeuralNetworksMemory** memory) {
     NNTRACE_RT(NNTRACE_PHASE_PREPARATION, "ANeuralNetworksMemory_createFromAHardwareBuffer");
-    *memory = nullptr;  // WARNING: b/138965390
+    if (memory != nullptr) {
+        *memory = nullptr;
+    }
+    if (!ahwb || !memory) {
+        LOG(ERROR) << "ANeuralNetworksMemory_createFromAHardwareBuffer passed a nullptr";
+        return ANEURALNETWORKS_UNEXPECTED_NULL;
+    }
     int n = ANEURALNETWORKS_NO_ERROR;
     std::unique_ptr<MemoryAHWB> m;
     std::tie(n, m) = MemoryAHWB::create(*ahwb);
@@ -1239,7 +1252,10 @@ int ANeuralNetworksCompilation_finish(ANeuralNetworksCompilation* compilation) {
         return ANEURALNETWORKS_UNEXPECTED_NULL;
     }
     CompilationBuilder* c = reinterpret_cast<CompilationBuilder*>(compilation);
-    return c->finish();
+    int result = c->finish();
+    telemetry::onCompilationFinish(c, result);
+
+    return result;
 }
 
 int ANeuralNetworksCompilation_setPriority(ANeuralNetworksCompilation* compilation, int priority) {
@@ -1534,7 +1550,7 @@ int ANeuralNetworksEvent_getSyncFenceFd(const ANeuralNetworksEvent* event, int* 
     if (*syncFenceFd <= 0) {
         LOG(ERROR) << "ANeuralNetworksEvent_getSyncFenceFd unable to get valid sync_fence fd";
         *syncFenceFd = -1;
-        return ANEURALNETWORKS_OP_FAILED;
+        return ANEURALNETWORKS_BAD_DATA;
     }
     return ANEURALNETWORKS_NO_ERROR;
 }
@@ -1595,7 +1611,10 @@ int ANeuralNetworksExecution_startComputeWithDependencies(
             syncFenceToSignal, r->getExecuteFencedInfoCallback(),
             // TODO(miaowang): support dynamic output shape only with memory domain.
             // For now just return empty output shapes.
-            [r](ErrorStatus status) { return r->finishComputation(status, {}); });
+            [r](ErrorStatus status) {
+                return r->finishComputation(status, {}, ExecutionMode::ASYNC_WITH_DEPS);
+            });
+    close(syncFenceToSignal);
     if (n != ANEURALNETWORKS_NO_ERROR) {
         *event = nullptr;
     } else {
@@ -1937,6 +1956,32 @@ NnApiSLDriverImplFL5 slDriverImpl{
         NNCL_FUNC(SL_ANeuralNetworksDevice_getVendorExtensionCount),
         NNCL_FUNC(SL_ANeuralNetworksDevice_getVendorExtensionName),
         NNCL_FUNC(SL_ANeuralNetworksDevice_forEachVendorExtensionOperandTypeInformation),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticCompilationInfo_getSessionId),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticCompilationInfo_getNnApiVersion),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticCompilationInfo_getModelArchHash),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticCompilationInfo_getDeviceIds),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticCompilationInfo_getErrorCode),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticCompilationInfo_getInputDataClass),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticCompilationInfo_getOutputDataClass),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticCompilationInfo_getCompilationTimeNanos),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticCompilationInfo_isCachingEnabled),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticCompilationInfo_isControlFlowUsed),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticCompilationInfo_areDynamicTensorsUsed),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticExecutionInfo_getSessionId),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticExecutionInfo_getNnApiVersion),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticExecutionInfo_getModelArchHash),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticExecutionInfo_getDeviceIds),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticExecutionInfo_getExecutionMode),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticExecutionInfo_getInputDataClass),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticExecutionInfo_getOutputDataClass),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticExecutionInfo_getErrorCode),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticExecutionInfo_getRuntimeExecutionTimeNanos),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticExecutionInfo_getDriverExecutionTimeNanos),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticExecutionInfo_getHardwareExecutionTimeNanos),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticExecutionInfo_isCachingEnabled),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticExecutionInfo_isControlFlowUsed),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnosticExecutionInfo_areDynamicTensorsUsed),
+        NNCL_FUNC(SL_ANeuralNetworksDiagnostic_registerCallbacks),
 };
 
 #undef NNCL_FUNC

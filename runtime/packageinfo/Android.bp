@@ -12,6 +12,7 @@ package {
 cc_library_shared {
     name: "libneuralnetworks_packageinfo",
     defaults: ["neuralnetworks_defaults"],
+    host_supported: true,
 
     srcs: [
         "PackageInfo.cpp",

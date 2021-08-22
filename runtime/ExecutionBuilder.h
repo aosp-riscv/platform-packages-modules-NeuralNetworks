@@ -49,7 +49,11 @@ class ExecutionStep;
 class ModelBuilder;
 class RuntimeMemory;
 class RuntimePreparedModel;
+class RuntimeExecution;
 class StepExecutor;
+
+// Execution modes
+enum class ExecutionMode { ASYNC, SYNC, BURST, ASYNC_WITH_DEPS };
 
 class ExecutionBuilder {
     friend class StepExecutor;
@@ -114,9 +118,12 @@ class ExecutionBuilder {
 
     // This method will be called at the end of all computation paths to change the state
     // of the execution object and update output shapes / memories.
-    int finishComputation(int result, const std::vector<OutputShape>& outputShapes);
-    ErrorStatus finishComputation(ErrorStatus error, const std::vector<OutputShape>& outputShapes) {
-        const int result = finishComputation(convertErrorStatusToResultCode(error), outputShapes);
+    int finishComputation(int result, const std::vector<OutputShape>& outputShapes,
+                          ExecutionMode mode);
+    ErrorStatus finishComputation(ErrorStatus error, const std::vector<OutputShape>& outputShapes,
+                                  ExecutionMode mode) {
+        const int result =
+                finishComputation(convertErrorStatusToResultCode(error), outputShapes, mode);
         return convertResultCodeToErrorStatus(result);
     }
 
@@ -128,6 +135,13 @@ class ExecutionBuilder {
         std::lock_guard<std::mutex> lock(mStateMutex);
         return mState == State::COMPUTATION;
     }
+    bool completed() const {
+        std::lock_guard<std::mutex> lock(mStateMutex);
+        return mState == State::COMPLETED;
+    }
+
+    // Retrieve a computation start point
+    TimePoint getComputeStartTimePoint() const;
 
     const ModelArgumentInfo& getInputInfo(uint32_t index) const { return mInputs[index]; }
     const ModelArgumentInfo& getOutputInfo(uint32_t index) const { return mOutputs[index]; }
@@ -154,14 +168,16 @@ class ExecutionBuilder {
             const std::vector<int>& waitFor, uint64_t timeoutDurationAfterFence,
             const OptionalTimePoint& deadline) = 0;
 
+    // This method handles the common preparation and validation logic of compute and computeFenced.
+    // It will be called at the start of every computation.
+    int prepareForCompute(const char* name, ExecutionMode mode);
+
     const CompilationBuilder* mCompilation;
 
     // Update output dimensional information from OutputShape to ModelArgumentInfo.
     bool updateOutputShapes(ErrorStatus status, const std::vector<OutputShape>& outputShapes);
 
     bool updateMemories();
-
-    bool hasSyncFence() const { return mSyncFenceFd > 0; }
 
     const ModelBuilder* mModel;
     const ExecutionPlan* mPlan;
@@ -187,6 +203,10 @@ class ExecutionBuilder {
     // Do we ask the driver to measure timing?
     bool mMeasureTiming = false;
 
+    // Timepoint of computation start, used to evaluate timing
+    // from runtime perspective
+    TimePoint mComputeStartTimePoint;
+
     // Timing reported from the driver.  This field is only used if
     // mFencedExecutionCallback is nullptr.
     Timing mTimingWithoutFencedExecutionCallback = {};
@@ -207,10 +227,6 @@ class ExecutionBuilder {
         std::lock_guard<std::mutex> lock(mStateMutex);
         return mState != State::PREPARATION;
     }
-    bool completed() const {
-        std::lock_guard<std::mutex> lock(mStateMutex);
-        return mState == State::COMPLETED;
-    }
 
     // Mutex to guard mState. Note that this not strictly needed because we provide
     // no thread-safety guarantee to the ANeuralNetworksExecution object.
@@ -228,9 +244,15 @@ class ExecutionBuilder {
         return mCompletion;
     }
 
-    // The sync fence fd that is created in the computeFenced call, if any.
-    // (Sometimes no sync fence fd will be created.)
-    int mSyncFenceFd = -1;
+    // The result code of request validation.
+    // It is only evaluated once at the first time it's needed.
+    std::optional<int> mValidationResultCode;
+    int getValidationResultCode();
+
+    // Does every tensor output operand of the model have a fully specified shape?
+    // It is only evaluated once at the first time it's needed.
+    std::optional<bool> mOutputsFullySpecified;
+    bool areOutputsFullySpecified();
 
     // The callback used to query execution related info in the case of fenced
     // execution; otherwise, nullptr.  If the execution plan has multiple steps,
@@ -262,6 +284,9 @@ class SimpleExecutionBuilder : public ExecutionBuilder {
     std::tuple<int, int, ExecuteFencedInfoCallback> computeFencedInternal(
             const std::vector<int>& waitFor, uint64_t timeoutDurationAfterFence,
             const OptionalTimePoint& deadline) override;
+
+   private:
+    std::shared_ptr<StepExecutor> mExecutor;
 };
 
 // For execution plan with a COMPOUND body, i.e. partitioned execution with multiple steps.
@@ -290,8 +315,13 @@ class StepExecutor {
     //     "step" model of a multiple-"step" executionBuilder.
     // driver, preparedModel
     //     The device on which to execute the "step", and the prepared
-    //     model to execute on that device.  (Both are nullptr in the
-    //     case of CPU.)
+    //     model to execute on that device. For non-fallback StepExecutor,
+    //     neither is nullptr; for fallback StepExecutor, both are ignored in
+    //     StepExecutor::computeOnCpuFallback and may be nullptr.
+    // reusable
+    //     If true, multiple StepExecutor::compute/computeFenced may be called on this
+    //     object; otherwise, only one StepExecutor::compute/computeFenced may be called.
+    //     reusable must be false if mDynamicTemporaries != nullptr.
     // step
     //     Contains the output index mapping from the excerpted "step" model to
     //     main model if the execution has multiple "steps". Must be nullptr
@@ -304,7 +334,7 @@ class StepExecutor {
     //     (step == nullptr) == (dynamicTemporaries == nullptr)
     StepExecutor(ExecutionBuilder* executionBuilder, const ModelBuilder* model,
                  std::shared_ptr<Device> device,
-                 std::shared_ptr<RuntimePreparedModel> preparedModel,
+                 std::shared_ptr<RuntimePreparedModel> preparedModel, bool reusable,
                  const ExecutionStep* step = nullptr,
                  DynamicTemporaries* dynamicTemporaries = nullptr);
 
@@ -396,10 +426,6 @@ class StepExecutor {
                                    uint32_t offset, uint32_t length, const Dimensions& dimensions,
                                    ModelArgumentInfo* inputOrOutputInfo);
 
-    std::tuple<int, std::vector<OutputShape>, Timing> computeWithMemories(
-            const OptionalTimePoint& deadline, const std::vector<const RuntimeMemory*>& memories,
-            const SharedBurst& burstController = nullptr);
-
     // describes the full (possibly multiple-"step") execution
     ExecutionBuilder* mExecutionBuilder;
 
@@ -415,6 +441,12 @@ class StepExecutor {
     std::shared_ptr<Device> mDevice;
     std::shared_ptr<RuntimePreparedModel> mPreparedModel;
 
+    // The reusable execution to launch multiple computations.
+    // It is only created once at the first time it's needed.
+    std::shared_ptr<RuntimeExecution> mExecution;
+    // Returns {NO_ERROR, execution} on success, or {result_code, nullptr} on failure.
+    std::pair<int, std::shared_ptr<RuntimeExecution>> getReusableExecution();
+
     // The information we'll send to the driver about the inputs and outputs.
     // Note that we build this in two steps:
     // 1. As the arguments are specified, set the corresponding mInputs or mOutputs element.
@@ -428,6 +460,9 @@ class StepExecutor {
     std::vector<ModelArgumentInfo> mInputs;
     std::vector<ModelArgumentInfo> mOutputs;
     MemoryTracker mMemories;
+
+    // Whether compute/computeFenced may be invoked multiple times.
+    bool mReusable = false;
 };
 
 std::string toString(StepExecutor::UpdateOutputShapes updateOutputShapes);

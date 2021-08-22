@@ -70,6 +70,7 @@ class CompilationBuilder {
     int createBurst(BurstBuilder** burst);
 
     const ModelBuilder* getModel() const { return mModel; }
+    const std::vector<std::shared_ptr<Device>>& getDevices() const { return mDevices; }
 
     int forEachStepRoleOfInput(uint32_t index, const StepRoleCallback& callback) const;
     int forEachStepRoleOfOutput(uint32_t index, const StepRoleCallback& callback) const;
@@ -77,6 +78,8 @@ class CompilationBuilder {
     bool createdWithExplicitDeviceList() const { return mExplicitDeviceList; }
 
     bool hasDynamicTemporaries() const { return mPlan.hasDynamicTemporaries(); }
+    bool isCacheInfoProvided() const { return mIsCacheInfoProvided; }
+    bool isFinished() const { return mFinished; }
 
     // These functions are solely intended for use by unit tests of the
     // partitioning algorithm.
@@ -84,6 +87,12 @@ class CompilationBuilder {
     int forTest_setPartitioning(uint32_t partitioning);
     int forTest_failPartitioning(
             int resultCode);  // If not ANEURALNETWORKS_NO_ERROR, then simulate partitioning failure
+
+    struct TelemetryInfo {
+        uint64_t compilationTimeNanos;
+        bool fallbackToCpuFromError;
+    };
+    const std::optional<TelemetryInfo>& getTelemetryInfo() const { return mTelemetryInfo; }
 
    private:
     const ModelBuilder* mModel;
@@ -124,6 +133,9 @@ class CompilationBuilder {
 
     // Amount of time to complete or abort the execution.
     std::optional<uint64_t> mTimeoutDuration;
+
+    // Supplementary compilation info for Telemetry use
+    std::optional<TelemetryInfo> mTelemetryInfo;
 };
 
 }  // namespace nn

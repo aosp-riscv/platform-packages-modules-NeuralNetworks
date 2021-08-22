@@ -766,6 +766,15 @@ int ExecutionStep::finishStepModel(const ModelBuilder* mainModel, bool* hasOutpu
     mStepModelOutputs.insert(mStepModelOutputs.end(), mTempsAsStepModelOutputs.begin(),
                              mTempsAsStepModelOutputs.end());
 
+    // A step model with no inputs or no outputs is an invalid model. Note that we would like to
+    // attempt full CPU fallback if allowed, so we return OP_FAILED here rather than BAD_DATA from
+    // model validation.
+    if (hasNoInputsOrNoOutputs()) {
+        VLOG(COMPILATION) << "ExecutionStep::finishStepModel: finishing step model with no inputs "
+                             "or no outputs";
+        return ANEURALNETWORKS_OP_FAILED;
+    }
+
     if (mSourceModelIndex == kMainModelInSourceModels) {
         std::map<uint32_t, uint32_t> mainModelOperandToInputIndex;
         for (uint32_t i = 0, n = mainModel->inputCount(); i < n; ++i) {
@@ -1557,7 +1566,8 @@ int ExecutionPlan::nextCompound(const ExecutionStep* step, std::shared_ptr<Contr
 
     *executor = std::make_shared<StepExecutor>(controller->mExecutionBuilder, step->getStepModel(),
                                                step->getDevice(), step->getPreparedStepModel(),
-                                               step, &controller->mDynamicTemporaries);
+                                               /*reusable=*/false, step,
+                                               &controller->mDynamicTemporaries);
 
     step->mapInputsAndOutputs(
             *executor, mainModelOutputShapes, controller->mTemporaries.get(),
@@ -1823,10 +1833,11 @@ int ExecutionPlan::nextCompound(const GotoStep* step, std::shared_ptr<Controller
 }
 
 std::shared_ptr<StepExecutor> ExecutionPlan::makeStepExecutor(
-        ExecutionBuilder* executionBuilder) const {
+        bool reusable, ExecutionBuilder* executionBuilder) const {
     auto simpleBody = simple();
     auto executor = std::make_shared<StepExecutor>(executionBuilder, simpleBody->mModel,
-                                                   simpleBody->mDevice, simpleBody->mPreparedModel);
+                                                   simpleBody->mDevice, simpleBody->mPreparedModel,
+                                                   reusable);
     executor->mapInputsAndOutputsTrivially();
     return executor;
 }
@@ -1947,7 +1958,18 @@ std::set<uint32_t> ExecutionPlan::forTest_flatGetDynamicTemporaries() const {
 }
 
 bool ExecutionPlan::hasDynamicTemporaries() const {
-    return mBody->hasDynamicTemporaries();
+    return mBody == nullptr ? false : mBody->hasDynamicTemporaries();
+}
+
+bool ExecutionPlan::forTest_hasStepModelWithNoInputsOrNoOutputs() const {
+    return mBody == nullptr ? false : mBody->hasStepModelWithNoInputsOrNoOutputs();
+}
+
+bool ExecutionPlan::CompoundBody::hasStepModelWithNoInputsOrNoOutputs() const {
+    return std::any_of(mSteps.begin(), mSteps.end(), [](const auto& logicalStep) {
+        const ExecutionStep* step = logicalStep->tryExecutionStep();
+        return step != nullptr && step->hasNoInputsOrNoOutputs();
+    });
 }
 
 const uint8_t* ExecutionPlan::forTest_simpleGetCacheToken() const {

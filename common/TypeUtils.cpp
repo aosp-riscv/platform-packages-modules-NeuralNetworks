@@ -218,6 +218,16 @@ size_t roundUp(size_t size, size_t multiple) {
     return (size + (multiple - 1)) & ~(multiple - 1);
 }
 
+size_t getAlignmentForLength(size_t length) {
+    if (length < 2) {
+        return 1;  // No alignment necessary
+    } else if (length < 4) {
+        return 2;  // Align on 2-byte boundary
+    } else {
+        return 4;  // Align on 4-byte boundary
+    }
+}
+
 std::ostream& operator<<(std::ostream& os, const DeviceStatus& deviceStatus) {
     switch (deviceStatus) {
         case DeviceStatus::AVAILABLE:
@@ -710,8 +720,7 @@ std::ostream& operator<<(std::ostream& os, const Operation& operation) {
 }
 
 static std::ostream& operator<<(std::ostream& os, const Handle& handle) {
-    return os << "<handle with " << handle.fds.size() << " fds and " << handle.ints.size()
-              << " ints>";
+    return os << (handle.ok() ? "<valid handle>" : "<invalid handle>");
 }
 
 std::ostream& operator<<(std::ostream& os, const SharedHandle& handle) {
@@ -737,6 +746,11 @@ static std::ostream& operator<<(std::ostream& os, const Memory::HardwareBuffer& 
         return os << "<empty HardwareBuffer::Handle>";
     }
     return os << (isAhwbBlob(memory) ? "<AHardwareBuffer blob>" : "<non-blob AHardwareBuffer>");
+}
+
+static std::ostream& operator<<(std::ostream& os, const Memory::Unknown::Handle& handle) {
+    return os << "<handle with " << handle.fds.size() << " fds and " << handle.ints.size()
+              << " ints>";
 }
 
 static std::ostream& operator<<(std::ostream& os, const Memory::Unknown& memory) {

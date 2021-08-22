@@ -728,10 +728,15 @@ Result<Version> validateOperations(const std::vector<Operation>& operations,
     return version;
 }
 
-Result<Version> validateHandle(const Handle& handle) {
+Result<Version> validateUnknownHandle(const Memory::Unknown::Handle& handle) {
     NN_VALIDATE(std::all_of(handle.fds.begin(), handle.fds.end(),
                             [](const base::unique_fd& fd) { return fd.ok(); }));
-    return Version::ANDROID_OC_MR1;
+    return Version::ANDROID_Q;
+}
+
+Result<Version> validateHandle(const Handle& handle) {
+    NN_VALIDATE(handle.ok());
+    return Version::ANDROID_Q;
 }
 
 Result<Version> validateSharedHandle(const SharedHandle& handle) {
@@ -763,7 +768,7 @@ Result<Version> validateMemory(const Memory::HardwareBuffer& memory) {
 }
 
 Result<Version> validateMemory(const Memory::Unknown& memory) {
-    NN_TRY(validateHandle(memory.handle));
+    NN_TRY(validateUnknownHandle(memory.handle));
     return Version::ANDROID_Q;
 }
 
@@ -1252,7 +1257,6 @@ Result<Version> validateRequestArgumentsForModel(
 Result<Version> validateRequestForModelImpl(const Request& request, const Model& model,
                                             bool allowUnspecifiedOutput) {
     auto version = NN_TRY(validateRequest(request));
-    version = combineVersions(version, NN_TRY(validateModel(model)));
     version = combineVersions(version,
                               NN_TRY(validateRequestArgumentsForModel(
                                       request.inputs, model.main.inputIndexes, model.main.operands,

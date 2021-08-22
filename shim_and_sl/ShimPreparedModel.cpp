@@ -151,9 +151,9 @@ class ShimFencedExecutionCallback : public BnFencedExecutionCallback {
             ::android::nn::sl_wrapper::Execution execution, Event e,
             std::vector<std::shared_ptr<::android::nn::sl_wrapper::Memory>> memoryPools,
             bool measureTiming)
-        : mExecution(std::move(execution)),
+        : mMemoryPools(std::move(memoryPools)),
+          mExecution(std::move(execution)),
           mEvent(std::move(e)),
-          mMemoryPools(std::move(memoryPools)),
           mMeasureTiming(measureTiming) {}
 
     ndk::ScopedAStatus getExecutionInfo(Timing* timingLaunched, Timing* timingFenced,
@@ -204,9 +204,9 @@ class ShimFencedExecutionCallback : public BnFencedExecutionCallback {
     }
 
    private:
+    std::vector<std::shared_ptr<::android::nn::sl_wrapper::Memory>> mMemoryPools;
     ::android::nn::sl_wrapper::Execution mExecution;
     ::android::nn::wrapper::Event mEvent;
-    std::vector<std::shared_ptr<::android::nn::sl_wrapper::Memory>> mMemoryPools;
     bool mMeasureTiming;
 };
 
@@ -239,6 +239,14 @@ class ShimFencedExecutionCallback : public BnFencedExecutionCallback {
                        }
                        return r;
                    });
+
+    const auto guard = ::android::base::make_scope_guard([this, deps] {
+        for (auto& dep : deps) {
+            if (dep != nullptr) {
+                mNnapi->ANeuralNetworksEvent_free(const_cast<ANeuralNetworksEvent*>(dep));
+            }
+        }
+    });
 
     SLW2SAS_RETURN_IF_ERROR(createResult);
 

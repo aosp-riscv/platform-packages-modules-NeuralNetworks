@@ -18,9 +18,6 @@
 #include <SampleDriver.h>
 #include <ValidateHal.h>
 #include <android-base/logging.h>
-#include <android/hardware/neuralnetworks/1.0/ADevice.h>
-#include <android/hardware/neuralnetworks/1.1/ADevice.h>
-#include <android/hardware/neuralnetworks/1.2/ADevice.h>
 #include <gtest/gtest.h>
 #include <unistd.h>
 
@@ -618,35 +615,21 @@ class TestDriver : public SampleDriver {
     const std::set<Signature> mSignatures;
 };
 
-class TestDriverV1_2 : public V1_2::ADevice {
-   public:
-    TestDriverV1_2(const char* name, std::set<Signature> signatures)
-        : V1_2::ADevice(new TestDriver(name, std::move(signatures))) {}
-};
-
-class TestDriverV1_1 : public V1_1::ADevice {
-   public:
-    TestDriverV1_1(const char* name, std::set<Signature> signatures)
-        : V1_1::ADevice(new TestDriver(name, std::move(signatures))) {}
-};
-
-class TestDriverV1_0 : public V1_0::ADevice {
-   public:
-    TestDriverV1_0(const char* name, std::set<Signature> signatures)
-        : V1_0::ADevice(new TestDriver(name, std::move(signatures))) {}
-};
-
 SharedDevice RandomPartitioningTest::makeTestDriver(HalVersion version, const char* name,
                                                     std::set<Signature> signatures) {
     switch (version) {
         case HalVersion::V1_0:
-            return nn::makeSharedDevice(name, new TestDriverV1_0(name, std::move(signatures)));
+            return V1_0::utils::Device::create(name, new TestDriver(name, std::move(signatures)))
+                    .value();
         case HalVersion::V1_1:
-            return nn::makeSharedDevice(name, new TestDriverV1_1(name, std::move(signatures)));
+            return V1_1::utils::Device::create(name, new TestDriver(name, std::move(signatures)))
+                    .value();
         case HalVersion::V1_2:
-            return nn::makeSharedDevice(name, new TestDriverV1_2(name, std::move(signatures)));
+            return V1_2::utils::Device::create(name, new TestDriver(name, std::move(signatures)))
+                    .value();
         case HalVersion::V1_3:
-            return nn::makeSharedDevice(name, new TestDriver(name, std::move(signatures)));
+            return V1_3::utils::Device::create(name, new TestDriver(name, std::move(signatures)))
+                    .value();
         default:
             ADD_FAILURE() << "Unexpected HalVersion " << static_cast<int32_t>(version);
             return nullptr;
@@ -1113,28 +1096,41 @@ TEST_P(RandomPartitioningTest, Test) {
 
     // Partitioned compilation.
     //
-    // For a test case without both (a) unknown intermediate operand sizes and
-    // (b) partitions scheduled on pre-HAL 1.2 (pre-Android Q) devices, we
-    // require the partitioning to succeed without CPU fallback.  For a test
-    // case with both (a) and (b), we retry with a fallback if the non-fallback
-    // partitioning fails and require the fallback to succeed.
+    // If a test case has both (a) unknown intermediate operand sizes and
+    // (b) partitions scheduled on pre-HAL 1.2 (pre-Android Q) devices, fallback
+    // is needed if the non-fallback partitioning fails.
     //
     // The issue is that prior to HAL 1.2, an output operand must have a known
     // size provided either in the Model or in the Request; and in the case of
     // partitioning, an intermediate operand of the original model that becomes
     // an output operand of a partition won't have a known size provided in the
     // Request.
+    //
+    // If a test case has a step model with no inputs or no outputs, fallback is needed.
+    // This is because our HAL specification requires a model to have at least one
+    // input and one output.
+    //
+    // If a fallback is needed, we retry the compilation with a fallback and require
+    // the fallback to succeed. Otherwise, we require the partitioning to succeed
+    // without CPU fallback.
     TestCompilation cNoFallback(&model, devices);
     TestCompilation cWithFallback(&model, devices);
-    bool fallbackNeeded = false;
     ASSERT_EQ(cNoFallback.setPartitioning(DeviceManager::kPartitioningWithoutFallback),
               Result::NO_ERROR);
     auto compilationResult = cNoFallback.finish();
-    if (compilationResult == Result::OP_FAILED && hasUnknownDimensions &&
-        cNoFallback.getExecutionPlan().hasDynamicTemporaries() &&
-        std::any_of(devices.begin(), devices.end(), [](const std::shared_ptr<Device>& device) {
-            return device->getFeatureLevel() < nn::kHalVersionV1_2ToApi.featureLevel;
-        })) {
+    const bool fallbackNeededForDynamicTemporaries =
+            compilationResult == Result::OP_FAILED && hasUnknownDimensions &&
+            cNoFallback.getExecutionPlan().hasDynamicTemporaries() &&
+            std::any_of(devices.begin(), devices.end(), [](const std::shared_ptr<Device>& device) {
+                return device->getFeatureLevel() < nn::kHalVersionV1_2ToApi.featureLevel;
+            });
+    const bool fallbackNeededForStepModelWithNoInputsOrNoOutputs =
+            cNoFallback.getExecutionPlan().forTest_hasStepModelWithNoInputsOrNoOutputs();
+    const bool fallbackNeeded = fallbackNeededForDynamicTemporaries ||
+                                fallbackNeededForStepModelWithNoInputsOrNoOutputs;
+    if (fallbackNeeded) {
+        ASSERT_EQ(compilationResult, Result::OP_FAILED);
+
         ASSERT_EQ(cWithFallback.setPartitioning(DeviceManager::kPartitioningWithFallback),
                   Result::NO_ERROR);
         compilationResult = cWithFallback.finish();
@@ -1142,7 +1138,6 @@ TEST_P(RandomPartitioningTest, Test) {
         ASSERT_EQ(cWithFallback.getExecutionPlan().forTest_getKind(), ExecutionPlan::Kind::SIMPLE);
         ASSERT_EQ(cWithFallback.getExecutionPlan().forTest_simpleGetDevice(),
                   DeviceManager::getCpuDevice());
-        fallbackNeeded = true;
     } else {
         ASSERT_EQ(compilationResult, Result::NO_ERROR);
 

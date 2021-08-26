@@ -46,12 +46,8 @@ struct DiagnosticCompilationInfo {
     int32_t sessionId;
     // The client's process/package name.
     const char* packageName;
-    // NNAPI version.
-    int64_t versionNnapiModule;
     // The hash of the model architecture (without weights).
     const uint8_t* modelArchHash;
-    // The number of devices used.
-    int32_t deviceCount;
     // The device IDs as a comma-concatenated string.
     const char* deviceId;
     // The error code during compilation.
@@ -80,12 +76,8 @@ struct DiagnosticExecutionInfo {
     int32_t sessionId;
     // The client's process/package name.
     const char* packageName;
-    // NNAPI version.
-    int64_t versionNnapiModule;
     // The hash of the model architecture (without weights).
     const uint8_t* modelArchHash;
-    // The number of devices used.
-    int32_t deviceCount;
     // The device IDs as a comma-concatenated string.
     const char* deviceId;
     // Execution mode (e.g. Sync, Burst)

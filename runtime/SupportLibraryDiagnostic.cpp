@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-#include "SupportLibraryDiagnostic.h"
-
 #include <android-base/logging.h>
 
 #include <functional>
 #include <utility>
 
 #include "ExecutionBuilder.h"
+#include "FeatureLevel.h"
+#include "NeuralNetworksSupportLibraryImpl.h"
 #include "Telemetry.h"
 
 namespace {
@@ -73,7 +73,7 @@ ANeuralNetworksDiagnosticDataClass convert(DataClass dataClass) {
 ANeuralNetworksDiagnosticExecutionMode convert(ExecutionMode executionMode) {
     switch (executionMode) {
         case ExecutionMode::ASYNC:
-            return ANNDIAG_EXECUTION_MODE_UNKNOWN;
+            return ANNDIAG_EXECUTION_MODE_ASYNC;
         case ExecutionMode::SYNC:
             return ANNDIAG_EXECUTION_MODE_SYNC;
         case ExecutionMode::BURST:
@@ -87,170 +87,135 @@ ANeuralNetworksDiagnosticExecutionMode convert(ExecutionMode executionMode) {
 
 }  // namespace
 
-int32_t ANeuralNetworksDiagnosticCompilationInfo_getSessionId(
-        const ANeuralNetworksDiagnosticCompilationInfo* _Nonnull diagnosticCompilationInfo) {
+int32_t SL_ANeuralNetworksDiagnosticCompilationInfo_getSessionId(
+        const ANeuralNetworksDiagnosticCompilationInfo* diagnosticCompilationInfo) {
     return castTo(diagnosticCompilationInfo)->sessionId;
 }
 
-const char* _Nonnull ANeuralNetworksDiagnosticCompilationInfo_getPackageName(
-        const ANeuralNetworksDiagnosticCompilationInfo* _Nonnull diagnosticCompilationInfo) {
-    return castTo(diagnosticCompilationInfo)->packageName;
+int64_t SL_ANeuralNetworksDiagnosticCompilationInfo_getNnApiVersion(
+        const ANeuralNetworksDiagnosticCompilationInfo* /*diagnosticCompilationInfo*/) {
+    return android::nn::kCurrentNNAPIRuntimeFeatureLevel;
 }
 
-int64_t ANeuralNetworksDiagnosticCompilationInfo_getNnApiVersion(
-        const ANeuralNetworksDiagnosticCompilationInfo* _Nonnull diagnosticCompilationInfo) {
-    return castTo(diagnosticCompilationInfo)->versionNnapiModule;
-}
-
-const uint8_t* _Nonnull ANeuralNetworksDiagnosticCompilationInfo_getModelArchHash(
-        const ANeuralNetworksDiagnosticCompilationInfo* _Nonnull diagnosticCompilationInfo) {
+const uint8_t* SL_ANeuralNetworksDiagnosticCompilationInfo_getModelArchHash(
+        const ANeuralNetworksDiagnosticCompilationInfo* diagnosticCompilationInfo) {
     return castTo(diagnosticCompilationInfo)->modelArchHash;
 }
 
-int32_t ANeuralNetworksDiagnosticCompilationInfo_getDeviceCount(
-        const ANeuralNetworksDiagnosticCompilationInfo* _Nonnull diagnosticCompilationInfo) {
-    return castTo(diagnosticCompilationInfo)->deviceCount;
-}
-
-const char* _Nonnull ANeuralNetworksDiagnosticCompilationInfo_getDeviceIds(
-        const ANeuralNetworksDiagnosticCompilationInfo* _Nonnull diagnosticCompilationInfo) {
+const char* SL_ANeuralNetworksDiagnosticCompilationInfo_getDeviceIds(
+        const ANeuralNetworksDiagnosticCompilationInfo* diagnosticCompilationInfo) {
     return castTo(diagnosticCompilationInfo)->deviceId;
 }
 
-int32_t ANeuralNetworksDiagnosticCompilationInfo_getErrorCode(
-        const ANeuralNetworksDiagnosticCompilationInfo* _Nonnull diagnosticCompilationInfo) {
+int32_t SL_ANeuralNetworksDiagnosticCompilationInfo_getErrorCode(
+        const ANeuralNetworksDiagnosticCompilationInfo* diagnosticCompilationInfo) {
     return castTo(diagnosticCompilationInfo)->errorCode;
 }
 
-ANeuralNetworksDiagnosticDataClass ANeuralNetworksDiagnosticCompilationInfo_getInputDataClass(
-        const ANeuralNetworksDiagnosticCompilationInfo* _Nonnull diagnosticCompilationInfo) {
+ANeuralNetworksDiagnosticDataClass SL_ANeuralNetworksDiagnosticCompilationInfo_getInputDataClass(
+        const ANeuralNetworksDiagnosticCompilationInfo* diagnosticCompilationInfo) {
     return convert(castTo(diagnosticCompilationInfo)->inputDataClass);
 }
 
-ANeuralNetworksDiagnosticDataClass ANeuralNetworksDiagnosticCompilationInfo_getOutputDataClass(
-        const ANeuralNetworksDiagnosticCompilationInfo* _Nonnull diagnosticCompilationInfo) {
+ANeuralNetworksDiagnosticDataClass SL_ANeuralNetworksDiagnosticCompilationInfo_getOutputDataClass(
+        const ANeuralNetworksDiagnosticCompilationInfo* diagnosticCompilationInfo) {
     return convert(castTo(diagnosticCompilationInfo)->outputDataClass);
 }
 
-uint64_t ANeuralNetworksDiagnosticCompilationInfo_getCompilationTimeNanos(
-        const ANeuralNetworksDiagnosticCompilationInfo* _Nonnull diagnosticCompilationInfo) {
+uint64_t SL_ANeuralNetworksDiagnosticCompilationInfo_getCompilationTimeNanos(
+        const ANeuralNetworksDiagnosticCompilationInfo* diagnosticCompilationInfo) {
     return castTo(diagnosticCompilationInfo)->compilationTimeNanos;
 }
 
-bool ANeuralNetworksDiagnosticCompilationInfo_neededFallbackToCpu(
-        const ANeuralNetworksDiagnosticCompilationInfo* _Nonnull diagnosticCompilationInfo) {
-    return castTo(diagnosticCompilationInfo)->fallbackToCpuFromError;
-}
-
-bool ANeuralNetworksDiagnosticCompilationInfo_isIntrospectionEnabled(
-        const ANeuralNetworksDiagnosticCompilationInfo* _Nonnull diagnosticCompilationInfo) {
-    return castTo(diagnosticCompilationInfo)->introspectionEnabled;
-}
-
-bool ANeuralNetworksDiagnosticCompilationInfo_isCachingEnabled(
-        const ANeuralNetworksDiagnosticCompilationInfo* _Nonnull diagnosticCompilationInfo) {
+bool SL_ANeuralNetworksDiagnosticCompilationInfo_isCachingEnabled(
+        const ANeuralNetworksDiagnosticCompilationInfo* diagnosticCompilationInfo) {
     return castTo(diagnosticCompilationInfo)->cacheEnabled;
 }
 
-bool ANeuralNetworksDiagnosticCompilationInfo_isControlFlowUsed(
-        const ANeuralNetworksDiagnosticCompilationInfo* _Nonnull diagnosticCompilationInfo) {
+bool SL_ANeuralNetworksDiagnosticCompilationInfo_isControlFlowUsed(
+        const ANeuralNetworksDiagnosticCompilationInfo* diagnosticCompilationInfo) {
     return castTo(diagnosticCompilationInfo)->hasControlFlow;
 }
 
-bool ANeuralNetworksDiagnosticCompilationInfo_areDynamicTensorsUsed(
-        const ANeuralNetworksDiagnosticCompilationInfo* _Nonnull diagnosticCompilationInfo) {
+bool SL_ANeuralNetworksDiagnosticCompilationInfo_areDynamicTensorsUsed(
+        const ANeuralNetworksDiagnosticCompilationInfo* diagnosticCompilationInfo) {
     return castTo(diagnosticCompilationInfo)->hasDynamicTemporaries;
 }
 
-int32_t ANeuralNetworksDiagnosticExecutionInfo_getSessionId(
-        const ANeuralNetworksDiagnosticExecutionInfo* _Nonnull diagnosticExecutionInfo) {
+int32_t SL_ANeuralNetworksDiagnosticExecutionInfo_getSessionId(
+        const ANeuralNetworksDiagnosticExecutionInfo* diagnosticExecutionInfo) {
     return castTo(diagnosticExecutionInfo)->sessionId;
 }
 
-const char* _Nonnull ANeuralNetworksDiagnosticExecutionInfo_getPackageName(
-        const ANeuralNetworksDiagnosticExecutionInfo* _Nonnull diagnosticExecutionInfo) {
-    return castTo(diagnosticExecutionInfo)->packageName;
+int64_t SL_ANeuralNetworksDiagnosticExecutionInfo_getNnApiVersion(
+        const ANeuralNetworksDiagnosticExecutionInfo* /*diagnosticExecutionInfo*/) {
+    return android::nn::kCurrentNNAPIRuntimeFeatureLevel;
 }
 
-int64_t ANeuralNetworksDiagnosticExecutionInfo_getNnApiVersion(
-        const ANeuralNetworksDiagnosticExecutionInfo* _Nonnull diagnosticExecutionInfo) {
-    return castTo(diagnosticExecutionInfo)->versionNnapiModule;
-}
-
-const uint8_t* _Nonnull ANeuralNetworksDiagnosticExecutionInfo_getModelArchHash(
-        const ANeuralNetworksDiagnosticExecutionInfo* _Nonnull diagnosticExecutionInfo) {
+const uint8_t* SL_ANeuralNetworksDiagnosticExecutionInfo_getModelArchHash(
+        const ANeuralNetworksDiagnosticExecutionInfo* diagnosticExecutionInfo) {
     return castTo(diagnosticExecutionInfo)->modelArchHash;
 }
 
-int32_t ANeuralNetworksDiagnosticExecutionInfo_getDeviceCount(
-        const ANeuralNetworksDiagnosticExecutionInfo* _Nonnull diagnosticExecutionInfo) {
-    return castTo(diagnosticExecutionInfo)->deviceCount;
-}
-
-const char* _Nonnull ANeuralNetworksDiagnosticExecutionInfo_getDeviceIds(
-        const ANeuralNetworksDiagnosticExecutionInfo* _Nonnull diagnosticExecutionInfo) {
+const char* SL_ANeuralNetworksDiagnosticExecutionInfo_getDeviceIds(
+        const ANeuralNetworksDiagnosticExecutionInfo* diagnosticExecutionInfo) {
     return castTo(diagnosticExecutionInfo)->deviceId;
 }
 
-ANeuralNetworksDiagnosticExecutionMode ANeuralNetworksDiagnosticExecutionInfo_getExecutionMode(
-        const ANeuralNetworksDiagnosticExecutionInfo* _Nonnull diagnosticExecutionInfo) {
+ANeuralNetworksDiagnosticExecutionMode SL_ANeuralNetworksDiagnosticExecutionInfo_getExecutionMode(
+        const ANeuralNetworksDiagnosticExecutionInfo* diagnosticExecutionInfo) {
     return convert(castTo(diagnosticExecutionInfo)->executionMode);
 }
 
-ANeuralNetworksDiagnosticDataClass ANeuralNetworksDiagnosticExecutionInfo_getInputDataClass(
-        const ANeuralNetworksDiagnosticExecutionInfo* _Nonnull diagnosticExecutionInfo) {
+ANeuralNetworksDiagnosticDataClass SL_ANeuralNetworksDiagnosticExecutionInfo_getInputDataClass(
+        const ANeuralNetworksDiagnosticExecutionInfo* diagnosticExecutionInfo) {
     return convert(castTo(diagnosticExecutionInfo)->inputDataClass);
 }
 
-ANeuralNetworksDiagnosticDataClass ANeuralNetworksDiagnosticExecutionInfo_getOutputDataClass(
-        const ANeuralNetworksDiagnosticExecutionInfo* _Nonnull diagnosticExecutionInfo) {
+ANeuralNetworksDiagnosticDataClass SL_ANeuralNetworksDiagnosticExecutionInfo_getOutputDataClass(
+        const ANeuralNetworksDiagnosticExecutionInfo* diagnosticExecutionInfo) {
     return convert(castTo(diagnosticExecutionInfo)->outputDataClass);
 }
 
-uint32_t ANeuralNetworksDiagnosticExecutionInfo_getErrorCode(
-        const ANeuralNetworksDiagnosticExecutionInfo* _Nonnull diagnosticExecutionInfo) {
+uint32_t SL_ANeuralNetworksDiagnosticExecutionInfo_getErrorCode(
+        const ANeuralNetworksDiagnosticExecutionInfo* diagnosticExecutionInfo) {
     return castTo(diagnosticExecutionInfo)->errorCode;
 }
 
-uint64_t ANeuralNetworksDiagnosticExecutionInfo_getDurationRimetimeNanos(
-        const ANeuralNetworksDiagnosticExecutionInfo* _Nonnull diagnosticExecutionInfo) {
+uint64_t SL_ANeuralNetworksDiagnosticExecutionInfo_getRuntimeExecutionTimeNanos(
+        const ANeuralNetworksDiagnosticExecutionInfo* diagnosticExecutionInfo) {
     return castTo(diagnosticExecutionInfo)->durationRuntimeNanos;
 }
 
-uint64_t ANeuralNetworksDiagnosticExecutionInfo_getDriverNanos(
-        const ANeuralNetworksDiagnosticExecutionInfo* _Nonnull diagnosticExecutionInfo) {
+uint64_t SL_ANeuralNetworksDiagnosticExecutionInfo_getDriverExecutionTimeNanos(
+        const ANeuralNetworksDiagnosticExecutionInfo* diagnosticExecutionInfo) {
     return castTo(diagnosticExecutionInfo)->durationDriverNanos;
 }
 
-uint64_t ANeuralNetworksDiagnosticExecutionInfo_getHardwareNanos(
-        const ANeuralNetworksDiagnosticExecutionInfo* _Nonnull diagnosticExecutionInfo) {
+uint64_t SL_ANeuralNetworksDiagnosticExecutionInfo_getHardwareExecutionTimeNanos(
+        const ANeuralNetworksDiagnosticExecutionInfo* diagnosticExecutionInfo) {
     return castTo(diagnosticExecutionInfo)->durationHardwareNanos;
 }
 
-bool ANeuralNetworksDiagnosticExecutionInfo_isIntrospectionEnabled(
-        const ANeuralNetworksDiagnosticExecutionInfo* _Nonnull diagnosticExecutionInfo) {
-    return castTo(diagnosticExecutionInfo)->introspectionEnabled;
-}
-
-bool ANeuralNetworksDiagnosticExecutionInfo_isCachingEnabled(
-        const ANeuralNetworksDiagnosticExecutionInfo* _Nonnull diagnosticExecutionInfo) {
+bool SL_ANeuralNetworksDiagnosticExecutionInfo_isCachingEnabled(
+        const ANeuralNetworksDiagnosticExecutionInfo* diagnosticExecutionInfo) {
     return castTo(diagnosticExecutionInfo)->cacheEnabled;
 }
 
-bool ANeuralNetworksDiagnosticExecutionInfo_isControlFlowUsed(
-        const ANeuralNetworksDiagnosticExecutionInfo* _Nonnull diagnosticExecutionInfo) {
+bool SL_ANeuralNetworksDiagnosticExecutionInfo_isControlFlowUsed(
+        const ANeuralNetworksDiagnosticExecutionInfo* diagnosticExecutionInfo) {
     return castTo(diagnosticExecutionInfo)->hasControlFlow;
 }
 
-bool ANeuralNetworksDiagnosticExecutionInfo_areDynamicTensorsUsed(
-        const ANeuralNetworksDiagnosticExecutionInfo* _Nonnull diagnosticExecutionInfo) {
+bool SL_ANeuralNetworksDiagnosticExecutionInfo_areDynamicTensorsUsed(
+        const ANeuralNetworksDiagnosticExecutionInfo* diagnosticExecutionInfo) {
     return castTo(diagnosticExecutionInfo)->hasDynamicTemporaries;
 }
 
-void ANeuralNetworksDiagnostic_registerCallbacks(
+void SL_ANeuralNetworksDiagnostic_registerCallbacks(
         ANeuralNetworksDiagnosticCompilationFinishedCallback compilationCallback,
         ANeuralNetworksDiagnosticExecutionFinishedCallback executionCallback,
-        const void* callbackContext) {
+        void* callbackContext) {
     using android::nn::telemetry::registerTelemetryCallbacks;
 
     std::function<void(const DiagnosticCompilationInfo*)> compilation =

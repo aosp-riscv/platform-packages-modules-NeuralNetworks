@@ -173,9 +173,7 @@ void onCompilationFinish(CompilationBuilder* c, int resultCode) {
     const DiagnosticCompilationInfo info{
             .sessionId = getSessionId(),
             .packageName = getPackageName(),
-            .versionNnapiModule = kNnapiApexVersion,
             .modelArchHash = c->getModel()->getModelArchHash(),
-            .deviceCount = static_cast<int32_t>(c->getDevices().size()),
             .deviceId = deviceId.c_str(),
             .errorCode = resultCode,
             .inputDataClass = evalInputDataClass(c->getModel()),
@@ -223,9 +221,7 @@ void onExecutionFinish(ExecutionBuilder* e, ExecutionMode executionMode, int res
     const DiagnosticExecutionInfo info{
             .sessionId = getSessionId(),
             .packageName = getPackageName(),
-            .versionNnapiModule = kNnapiApexVersion,
             .modelArchHash = e->getModel()->getModelArchHash(),
-            .deviceCount = static_cast<int32_t>(compilation->getDevices().size()),
             .deviceId = deviceId.c_str(),
             .executionMode = executionMode,
             .inputDataClass = evalInputDataClass(e->getModel()),

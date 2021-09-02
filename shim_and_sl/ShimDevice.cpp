@@ -602,6 +602,9 @@ ndk::ScopedAStatus ShimDevice::prepareModelFromCache(
         const std::vector<::ndk::ScopedFileDescriptor>& /*dataCache*/,
         const std::vector<uint8_t>& /*token*/,
         const std::shared_ptr<IPreparedModelCallback>& callback) {
+    if (callback == nullptr) {
+        return toAStatus(ErrorStatus::INVALID_ARGUMENT);
+    }
     // The NNAPI runtime will attempt to call this before falling back to
     // ShimDevice::prepareModel(). This is not a LOG(ERROR) to avoid producing
     // misleading logcat messages on every compilation request because there is

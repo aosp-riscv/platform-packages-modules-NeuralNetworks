@@ -555,6 +555,10 @@ std::ostream& operator<<(std::ostream& os, const OperationType& operationType) {
             return os << "RANK";
         case OperationType::OEM_OPERATION:
             return os << "OEM_OPERATION";
+#ifdef NN_EXPERIMENTAL_FEATURE
+        case OperationType::DENSIFY:
+            return os << "DENSIFY";
+#endif  // NN_EXPERIMENTAL_FEATURE
     }
     if (isExtension(operationType)) {
         return os << "Extension OperationType " << underlyingType(operationType);
@@ -894,6 +898,10 @@ std::ostream& operator<<(std::ostream& os, const Version& version) {
             return os << "ANDROID_S";
         case Version::CURRENT_RUNTIME:
             return os << "CURRENT_RUNTIME";
+#ifdef NN_EXPERIMENTAL_FEATURE
+        case Version::EXPERIMENTAL:
+            return os << "EXPERIMENTAL";
+#endif  // NN_EXPERIMENTAL_FEATURE
     }
     return os << "Version{" << underlyingType(version) << "}";
 }

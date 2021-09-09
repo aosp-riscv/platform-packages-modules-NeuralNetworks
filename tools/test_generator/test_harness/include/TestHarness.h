@@ -194,6 +194,9 @@ enum class TestOperationType {
     HARD_SWISH = 99,
     FILL = 100,
     RANK = 101,
+#ifdef NN_EXPERIMENTAL_FEATURE
+    DENSIFY = 20000,
+#endif  // NN_EXPERIMENTAL_FEATURE
 };
 
 enum class TestHalVersion { UNKNOWN, V1_0, V1_1, V1_2, V1_3 };

@@ -93,12 +93,27 @@ class BuiltinOperationResolver : public IOperationResolver {
     // The number of operation types (OperationCode) defined in NeuralNetworks.h.
     static constexpr int kNumberOfOperationTypes = 102;
 
+#ifdef NN_EXPERIMENTAL_FEATURE
+    // The number of experimental operation types (ANeuralNetworksExperimentalOperationCode) defined
+    // in NeuralNetworksExperimentalFeatures.h.
+    static constexpr int kNumberOfExperimentalOperationTypes = 1;
+
+    // The starting value of experimental operation types (ANeuralNetworksExperimentalOperationCode)
+    // defined in NeuralNetworksExperimentalFeatures.h.
+    static constexpr int kStartOfExperimentalOperations = 20000;
+#endif  // NN_EXPERIMENTAL_FEATURE
+
    private:
     BuiltinOperationResolver();
 
     void registerOperation(const OperationRegistration* operationRegistration);
 
     const OperationRegistration* mRegistrations[kNumberOfOperationTypes] = {};
+
+#ifdef NN_EXPERIMENTAL_FEATURE
+    const OperationRegistration* mExperimentalRegistrations[kNumberOfExperimentalOperationTypes] =
+            {};
+#endif  // NN_EXPERIMENTAL_FEATURE
 };
 
 // NN_REGISTER_OPERATION creates OperationRegistration for consumption by

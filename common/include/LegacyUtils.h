@@ -42,6 +42,11 @@ const int kNumberOfDataTypes = 16;
 
 // The number of operation types (OperationCode) defined in NeuralNetworks.h.
 const int kNumberOfOperationTypes = 102;
+
+#ifdef NN_EXPERIMENTAL_FEATURE
+const int kNumberOfExperimentalOperationTypes = 1;
+#endif  // NN_EXPERIMENTAL_FEATURE
+
 static_assert(kNumberOfOperationTypes == BuiltinOperationResolver::kNumberOfOperationTypes);
 
 // The number of execution preferences defined in NeuralNetworks.h.

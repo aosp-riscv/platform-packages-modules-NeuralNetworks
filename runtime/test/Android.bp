@@ -216,6 +216,18 @@ cc_test {
             ],
         },
     },
+    whole_static_libs: [
+        "neuralnetworks_generated_experimental_example",
+    ],
+    exclude_static_libs: [
+        "libneuralnetworks_common",
+        "libneuralnetworks_static",
+    ],
+    static_libs: [
+        "libneuralnetworks_common_experimental",
+        "libneuralnetworks_static_experimental",
+    ],
+    cflags: ["-DNN_EXPERIMENTAL_FEATURE"],
     test_options: {
         unit_test: false,
     },
@@ -523,6 +535,13 @@ cc_library_static {
     defaults: ["neuralnetworks_float16"],
     srcs: ["generated/spec_V1_3_cts_only/*.example.cpp"],
     static_libs: ["libneuralnetworks_generated_test_harness"],
+}
+
+cc_library_static {
+    name: "neuralnetworks_generated_experimental_example",
+    defaults: ["neuralnetworks_generated_defaults"],
+    srcs: ["generated/spec_experimental/*.example.cpp"],
+    cflags: ["-DNN_EXPERIMENTAL_FEATURE"],
 }
 
 cc_library_static {

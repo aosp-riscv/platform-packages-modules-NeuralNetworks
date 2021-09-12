@@ -979,7 +979,17 @@ struct Timing {
 // Returns status, timingLaunched, timingFenced
 using ExecuteFencedInfoCallback = std::function<GeneralResult<std::pair<Timing, Timing>>()>;
 
-enum class Version { ANDROID_OC_MR1, ANDROID_P, ANDROID_Q, ANDROID_R, ANDROID_S, CURRENT_RUNTIME };
+enum class Version {
+    ANDROID_OC_MR1,
+    ANDROID_P,
+    ANDROID_Q,
+    ANDROID_R,
+    ANDROID_S,
+    CURRENT_RUNTIME,
+#ifdef NN_EXPERIMENTAL_FEATURE
+    EXPERIMENTAL,
+#endif  // NN_EXPERIMENTAL_FEATURE
+};
 
 // Describes the memory preference of an operand.
 struct MemoryPreference {

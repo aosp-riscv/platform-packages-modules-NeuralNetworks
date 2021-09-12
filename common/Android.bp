@@ -36,6 +36,7 @@ cc_defaults {
         "operations/Comparisons.cpp",
         "operations/Concatenation.cpp",
         "operations/Conv2D.cpp",
+        "operations/Densify.cpp",
         "operations/DepthwiseConv2D.cpp",
         "operations/Dequantize.cpp",
         "operations/Elementwise.cpp",
@@ -154,8 +155,8 @@ cc_library_static {
     ],
 }
 
-cc_library_static {
-    name: "libneuralnetworks_common",
+cc_defaults {
+    name: "libneuralnetworks_common_defaults",
     defaults: [
         "neuralnetworks_defaults",
         "neuralnetworks_operations",
@@ -281,6 +282,17 @@ cc_library_static {
         "-Wno-unused-private-field",
         "-Wno-unused-variable",
     ],
+}
+
+cc_library_static {
+    name: "libneuralnetworks_common",
+    defaults: ["libneuralnetworks_common_defaults"],
+}
+
+cc_library_static {
+    name: "libneuralnetworks_common_experimental",
+    defaults: ["libneuralnetworks_common_defaults"],
+    cflags: ["-DNN_EXPERIMENTAL_FEATURE"],
 }
 
 cc_defaults {

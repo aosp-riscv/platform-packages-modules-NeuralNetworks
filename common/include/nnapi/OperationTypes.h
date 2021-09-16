@@ -5149,7 +5149,7 @@ enum class OperationType {
      * The output is calculated using the following formula:
      *
      *     h-swish(x) = x * max(0, min(6, (x + 3))) / 6
-
+     *
      * Supported tensor {@link OperandType}:
      * * {@link OperandType::TENSOR_FLOAT16}
      * * {@link OperandType::TENSOR_FLOAT32}

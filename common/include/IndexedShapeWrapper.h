@@ -17,6 +17,8 @@
 #ifndef ANDROID_FRAMEWORKS_ML_NN_COMMON_INDEXED_SHAPE_WRAPPER_H
 #define ANDROID_FRAMEWORKS_ML_NN_COMMON_INDEXED_SHAPE_WRAPPER_H
 
+#include <vector>
+
 #include "OperationsUtils.h"
 
 namespace android {

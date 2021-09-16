@@ -197,7 +197,6 @@ typedef enum {
      * Available since NNAPI feature level 4.
      */
     ANEURALNETWORKS_TENSOR_QUANT8_ASYMM_SIGNED = 14,
-
     /**
      * A reference to a model.
      *
@@ -5581,7 +5580,7 @@ typedef enum {
      * The output is calculated using the following formula:
      *
      *     h-swish(x) = x * max(0, min(6, (x + 3))) / 6
-
+     *
      * Supported tensor {@link OperandCode}:
      * * {@link ANEURALNETWORKS_TENSOR_FLOAT16}
      * * {@link ANEURALNETWORKS_TENSOR_FLOAT32}

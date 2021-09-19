@@ -604,7 +604,7 @@ void SL_ANeuralNetworksDiagnostic_registerCallbacks(
  * a strict superset of NnApiSLDriverImplFL(N), and NnApiSLDriverImplFL(M)* can
  * be reinterpret_cast to NnApiSLDriverImplFL(N)* safely.
  */
-typedef struct {
+typedef struct NnApiSLDriverImpl {
     /**
      * Version of the NnApiSLDriverImpl struct. Uses {@link FeatureLevelCode} values
      * for versioning.
@@ -618,7 +618,7 @@ typedef struct {
  *
  * This struct must set its implFeatureLevel to {@link ANEURALNETWORKS_FEATURE_LEVEL_5}.
  */
-typedef struct {
+typedef struct NnApiSLDriverImplFL5 {
     /**
      * Base type with version information. Allows to cast a pointer of this type
      * to NnApiSLDriverImpl* with valid version information.

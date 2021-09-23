@@ -3179,7 +3179,11 @@
      *      If input is 1-dimensional, the output shape is [1].
 %insert AVAIL3
      */
+%kind aidl
+    %{DeclareOperation_1.2 ARGMIN 40}, // See ARGMAX for naming discussion.
+%else
     %{DeclareOperation_1.2 ARGMIN 40},  // See ARGMAX for naming discussion.
+%/kind
 
     /**
      * Transform axis-aligned bounding box proposals using bounding box deltas.

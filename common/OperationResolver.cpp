@@ -97,6 +97,9 @@ const OperationRegistration* register_TRANSPOSE();
 const OperationRegistration* register_TRANSPOSE_CONV_2D();
 const OperationRegistration* register_UNIDIRECTIONAL_SEQUENCE_LSTM();
 const OperationRegistration* register_UNIDIRECTIONAL_SEQUENCE_RNN();
+#ifdef NN_EXPERIMENTAL_FEATURE
+const OperationRegistration* register_DENSIFY();
+#endif  // NN_EXPERIMENTAL_FEATURE
 
 BuiltinOperationResolver::BuiltinOperationResolver() {
     registerOperation(register_ABS());
@@ -172,21 +175,38 @@ BuiltinOperationResolver::BuiltinOperationResolver() {
     registerOperation(register_TRANSPOSE_CONV_2D());
     registerOperation(register_UNIDIRECTIONAL_SEQUENCE_LSTM());
     registerOperation(register_UNIDIRECTIONAL_SEQUENCE_RNN());
+#ifdef NN_EXPERIMENTAL_FEATURE
+    registerOperation(register_DENSIFY());
+#endif  // NN_EXPERIMENTAL_FEATURE
 }
 
 const OperationRegistration* BuiltinOperationResolver::findOperation(
         OperationType operationType) const {
     auto index = static_cast<int32_t>(operationType);
-    if (index < 0 || index >= kNumberOfOperationTypes) {
-        return nullptr;
+    if (index >= 0 && index < kNumberOfOperationTypes) {
+        return mRegistrations[index];
     }
-    return mRegistrations[index];
+#ifdef NN_EXPERIMENTAL_FEATURE
+    if (index >= kStartOfExperimentalOperations &&
+        index < kStartOfExperimentalOperations + kNumberOfExperimentalOperationTypes) {
+        return mExperimentalRegistrations[index - kStartOfExperimentalOperations];
+    }
+#endif  // NN_EXPERIMENTAL_FEATURE
+    return nullptr;
 }
 
 void BuiltinOperationResolver::registerOperation(
         const OperationRegistration* operationRegistration) {
     CHECK(operationRegistration != nullptr);
     auto index = static_cast<int32_t>(operationRegistration->type);
+#ifdef NN_EXPERIMENTAL_FEATURE
+    if (index >= kStartOfExperimentalOperations) {
+        CHECK_LT(index, kStartOfExperimentalOperations + kNumberOfExperimentalOperationTypes);
+        CHECK(mExperimentalRegistrations[index - kStartOfExperimentalOperations] == nullptr);
+        mExperimentalRegistrations[index - kStartOfExperimentalOperations] = operationRegistration;
+        return;
+    }
+#endif  // NN_EXPERIMENTAL_FEATURE
     CHECK_LE(0, index);
     CHECK_LT(index, kNumberOfOperationTypes);
     CHECK(mRegistrations[index] == nullptr);

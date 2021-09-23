@@ -198,6 +198,19 @@ cc_library_static {
     apex_available: ["//apex_available:platform"],
 }
 
+// Required for tests (b/147158681)
+cc_library_static {
+    name: "libneuralnetworks_static_experimental",
+    defaults: [
+        "libneuralnetworks_defaults",
+        "neuralnetworks_defaults",
+    ],
+    exclude_static_libs: ["libneuralnetworks_common"],
+    static_libs: ["libneuralnetworks_common_experimental"],
+    cflags: ["-DNN_EXPERIMENTAL_FEATURE"],
+    apex_available: ["//apex_available:platform"],
+}
+
 cc_library_static {
     name: "libneuralnetworks_cl",
     defaults: [

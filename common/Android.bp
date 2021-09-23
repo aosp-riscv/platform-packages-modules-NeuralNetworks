@@ -24,6 +24,23 @@ cc_library_headers {
     export_include_dirs: ["include"],
 }
 
+// The following files took too much time to compile with clang-tidy.
+tidy_disabled_common_operations_files = [
+    "operations/Activation.cpp",
+    "operations/Broadcast.cpp",
+    "operations/Concatenation.cpp",
+    "operations/Conv2D.cpp",
+    "operations/FullyConnected.cpp",
+    "operations/L2Normalization.cpp",
+    "operations/LocalResponseNormalization.cpp",
+    "operations/PRelu.cpp",
+    "operations/Pooling.cpp",
+    "operations/Reshape.cpp",
+    "operations/SimpleMath.cpp",
+    "operations/Softmax.cpp",
+    "operations/Transpose.cpp",
+]
+
 cc_defaults {
     name: "neuralnetworks_operations",
     host_supported: true,
@@ -36,6 +53,7 @@ cc_defaults {
         "operations/Comparisons.cpp",
         "operations/Concatenation.cpp",
         "operations/Conv2D.cpp",
+        "operations/Densify.cpp",
         "operations/DepthwiseConv2D.cpp",
         "operations/Dequantize.cpp",
         "operations/Elementwise.cpp",
@@ -72,6 +90,7 @@ cc_defaults {
         "operations/UnidirectionalSequenceLSTM.cpp",
         "operations/UnidirectionalSequenceRNN.cpp",
     ],
+    tidy_disabled_srcs: tidy_disabled_common_operations_files,
 }
 
 cc_library_static {
@@ -154,8 +173,8 @@ cc_library_static {
     ],
 }
 
-cc_library_static {
-    name: "libneuralnetworks_common",
+cc_defaults {
+    name: "libneuralnetworks_common_defaults",
     defaults: [
         "neuralnetworks_defaults",
         "neuralnetworks_operations",
@@ -281,6 +300,17 @@ cc_library_static {
         "-Wno-unused-private-field",
         "-Wno-unused-variable",
     ],
+}
+
+cc_library_static {
+    name: "libneuralnetworks_common",
+    defaults: ["libneuralnetworks_common_defaults"],
+}
+
+cc_library_static {
+    name: "libneuralnetworks_common_experimental",
+    defaults: ["libneuralnetworks_common_defaults"],
+    cflags: ["-DNN_EXPERIMENTAL_FEATURE"],
 }
 
 cc_defaults {

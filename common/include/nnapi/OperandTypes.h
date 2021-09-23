@@ -109,7 +109,7 @@ enum class OperandType {
      * - scales: an array of positive 32 bit floating point values.
      * The size of the scales array must be equal to dimensions[channelDim].
      *
-     *{@link SymmPerChannelQuantParams} must hold the parameters for an Operand of this type.
+     * {@link SymmPerChannelQuantParams} must hold the parameters for an Operand of this type.
      * The channel dimension of this tensor must not be unknown (dimensions[channelDim] != 0).
      *
      * The formula is:

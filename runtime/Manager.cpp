@@ -256,6 +256,9 @@ int64_t DriverDevice::getFeatureLevel() const {
         case Version::ANDROID_S:
             return ANEURALNETWORKS_FEATURE_LEVEL_5;
         case Version::CURRENT_RUNTIME:
+#ifdef NN_EXPERIMENTAL_FEATURE
+        case Version::EXPERIMENTAL:
+#endif  // NN_EXPERIMENTAL_FEATURE
             break;
     }
     LOG(FATAL) << "Unsupported driver feature level: " << featureLevel;

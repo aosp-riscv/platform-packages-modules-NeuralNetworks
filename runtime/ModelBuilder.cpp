@@ -373,7 +373,16 @@ int ModelBuilder::addOperation(ANeuralNetworksOperationType type, uint32_t input
     }
 
     if (!isExtension(operationType)) {
-        if (!validCode(kNumberOfOperationTypes, kNumberOfOperationTypesOEM, type)) {
+        bool allowExperimental = false;
+#ifdef NN_EXPERIMENTAL_FEATURE
+        if (type >= BuiltinOperationResolver::kStartOfExperimentalOperations &&
+            type < BuiltinOperationResolver::kStartOfExperimentalOperations +
+                            BuiltinOperationResolver::kNumberOfExperimentalOperationTypes) {
+            allowExperimental = true;
+        }
+#endif  // NN_EXPERIMENTAL_FEATURE
+        if (!validCode(kNumberOfOperationTypes, kNumberOfOperationTypesOEM, type) &&
+            !allowExperimental) {
             LOG(ERROR) << "ANeuralNetworksModel_addOperation invalid operation type " << type;
             return ANEURALNETWORKS_BAD_DATA;
         }

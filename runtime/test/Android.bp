@@ -112,6 +112,9 @@ cc_defaults {
         "TestValidation.cpp",
         "TestWrapper.cpp",
     ],
+    tidy_disabled_srcs: [
+        "TestValidateModel.cpp", // includes large generated code
+    ],
     header_libs: [
         "libneuralnetworks_common_headers",
     ],
@@ -233,6 +236,14 @@ cc_test {
     },
 }
 
+tidy_disabled_operation_signatures_files = [
+    // These took too much time with clang-tidy.
+    "fuzzing/operation_signatures/Convolutions.cpp",
+    "fuzzing/operation_signatures/Poolings.cpp",
+    "fuzzing/operation_signatures/Reshape.cpp",
+    "fuzzing/operation_signatures/Resize.cpp",
+]
+
 cc_test {
     name: "NeuralNetworksTest_static_fuzzing",
     defaults: ["NeuralNetworksTest_default_libs"],
@@ -246,6 +257,7 @@ cc_test {
         "fuzzing/TestRandomGraph.cpp",
         "fuzzing/operation_signatures/*.cpp",
     ],
+    tidy_disabled_srcs: tidy_disabled_operation_signatures_files,
     static_libs: [
         "libSampleDriver",
         "libgmock",
@@ -444,6 +456,11 @@ cc_library_static {
         "fuzzing/operation_signatures/*.cpp",
         "generated/spec_V1_*/*.example.cpp",
     ],
+    // generated code are too big to run with clang-tidy
+    tidy_disabled_srcs: [
+        "generated/spec_V1_*/*.example.cpp",
+        "TestValidateModel.cpp", // includes large generated code
+    ] + tidy_disabled_operation_signatures_files,
     include_dirs: [
         "packages/modules/NeuralNetworks/common/include",
         "packages/modules/NeuralNetworks/runtime/",
@@ -500,6 +517,7 @@ cc_library_static {
 cc_defaults {
     name: "neuralnetworks_generated_defaults",
     defaults: ["neuralnetworks_float16"],
+    tidy: false, // generated files are too big to run with clang-tidy
     host_supported: true,
     vendor_available: true,
     static_libs: ["libneuralnetworks_generated_test_harness"],
@@ -533,6 +551,7 @@ cc_library_static {
     name: "neuralnetworks_generated_V1_3_cts_only_example",
     host_supported: true,
     defaults: ["neuralnetworks_float16"],
+    tidy: false, // generated files are too big to run with clang-tidy
     srcs: ["generated/spec_V1_3_cts_only/*.example.cpp"],
     static_libs: ["libneuralnetworks_generated_test_harness"],
 }
@@ -558,6 +577,7 @@ cc_library_static {
         "fuzzing/RandomVariable.cpp",
         "fuzzing/operation_signatures/*.cpp",
     ],
+    tidy_disabled_srcs: tidy_disabled_operation_signatures_files,
     include_dirs: [
         "packages/modules/NeuralNetworks/common/include",
         "packages/modules/NeuralNetworks/runtime/",

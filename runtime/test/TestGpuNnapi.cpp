@@ -236,7 +236,9 @@ void allocateBlobAhwb(uint32_t size, uint64_t usage, AHardwareBuffer** outAhwb) 
             .format = AHARDWAREBUFFER_FORMAT_BLOB,
             .usage = usage,
     };
-    ASSERT_EQ(AHardwareBuffer_allocate(&desc, outAhwb), 0);
+    if (AHardwareBuffer_allocate(&desc, outAhwb) != 0) {
+        GTEST_SKIP() << "Device failed to allocate Android hardware buffer";
+    }
 }
 
 using NameAndDevice = std::pair<const char*, const ANeuralNetworksDevice*>;

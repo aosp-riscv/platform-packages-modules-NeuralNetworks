@@ -88,7 +88,7 @@ bool prepare(IOperationExecutionContext* context) {
         LOG(ERROR) << "Condition and input tensor dimensions are not equal";
         return false;
     }
-    for (int i = 0; i < inputCondition.dimensions.size(); ++i) {
+    for (size_t i = 0; i < inputCondition.dimensions.size(); ++i) {
         if (inputCondition.dimensions[i] != input1.dimensions[i]) {
             LOG(ERROR) << "Condition and input tensor dimensions are not equal";
             return false;

@@ -26,10 +26,15 @@
 #include "nnapi/Validation.h"
 
 #ifdef NN_INCLUDE_CPU_IMPLEMENTATION
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-parameter"
+#pragma clang diagnostic ignored "-Wsign-compare"
+#pragma clang diagnostic ignored "-Winvalid-partial-specialization"
 #include <tensorflow/lite/kernels/internal/optimized/legacy_optimized_ops.h>
 #include <tensorflow/lite/kernels/internal/reference/legacy_reference_ops.h>
 #include <tensorflow/lite/kernels/internal/reference/reference_ops.h>
 #include <tensorflow/lite/kernels/internal/types.h>
+#pragma clang diagnostic pop
 
 #include "CpuOperationUtils.h"
 #endif  // NN_INCLUDE_CPU_IMPLEMENTATION
@@ -112,7 +117,7 @@ template <>
 inline bool concatenation<int8_t>(IOperationExecutionContext* context) {
     uint32_t inputCount = context->getNumInputs() - 1;
     std::vector<std::vector<uint8_t>> inputs_uint8(inputCount);
-    for (int i = 0; i < inputCount; ++i) {
+    for (uint32_t i = 0; i < inputCount; ++i) {
         const auto currentSize = getNumberOfElements(context->getInputShape(i));
         inputs_uint8[i].resize(currentSize);
         if (currentSize != 0) {
@@ -143,7 +148,7 @@ inline bool concatenation<int8_t>(IOperationExecutionContext* context) {
 
 Result<Version> validate(const IOperationValidationContext* context) {
     uint32_t inputCount = context->getNumInputs();
-    NN_RET_CHECK_GE(inputCount, 2);
+    NN_RET_CHECK_GE(inputCount, 2u);
     NN_RET_CHECK_EQ(context->getNumOutputs(), kNumOutputs);
     const OperandType inputType = context->getInputType(0);
     auto minSupportedVersion = Version::ANDROID_OC_MR1;
@@ -170,7 +175,7 @@ Result<Version> validate(const IOperationValidationContext* context) {
     for (uint32_t i = 0; i < inputCount - 1; ++i) {
         const uint32_t inputRank = getNumberOfDimensions(context->getInputShape(i));
         if (inputRank != 0) {
-            NN_RET_CHECK_LE(inputRank, 4);
+            NN_RET_CHECK_LE(inputRank, 4u);
         }
     }
     NN_RET_CHECK(validateInputTypes(context, inExpectedTypes));
@@ -181,13 +186,13 @@ Result<Version> validate(const IOperationValidationContext* context) {
 #ifdef NN_INCLUDE_CPU_IMPLEMENTATION
 bool prepare(IOperationExecutionContext* context) {
     uint32_t numInputs = context->getNumInputs();
-    NN_RET_CHECK_GE(numInputs, 2);
+    NN_RET_CHECK_GE(numInputs, 2u);
     const Shape& input0 = context->getInputShape(0);
     uint32_t numDimensions = getNumberOfDimensions(input0);
     int32_t axis = context->getInputValue<int32_t>(numInputs - 1);
     NN_RET_CHECK_GE(axis, 0);
-    NN_RET_CHECK_LT(axis, numDimensions);
-    NN_RET_CHECK_LE(numDimensions, 4);
+    NN_RET_CHECK_LT(static_cast<uint32_t>(axis), numDimensions);
+    NN_RET_CHECK_LE(numDimensions, 4u);
 
     uint32_t sumAxis = getSizeOfDimension(input0, axis);
     for (uint32_t i = 1; i < numInputs - 1; ++i) {
@@ -195,7 +200,7 @@ bool prepare(IOperationExecutionContext* context) {
         NN_RET_CHECK_EQ(getNumberOfDimensions(input), numDimensions);
         NN_RET_CHECK(input.type == input0.type);
         for (uint32_t d = 0; d < numDimensions; ++d) {
-            if (d == axis) {
+            if (d == static_cast<uint32_t>(axis)) {
                 sumAxis += getSizeOfDimension(input, axis);
             } else {
                 NN_RET_CHECK_EQ(getSizeOfDimension(input0, d), getSizeOfDimension(input, d));

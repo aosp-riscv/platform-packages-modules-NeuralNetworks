@@ -82,12 +82,12 @@ Result<Version> validate(const IOperationValidationContext* context) {
 
 bool prepare(IOperationExecutionContext* context) {
     Shape dimsShape = context->getInputShape(kDimsTensor);
-    NN_RET_CHECK_EQ(getNumberOfDimensions(dimsShape), 1);
+    NN_RET_CHECK_EQ(getNumberOfDimensions(dimsShape), 1u);
 
     Shape outputShape = context->getOutputShape(kOutputTensor);
     outputShape.dimensions.resize(dimsShape.dimensions[0]);
     const int32_t* dims = context->getInputBuffer<int32_t>(kDimsTensor);
-    for (int i = 0; i < dimsShape.dimensions[0]; ++i) {
+    for (uint32_t i = 0; i < dimsShape.dimensions[0]; ++i) {
         outputShape.dimensions[i] = dims[i];
     }
     return context->setOutputShape(kOutputTensor, outputShape);

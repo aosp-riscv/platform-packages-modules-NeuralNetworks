@@ -49,7 +49,7 @@ constexpr uint32_t kInputArrIdx = 6;
 constexpr uint32_t kNumOutputs = 1;
 constexpr uint32_t kOutputTensor = 0;
 constexpr int32_t DENSE = 0;
-constexpr int32_t SPARSE_CSR = 1;
+[[maybe_unused]] constexpr int32_t SPARSE_CSR = 1;
 
 uint64_t getFlattenedIndex(const std::vector<int32_t>& indices, const std::vector<uint32_t>& shape,
                            const int origRank) {
@@ -64,14 +64,14 @@ uint64_t getFlattenedIndex(const std::vector<int32_t>& indices, const std::vecto
 }
 
 template <typename T>
-void populate(const T* srcData, std::vector<int32_t>* indices, int32_t level, int32_t prevIdx,
+void populate(const T* srcData, std::vector<int32_t>* indices, uint32_t level, uint32_t prevIdx,
               T* destData, const std::vector<uint32_t>& destDims,
               const std::vector<int32_t>& dimFormat, const int32_t* traversalOrder,
               const std::vector<int32_t>& blockSize, const int32_t* blockMap,
               const std::vector<std::vector<int32_t>>& dimMetadata, const int origRank) {
     if (level == (*indices).size()) {  // level == size of traversal order
         std::vector<int> origIdx(origRank);
-        int i = 0;
+        size_t i = 0;
         // Calculating origIdx using dense tensor dimensions
         for (; i < origIdx.size(); i++) {
             int origDim = traversalOrder[i];
@@ -160,7 +160,7 @@ inline bool densify(IOperationExecutionContext* context) {
     const int origRank = destShape.dimensions.size();
     std::vector<int32_t> blockSize(
             inputShapes[kInputBlockMap].dimensions.front());  // size of block map
-    for (int i = 0; i < inputShapes[kInputBlockMap].dimensions.front(); i++) {
+    for (uint32_t i = 0; i < inputShapes[kInputBlockMap].dimensions.front(); i++) {
         const int32_t origDim = traversalOrder[origRank + i];
         blockSize[i] = dimensions[origDim];
     }
@@ -178,13 +178,13 @@ inline bool densify(IOperationExecutionContext* context) {
     }
 
     T* destData = context->getOutputBuffer<T>(kOutputTensor);
-    for (int32_t i = 0; i < denseTotal; i++) {
+    for (size_t i = 0; i < denseTotal; i++) {
         destData[i] = zeroPoint;
     }
 
     std::vector<int32_t> indices(
             inputShapes[kInputTravOrder].dimensions.front());  // size of traversal order
-    populate(srcData, &indices, 0, 0, destData, destShape.dimensions, dimFormat, traversalOrder,
+    populate(srcData, &indices, 0u, 0u, destData, destShape.dimensions, dimFormat, traversalOrder,
              blockSize, blockMap, dimMetadata, origRank);
     return true;
 }
@@ -196,9 +196,9 @@ Result<Version> validate(const IOperationValidationContext* context) {
     NN_RET_CHECK_EQ(inputCount,
                     kMinNumInputs + context->getInputShape(kInputTravOrder).dimensions.front() * 2);
     NN_RET_CHECK_EQ(context->getNumOutputs(), kNumOutputs);
-    NN_RET_CHECK_EQ(context->getInputShape(kInputTensor).dimensions.size(), 1);
+    NN_RET_CHECK_EQ(context->getInputShape(kInputTensor).dimensions.size(), 1u);
     for (uint32_t i = 1; i < inputCount; i++) {
-        NN_RET_CHECK_EQ(context->getInputShape(i).dimensions.size(), 1);
+        NN_RET_CHECK_EQ(context->getInputShape(i).dimensions.size(), 1u);
         NN_RET_CHECK_EQ(context->getInputType(i), OperandType::TENSOR_INT32);
     }
     return Version::EXPERIMENTAL;
@@ -216,7 +216,7 @@ bool prepare(IOperationExecutionContext* context) {
     const uint32_t origRank = dimensionsShape.dimensions.front() - blockMapShape.dimensions.front();
     std::vector<uint32_t> destDims(origRank);
 
-    int i = 0;
+    size_t i = 0;
     for (; i < destDims.size(); i++) {
         const int32_t origDim = traversalOrder[i];
         destDims[origDim] = dimensions[i];

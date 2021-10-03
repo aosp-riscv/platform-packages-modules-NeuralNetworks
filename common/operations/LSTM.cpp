@@ -18,7 +18,10 @@
 
 #include "LSTM.h"
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-parameter"
 #include <tensorflow/lite/kernels/internal/reference/portable_tensor_utils.h>
+#pragma clang diagnostic pop
 
 #include <vector>
 
@@ -130,14 +133,14 @@ LSTMCell::LSTMCell(const Operation& operation, RunTimeOperandInfo* operands) {
 
 // static
 bool LSTMCell::CheckInputTensorDimensions(
-        const RunTimeOperandInfo* input_, const RunTimeOperandInfo* input_to_input_weights,
+        const RunTimeOperandInfo* /*input_*/, const RunTimeOperandInfo* input_to_input_weights,
         const RunTimeOperandInfo* input_to_forget_weights,
         const RunTimeOperandInfo* input_to_cell_weights,
-        const RunTimeOperandInfo* input_to_output_weights,
+        const RunTimeOperandInfo* /*input_to_output_weights*/,
         const RunTimeOperandInfo* recurrent_to_input_weights,
         const RunTimeOperandInfo* recurrent_to_forget_weights,
         const RunTimeOperandInfo* recurrent_to_cell_weights,
-        const RunTimeOperandInfo* recurrent_to_output_weights,
+        const RunTimeOperandInfo* /*recurrent_to_output_weights*/,
         const RunTimeOperandInfo* cell_to_input_weights,
         const RunTimeOperandInfo* cell_to_forget_weights,
         const RunTimeOperandInfo* cell_to_output_weights, const RunTimeOperandInfo* input_gate_bias,
@@ -156,30 +159,30 @@ bool LSTMCell::CheckInputTensorDimensions(
     NN_CHECK(params->proj_clip >= 0);
 
     if (!IsNullInput(input_to_input_weights)) {
-        NN_CHECK_EQ(NumDimensions(input_to_input_weights), 2);
+        NN_CHECK_EQ(NumDimensions(input_to_input_weights), 2u);
         NN_CHECK_EQ(SizeOfDimension(input_to_input_weights, 0), n_cell);
         NN_CHECK_EQ(SizeOfDimension(input_to_input_weights, 1), n_input);
     }
 
-    NN_CHECK_EQ(NumDimensions(input_to_forget_weights), 2);
+    NN_CHECK_EQ(NumDimensions(input_to_forget_weights), 2u);
     NN_CHECK_EQ(SizeOfDimension(input_to_forget_weights, 0), n_cell);
     NN_CHECK_EQ(SizeOfDimension(input_to_forget_weights, 1), n_input);
 
-    NN_CHECK_EQ(NumDimensions(input_to_cell_weights), 2);
+    NN_CHECK_EQ(NumDimensions(input_to_cell_weights), 2u);
     NN_CHECK_EQ(SizeOfDimension(input_to_cell_weights, 0), n_cell);
     NN_CHECK_EQ(SizeOfDimension(input_to_cell_weights, 1), n_input);
 
     if (!IsNullInput(recurrent_to_input_weights)) {
-        NN_CHECK_EQ(NumDimensions(recurrent_to_input_weights), 2);
+        NN_CHECK_EQ(NumDimensions(recurrent_to_input_weights), 2u);
         NN_CHECK_EQ(SizeOfDimension(recurrent_to_input_weights, 0), n_cell);
         NN_CHECK_EQ(SizeOfDimension(recurrent_to_input_weights, 1), n_output);
     }
 
-    NN_CHECK_EQ(NumDimensions(recurrent_to_forget_weights), 2);
+    NN_CHECK_EQ(NumDimensions(recurrent_to_forget_weights), 2u);
     NN_CHECK_EQ(SizeOfDimension(recurrent_to_forget_weights, 0), n_cell);
     NN_CHECK_EQ(SizeOfDimension(recurrent_to_forget_weights, 1), n_output);
 
-    NN_CHECK_EQ(NumDimensions(recurrent_to_cell_weights), 2);
+    NN_CHECK_EQ(NumDimensions(recurrent_to_cell_weights), 2u);
     NN_CHECK_EQ(SizeOfDimension(recurrent_to_cell_weights, 0), n_cell);
     NN_CHECK_EQ(SizeOfDimension(recurrent_to_cell_weights, 1), n_output);
 
@@ -191,17 +194,17 @@ bool LSTMCell::CheckInputTensorDimensions(
     NN_CHECK(cifg_weights_all_or_none);
 
     if (!IsNullInput(cell_to_input_weights)) {
-        NN_CHECK_EQ(NumDimensions(cell_to_input_weights), 1);
+        NN_CHECK_EQ(NumDimensions(cell_to_input_weights), 1u);
         NN_CHECK_EQ(SizeOfDimension(cell_to_input_weights, 0), n_cell);
     }
 
     if (!IsNullInput(cell_to_forget_weights)) {
-        NN_CHECK_EQ(NumDimensions(cell_to_forget_weights), 1);
+        NN_CHECK_EQ(NumDimensions(cell_to_forget_weights), 1u);
         NN_CHECK_EQ(SizeOfDimension(cell_to_forget_weights, 0), n_cell);
     }
 
     if (!IsNullInput(cell_to_output_weights)) {
-        NN_CHECK_EQ(NumDimensions(cell_to_output_weights), 1);
+        NN_CHECK_EQ(NumDimensions(cell_to_output_weights), 1u);
         NN_CHECK_EQ(SizeOfDimension(cell_to_output_weights, 0), n_cell);
     }
 
@@ -228,27 +231,27 @@ bool LSTMCell::CheckInputTensorDimensions(
     if (params->use_cifg) {
         NN_CHECK(IsNullInput(input_gate_bias));
     } else {
-        NN_CHECK_EQ(NumDimensions(input_gate_bias), 1);
+        NN_CHECK_EQ(NumDimensions(input_gate_bias), 1u);
         NN_CHECK_EQ(SizeOfDimension(input_gate_bias, 0), n_cell);
     }
 
-    NN_CHECK_EQ(NumDimensions(forget_gate_bias), 1);
+    NN_CHECK_EQ(NumDimensions(forget_gate_bias), 1u);
     NN_CHECK_EQ(SizeOfDimension(forget_gate_bias, 0), n_cell);
 
-    NN_CHECK_EQ(NumDimensions(cell_bias), 1);
+    NN_CHECK_EQ(NumDimensions(cell_bias), 1u);
     NN_CHECK_EQ(SizeOfDimension(cell_bias, 0), n_cell);
 
-    NN_CHECK_EQ(NumDimensions(output_gate_bias), 1);
+    NN_CHECK_EQ(NumDimensions(output_gate_bias), 1u);
     NN_CHECK_EQ(SizeOfDimension(output_gate_bias, 0), n_cell);
 
     if (!IsNullInput(projection_weights)) {
-        NN_CHECK_EQ(NumDimensions(projection_weights), 2);
+        NN_CHECK_EQ(NumDimensions(projection_weights), 2u);
         NN_CHECK_EQ(SizeOfDimension(projection_weights, 0), n_output);
         NN_CHECK_EQ(SizeOfDimension(projection_weights, 1), n_cell);
     }
 
     if (!IsNullInput(projection_bias)) {
-        NN_CHECK_EQ(NumDimensions(projection_bias), 1);
+        NN_CHECK_EQ(NumDimensions(projection_bias), 1u);
         NN_CHECK_EQ(SizeOfDimension(projection_bias, 0), n_output);
     }
 
@@ -262,19 +265,19 @@ bool LSTMCell::CheckInputTensorDimensions(
     NN_CHECK(projecton_tensors_consistent == true);
 
     if (!IsNullInput(input_layer_norm_weights)) {
-        NN_CHECK_EQ(NumDimensions(input_layer_norm_weights), 1);
+        NN_CHECK_EQ(NumDimensions(input_layer_norm_weights), 1u);
         NN_CHECK_EQ(SizeOfDimension(input_layer_norm_weights, 0), n_cell);
     }
     if (!IsNullInput(forget_layer_norm_weights)) {
-        NN_CHECK_EQ(NumDimensions(forget_layer_norm_weights), 1);
+        NN_CHECK_EQ(NumDimensions(forget_layer_norm_weights), 1u);
         NN_CHECK_EQ(SizeOfDimension(forget_layer_norm_weights, 0), n_cell);
     }
     if (!IsNullInput(cell_layer_norm_weights)) {
-        NN_CHECK_EQ(NumDimensions(cell_layer_norm_weights), 1);
+        NN_CHECK_EQ(NumDimensions(cell_layer_norm_weights), 1u);
         NN_CHECK_EQ(SizeOfDimension(cell_layer_norm_weights, 0), n_cell);
     }
     if (!IsNullInput(output_layer_norm_weights)) {
-        NN_CHECK_EQ(NumDimensions(output_layer_norm_weights), 1);
+        NN_CHECK_EQ(NumDimensions(output_layer_norm_weights), 1u);
         NN_CHECK_EQ(SizeOfDimension(output_layer_norm_weights, 0), n_cell);
     }
 
@@ -349,10 +352,10 @@ bool LSTMCell::Prepare(const Operation& operation, RunTimeOperandInfo* operands,
     const uint32_t n_input = SizeOfDimension(input_, 1);
 
     const uint32_t n_cell = SizeOfDimension(input_to_output_weights_, 0);
-    NN_CHECK_EQ(NumDimensions(input_to_output_weights_), 2);
+    NN_CHECK_EQ(NumDimensions(input_to_output_weights_), 2u);
     NN_CHECK_EQ(SizeOfDimension(input_to_output_weights_, 1), n_input);
 
-    NN_CHECK_EQ(NumDimensions(recurrent_to_output_weights_), 2);
+    NN_CHECK_EQ(NumDimensions(recurrent_to_output_weights_), 2u);
     NN_CHECK_EQ(SizeOfDimension(recurrent_to_output_weights_, 0), n_cell);
     const uint32_t n_output = SizeOfDimension(recurrent_to_output_weights_, 1);
 
@@ -480,7 +483,7 @@ bool LSTMCell::LSTMEvalFloat32(
     const int batchInputDelta = (forwardSequence ? 1 : -1) * static_cast<int>(batchInputSize);
     const int batchOutputDelta = (forwardSequence ? 1 : -1) * static_cast<int>(batchOutputSize);
 
-    for (int t = 0; t < maxTime; ++t) {
+    for (uint32_t t = 0; t < maxTime; ++t) {
         LSTMStep(params, inputCurrentTimeStep, batchInputShape, input_to_input_weights_buffer,
                  input_to_forget_weights_buffer, input_to_cell_weights_buffer,
                  input_to_output_weights_buffer, input_to_output_weights_shape,
@@ -718,7 +721,7 @@ bool LSTMCell::LSTMEvalFloat16(
     const int batchInputDelta = (forwardSequence ? 1 : -1) * static_cast<int>(batchInputSize);
     const int batchOutputDelta = (forwardSequence ? 1 : -1) * static_cast<int>(batchOutputSize);
 
-    for (int t = 0; t < maxTime; ++t) {
+    for (uint32_t t = 0; t < maxTime; ++t) {
         LSTMStep(params, inputCurrentTimeStep, batchInputShape,
                  input_to_input_weights_float32.data(), input_to_forget_weights_float32.data(),
                  input_to_cell_weights_float32.data(), input_to_output_weights_float32.data(),

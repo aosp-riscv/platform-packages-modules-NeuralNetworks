@@ -96,7 +96,7 @@ bool prepare(IOperationExecutionContext* context) {
     const Shape inputShape = context->getInputShape(kInputTensor);
     const int32_t k = context->getInputValue<int32_t>(kTopKScalar);
     NN_RET_CHECK_GT(k, 0);
-    NN_RET_CHECK_LE(k, inputShape.dimensions.back());
+    NN_RET_CHECK_LE(static_cast<uint32_t>(k), inputShape.dimensions.back());
 
     // Copy input shape to ensure that quantization parameters for the output
     // values are the same as for the input tensor.

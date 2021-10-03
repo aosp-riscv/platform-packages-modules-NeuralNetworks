@@ -25,7 +25,11 @@
 #include "nnapi/Validation.h"
 
 #ifdef NN_INCLUDE_CPU_IMPLEMENTATION
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-parameter"
+#pragma clang diagnostic ignored "-Wsign-compare"
 #include <tensorflow/lite/kernels/internal/reference/reference_ops.h>
+#pragma clang diagnostic pop
 
 #include "CpuOperationUtils.h"
 #endif  // NN_INCLUDE_CPU_IMPLEMENTATION
@@ -38,15 +42,15 @@ namespace resize_image {
 constexpr uint32_t kNumInputs = 4;
 constexpr uint32_t kInputTensor = 0;
 // The following two scalars represent output shape if INT32, scale if floating point.
-constexpr uint32_t kOutputWidthParamScalar = 1;
+[[maybe_unused]] constexpr uint32_t kOutputWidthParamScalar = 1;
 constexpr uint32_t kOutputHeightParamScalar = 2;
-constexpr uint32_t kLayoutScalar = 3;
+[[maybe_unused]] constexpr uint32_t kLayoutScalar = 3;
 constexpr uint32_t kNumOptionalInputs = 2;
-constexpr uint32_t kAlignCornersScalar = 4;
-constexpr uint32_t kHalfPixelCentersScalar = 5;
+[[maybe_unused]] constexpr uint32_t kAlignCornersScalar = 4;
+[[maybe_unused]] constexpr uint32_t kHalfPixelCentersScalar = 5;
 
 constexpr uint32_t kNumOutputs = 1;
-constexpr uint32_t kOutputTensor = 0;
+[[maybe_unused]] constexpr uint32_t kOutputTensor = 0;
 
 #ifdef NN_INCLUDE_CPU_IMPLEMENTATION
 namespace {
@@ -229,8 +233,8 @@ Result<Version> validate(OperationType opType, const IOperationValidationContext
 #ifdef NN_INCLUDE_CPU_IMPLEMENTATION
 bool prepare(OperationType opType, IOperationExecutionContext* context) {
     Shape input = context->getInputShape(kInputTensor);
-    NN_RET_CHECK_EQ(getNumberOfDimensions(input), 4);
-    const auto numInputs = context->getNumInputs();
+    NN_RET_CHECK_EQ(getNumberOfDimensions(input), 4u);
+    [[maybe_unused]] const auto numInputs = context->getNumInputs();
     const bool useNchw = getOptionalScalar(context, kLayoutScalar);
     const bool alignCorners = getOptionalScalar(context, kAlignCornersScalar);
     const bool halfPixelCenters = getOptionalScalar(context, kHalfPixelCentersScalar);
@@ -242,9 +246,9 @@ bool prepare(OperationType opType, IOperationExecutionContext* context) {
     uint32_t inHeight = getSizeOfDimension(input, useNchw ? 2 : 1);
     uint32_t inWidth = getSizeOfDimension(input, useNchw ? 3 : 2);
     uint32_t channels = getSizeOfDimension(input, useNchw ? 1 : 3);
-    NN_RET_CHECK_GT(inHeight, 0);
-    NN_RET_CHECK_GT(inWidth, 0);
-    NN_RET_CHECK_GT(channels, 0);
+    NN_RET_CHECK_GT(inHeight, 0u);
+    NN_RET_CHECK_GT(inWidth, 0u);
+    NN_RET_CHECK_GT(channels, 0u);
 
     int32_t height, width;
     auto scalarType = context->getInputType(kOutputHeightParamScalar);

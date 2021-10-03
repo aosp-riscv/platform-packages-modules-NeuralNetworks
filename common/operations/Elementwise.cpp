@@ -119,7 +119,7 @@ Result<Version> validateFloor(const IOperationValidationContext* context) {
 
     const Shape& input = context->getInputShape(kInputTensor);
     if (hasKnownRank(input)) {
-        NN_RET_CHECK_LE(getNumberOfDimensions(input), 4);
+        NN_RET_CHECK_LE(getNumberOfDimensions(input), 4u);
     }
 
     return inputType == OperandType::TENSOR_FLOAT16 ? Version::ANDROID_Q : Version::ANDROID_OC_MR1;
@@ -135,7 +135,7 @@ bool prepare(IOperationExecutionContext* context) {
 bool prepareFloor(IOperationExecutionContext* context) {
     Shape input = context->getInputShape(kInputTensor);
     Shape output = context->getOutputShape(kOutputTensor);
-    NN_RET_CHECK_LE(getNumberOfDimensions(input), 4);
+    NN_RET_CHECK_LE(getNumberOfDimensions(input), 4u);
     NN_RET_CHECK(SetShape(input, &output));
     return context->setOutputShape(kOutputTensor, output);
 }

@@ -27,7 +27,7 @@ namespace nn {
 
 template <typename In, typename Out>
 static void argMinMaxImpl(const In* inputData, const Shape& inputShape, int32_t axis, bool isArgMin,
-                          Out* outputData, const Shape& outputShape) {
+                          Out* outputData, const Shape& /*outputShape*/) {
     const int outerSize = getNumberOfElements(inputShape, 0, axis);
     const int axisSize = getSizeOfDimension(inputShape, axis);
     const int innerSize =

@@ -5,7 +5,10 @@
 #ifndef ANDROID_FRAMEWORKS_ML_NN_COMMON_QUANTUTILS_H
 #define ANDROID_FRAMEWORKS_ML_NN_COMMON_QUANTUTILS_H
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wsign-compare"
 #include <public/gemmlowp.h>
+#pragma clang diagnostic pop
 
 #include <limits>
 #include <memory>

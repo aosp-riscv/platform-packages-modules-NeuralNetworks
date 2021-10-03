@@ -40,7 +40,7 @@ namespace {
 
 template <typename T>
 bool eluFloat(const T* inputData, const Shape& inputShape, const T alpha, T* outputData,
-              const Shape& outputShape) {
+              const Shape& /*outputShape*/) {
     NNTRACE_COMP("ELU");
     int numElements = getNumberOfElements(inputShape);
     for (int i = 0; i < numElements; ++i) {

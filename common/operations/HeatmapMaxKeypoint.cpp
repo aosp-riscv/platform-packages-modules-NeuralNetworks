@@ -37,12 +37,12 @@ constexpr char kOperationName[] = "HEATMAP_MAX_KEYPOINT";
 
 constexpr uint32_t kNumInputs = 3;
 constexpr uint32_t kHeatmapTensor = 0;
-constexpr uint32_t kBoxesTensor = 1;
-constexpr uint32_t kLayoutScalar = 2;
+[[maybe_unused]] constexpr uint32_t kBoxesTensor = 1;
+[[maybe_unused]] constexpr uint32_t kLayoutScalar = 2;
 
 constexpr uint32_t kNumOutputs = 2;
-constexpr uint32_t kOutputScoreTensor = 0;
-constexpr uint32_t kOutputKeypointTensor = 1;
+[[maybe_unused]] constexpr uint32_t kOutputScoreTensor = 0;
+[[maybe_unused]] constexpr uint32_t kOutputKeypointTensor = 1;
 
 #ifdef NN_INCLUDE_CPU_IMPLEMENTATION
 namespace {
@@ -88,9 +88,9 @@ static void solveForDelta(const float grid[3][3], float* delta, float* deltaScor
 
 inline bool heatmapMaxKeypointFloat32Nhwc(const float* heatmap, const Shape& heatmapShape,
                                           const float* boxes, const Shape& boxesShape,
-                                          float* outputScoreData, const Shape& outputScoreShape,
+                                          float* outputScoreData, const Shape& /*outputScoreShape*/,
                                           float* outputKeypointData,
-                                          const Shape& outputKeypointShape, float fpAtol,
+                                          const Shape& /*outputKeypointShape*/, float fpAtol,
                                           float fpRtol) {
     NNTRACE_TRANS("HeatmapMaxKeypoint");
 
@@ -131,8 +131,8 @@ inline bool heatmapMaxKeypointFloat32Nhwc(const float* heatmap, const Shape& hea
 
                     // use mirroring for out of bound indexing
                     // need to ensure heatmapSize >= 2
-                    h = h < 0 ? 1 : (h >= heatmapSize ? heatmapSize - 2 : h);
-                    w = w < 0 ? 1 : (w >= heatmapSize ? heatmapSize - 2 : w);
+                    h = h < 0 ? 1 : (static_cast<uint32_t>(h) >= heatmapSize ? heatmapSize - 2 : h);
+                    w = w < 0 ? 1 : (static_cast<uint32_t>(w) >= heatmapSize ? heatmapSize - 2 : w);
 
                     uint32_t heatmapIndex = static_cast<uint32_t>(h) * heatmapSize * numKeypoints +
                                             static_cast<uint32_t>(w) * numKeypoints + j;
@@ -262,17 +262,17 @@ bool prepare(IOperationExecutionContext* context) {
     bool layout = context->getInputValue<bool>(kLayoutScalar);
     Shape heatmapShape = context->getInputShape(kHeatmapTensor);
     Shape boxesShape = context->getInputShape(kBoxesTensor);
-    NN_RET_CHECK_EQ(getNumberOfDimensions(heatmapShape), 4);
-    NN_RET_CHECK_EQ(getNumberOfDimensions(boxesShape), 2);
+    NN_RET_CHECK_EQ(getNumberOfDimensions(heatmapShape), 4u);
+    NN_RET_CHECK_EQ(getNumberOfDimensions(boxesShape), 2u);
 
     uint32_t numBoxes = getSizeOfDimension(heatmapShape, 0);
     uint32_t heatmapSize = getSizeOfDimension(heatmapShape, 2);
     uint32_t numKeypoints = getSizeOfDimension(heatmapShape, layout ? 1 : 3);
     uint32_t boxInfoLength = getSizeOfDimension(boxesShape, 1);
     NN_RET_CHECK_EQ(getSizeOfDimension(heatmapShape, layout ? 3 : 1), heatmapSize);
-    NN_RET_CHECK_GE(heatmapSize, 2);
+    NN_RET_CHECK_GE(heatmapSize, 2u);
     NN_RET_CHECK_EQ(getSizeOfDimension(boxesShape, 0), numBoxes);
-    NN_RET_CHECK_EQ(boxInfoLength, 4);
+    NN_RET_CHECK_EQ(boxInfoLength, 4u);
 
     if (heatmapShape.type == OperandType::TENSOR_QUANT8_ASYMM ||
         heatmapShape.type == OperandType::TENSOR_QUANT8_ASYMM_SIGNED) {

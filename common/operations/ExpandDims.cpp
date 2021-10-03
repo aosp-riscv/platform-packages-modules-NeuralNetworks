@@ -37,8 +37,8 @@ bool prepare(const Shape& input, int32_t axis, Shape* output) {
     return true;
 }
 
-bool eval(const uint8_t* inputData, const Shape& inputShape, int32_t axis, uint8_t* outputData,
-          const Shape& outputShape) {
+bool eval(const uint8_t* inputData, const Shape& inputShape, int32_t /*axis*/, uint8_t* outputData,
+          const Shape& /*outputShape*/) {
     memcpy(outputData, inputData,
            nonExtensionOperandSizeOfData(inputShape.type, inputShape.dimensions));
     return true;

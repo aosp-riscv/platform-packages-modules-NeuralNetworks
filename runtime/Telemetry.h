@@ -41,11 +41,10 @@ enum class DataClass {
 // Infer data class of operand set
 DataClass evalDataClass(const OperandType& op, DataClass previousDataClass);
 
+// Get the ID that identifies a single session of client interacting with NNAPI runtime.
+int32_t getSessionId();
+
 struct DiagnosticCompilationInfo {
-    // The ID that identifies a single session of client interacting with NNAPI runtime.
-    int32_t sessionId;
-    // The client's process/package name.
-    const char* packageName;
     // The hash of the model architecture (without weights).
     const uint8_t* modelArchHash;
     // The device IDs as a comma-concatenated string.
@@ -72,10 +71,6 @@ struct DiagnosticCompilationInfo {
 };
 
 struct DiagnosticExecutionInfo {
-    // The ID that identifies a single session of client interacting with NNAPI runtime.
-    int32_t sessionId;
-    // The client's process/package name.
-    const char* packageName;
     // The hash of the model architecture (without weights).
     const uint8_t* modelArchHash;
     // The device IDs as a comma-concatenated string.

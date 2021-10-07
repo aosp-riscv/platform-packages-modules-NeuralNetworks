@@ -26,7 +26,10 @@
 #include "Tracing.h"
 
 #ifdef NN_INCLUDE_CPU_IMPLEMENTATION
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-parameter"
 #include <tensorflow/lite/kernels/internal/common.h>
+#pragma clang diagnostic pop
 
 #include "CpuOperationUtils.h"
 #endif  // NN_INCLUDE_CPU_IMPLEMENTATION
@@ -39,18 +42,18 @@ constexpr char kOperationName[] = "TRANSPOSE_CONV_2D";
 
 constexpr uint32_t kInputTensor = 0;
 constexpr uint32_t kFilterTensor = 1;
-constexpr uint32_t kBiasTensor = 2;
+[[maybe_unused]] constexpr uint32_t kBiasTensor = 2;
 
 constexpr uint32_t kNumInputs1 = 9;
 constexpr uint32_t kNumInputs2 = 11;
 constexpr uint32_t kNumOutputs = 1;
-constexpr uint32_t kOutputTensor = 0;
+[[maybe_unused]] constexpr uint32_t kOutputTensor = 0;
 
 namespace {
 
 // If possible we will use this static buffer for the tensor.
 constexpr size_t kStaticBufferSize = 1605632;
-char static_scratch_buffer[kStaticBufferSize];
+[[maybe_unused]] char static_scratch_buffer[kStaticBufferSize];
 
 // executionMutex is used to protect concurrent access of the static_scratch_buffer.
 // std::mutex is safe for pthreads on Android.
@@ -75,8 +78,8 @@ struct TransposeConv2dParam {
             Shape filterShape = context->getInputShape(kFilterTensor);
             int32_t filterWidth = getSizeOfDimension(filterShape, 2);
             int32_t filterHeight = getSizeOfDimension(filterShape, 1);
-            NN_RET_CHECK_EQ(getNumberOfDimensions(context->getInputShape(3)), 1);
-            NN_RET_CHECK_EQ(getSizeOfDimension(context->getInputShape(3), 0), 4);
+            NN_RET_CHECK_EQ(getNumberOfDimensions(context->getInputShape(3)), 1u);
+            NN_RET_CHECK_EQ(getSizeOfDimension(context->getInputShape(3), 0), 4u);
             const int32_t* outputShapeData = context->getInputBuffer<int32_t>(3);
             int32_t outputWidth = useNchw ? outputShapeData[3] : outputShapeData[2];
             int32_t outputHeight = useNchw ? outputShapeData[2] : outputShapeData[1];
@@ -118,13 +121,15 @@ struct TransposeConv2dParam {
     uint32_t outputHeight = getSizeOfDimension(outputShape, 1);                 \
     uint32_t outputWidth = getSizeOfDimension(outputShape, 2);                  \
     uint32_t outputDepth = getSizeOfDimension(outputShape, 3);                  \
-    int32_t paddingLeft = param.paddingLeft, paddingRight = param.paddingRight; \
-    int32_t paddingTop = param.paddingTop, paddingBottom = param.paddingBottom; \
+    int32_t paddingLeft = param.paddingLeft;                                    \
+    [[maybe_unused]] int32_t paddingRight = param.paddingRight;                 \
+    int32_t paddingTop = param.paddingTop;                                      \
+    [[maybe_unused]] int32_t paddingBottom = param.paddingBottom;               \
     int32_t strideWidth = param.strideWidth, strideHeight = param.strideHeight; \
     int32_t activation = param.activation;
 
 bool transposeConvNhwc(const float* inputData, const Shape& inputShape, const float* filterData,
-                       const Shape& filterShape, const float* biasData, const Shape& biasShape,
+                       const Shape& filterShape, const float* biasData, const Shape& /*biasShape*/,
                        const TransposeConv2dParam& param, float* outputData,
                        const Shape& outputShape) {
     NNTRACE_TRANS("transposeConvFloat32");
@@ -342,7 +347,7 @@ bool transposeConvQuant8PerChannelNhwc(const T* inputData, const Shape& inputSha
     std::vector<double> realMultiplier(outputDepth, 0.0);
     std::vector<int32_t> outputMultiplier(outputDepth, 0);
     std::vector<int32_t> outputShift(outputDepth, 0);
-    for (int i = 0; i < outputDepth; ++i) {
+    for (uint32_t i = 0; i < outputDepth; ++i) {
         Shape filterChannelShape = filterShape;
         filterChannelShape.scale = filterScales[i];
         Shape biasChannelShape = biasShape;
@@ -457,7 +462,7 @@ Result<Version> validate(const IOperationValidationContext* context) {
             NN_RET_CHECK_EQ(std::get<Operand::SymmPerChannelQuantParams>(
                                     context->getInputExtraParams(kFilterTensor))
                                     .channelDim,
-                            0)
+                            0u)
                     << "Unsupported filter tensor channel dimension for operation "
                     << kOperationName;
         }
@@ -502,9 +507,9 @@ bool prepare(IOperationExecutionContext* context) {
     } else {
         NN_RET_CHECK(input.type == bias.type);
     }
-    NN_RET_CHECK_EQ(getNumberOfDimensions(input), 4);
-    NN_RET_CHECK_EQ(getNumberOfDimensions(filter), 4);
-    NN_RET_CHECK_EQ(getNumberOfDimensions(bias), 1);
+    NN_RET_CHECK_EQ(getNumberOfDimensions(input), 4u);
+    NN_RET_CHECK_EQ(getNumberOfDimensions(filter), 4u);
+    NN_RET_CHECK_EQ(getNumberOfDimensions(bias), 1u);
 
     TransposeConv2dParam param;
     NN_RET_CHECK(param.initialize(context));
@@ -519,19 +524,19 @@ bool prepare(IOperationExecutionContext* context) {
     // Only batches can be zero.
     NN_RET_CHECK_EQ(channels_in, getSizeOfDimension(filter, 3));
     NN_RET_CHECK_EQ(channels_out, getSizeOfDimension(bias, 0));
-    NN_RET_CHECK_GT(height, 0);
-    NN_RET_CHECK_GT(width, 0);
-    NN_RET_CHECK_GT(channels_in, 0);
-    NN_RET_CHECK_GT(channels_out, 0);
-    NN_RET_CHECK_GT(filterWidth, 0);
-    NN_RET_CHECK_GT(filterHeight, 0);
+    NN_RET_CHECK_GT(height, 0u);
+    NN_RET_CHECK_GT(width, 0u);
+    NN_RET_CHECK_GT(channels_in, 0u);
+    NN_RET_CHECK_GT(channels_out, 0u);
+    NN_RET_CHECK_GT(filterWidth, 0u);
+    NN_RET_CHECK_GT(filterHeight, 0u);
 
     uint32_t outWidth = computeOutSizeTransposeConv(width, filterWidth, param.strideWidth,
                                                     param.paddingLeft, param.paddingRight);
     uint32_t outHeight = computeOutSizeTransposeConv(height, filterHeight, param.strideHeight,
                                                      param.paddingTop, param.paddingBottom);
-    NN_RET_CHECK_GT(outWidth, 0);
-    NN_RET_CHECK_GT(outHeight, 0);
+    NN_RET_CHECK_GT(outWidth, 0u);
+    NN_RET_CHECK_GT(outHeight, 0u);
 
     Shape output = context->getOutputShape(kOutputTensor);
     output.type = input.type;

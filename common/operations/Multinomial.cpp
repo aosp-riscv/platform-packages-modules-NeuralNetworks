@@ -28,7 +28,11 @@
 #ifdef NN_INCLUDE_CPU_IMPLEMENTATION
 #include <tensorflow/lite/kernels/internal/tensor_utils.h>
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-parameter"
+#pragma clang diagnostic ignored "-Winvalid-partial-specialization"
 #include <unsupported/Eigen/CXX11/Tensor>
+#pragma clang diagnostic pop
 
 #include "CpuOperationUtils.h"
 #include "guarded_philox_random.h"
@@ -105,8 +109,8 @@ bool Multinomial::Eval() {
 }
 
 void Multinomial::EvalFloat32(const float* inputData) {
-    const int batch_size = SizeOfDimension(input_, 0);
-    const int class_size = SizeOfDimension(input_, 1);
+    const uint32_t batch_size = SizeOfDimension(input_, 0);
+    const uint32_t class_size = SizeOfDimension(input_, 1);
 
     tensorflow::GuardedPhiloxRandom random_generator;
     int32_t* seeds = GetBuffer<int32_t>(random_seeds_);
@@ -140,7 +144,7 @@ void Multinomial::EvalFloat32(const float* inputData) {
         }
 
         auto* output_ptr_batch = GetBuffer<int32_t>(output_) + b * sample_count_;
-        for (uint64_t j = 0; j < sample_count_; ++j) {
+        for (uint64_t j = 0; j < static_cast<uint64_t>(sample_count_); ++j) {
             const double target = simple_philox.RandDouble() * total;
             auto found_iter = std::upper_bound(cdf.begin(), cdf.end(), target);
             output_ptr_batch[j] = std::distance(cdf.begin(), found_iter);

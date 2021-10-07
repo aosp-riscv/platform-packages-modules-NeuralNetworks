@@ -270,16 +270,16 @@ bool BidirectionalSequenceLSTM::Prepare(const Operation& operation, RunTimeOpera
     const uint32_t n_fw_input = SizeOfDimension(input_, 2);
 
     const uint32_t n_fw_cell = SizeOfDimension(fw_input_to_output_weights_, 0);
-    NN_CHECK_EQ(NumDimensions(fw_input_to_output_weights_), 2);
+    NN_CHECK_EQ(NumDimensions(fw_input_to_output_weights_), 2u);
     NN_CHECK_EQ(SizeOfDimension(fw_input_to_output_weights_, 1), n_fw_input);
 
-    NN_CHECK_EQ(NumDimensions(fw_recurrent_to_output_weights_), 2);
+    NN_CHECK_EQ(NumDimensions(fw_recurrent_to_output_weights_), 2u);
     NN_CHECK_EQ(SizeOfDimension(fw_recurrent_to_output_weights_, 0), n_fw_cell);
     const uint32_t n_fw_output = SizeOfDimension(fw_recurrent_to_output_weights_, 1);
 
     const uint32_t n_bw_cell = SizeOfDimension(bw_input_to_output_weights_, 0);
 
-    NN_CHECK_EQ(NumDimensions(bw_recurrent_to_output_weights_), 2);
+    NN_CHECK_EQ(NumDimensions(bw_recurrent_to_output_weights_), 2u);
     NN_CHECK_EQ(SizeOfDimension(bw_recurrent_to_output_weights_, 0), n_bw_cell);
     const uint32_t n_bw_output = SizeOfDimension(bw_recurrent_to_output_weights_, 1);
 
@@ -338,42 +338,42 @@ bool BidirectionalSequenceLSTM::Prepare(const Operation& operation, RunTimeOpera
     }
 
     if (has_fw_aux_weights) {
-        int n_aux_input = SizeOfDimension(input_, 2);
+        uint32_t n_aux_input = SizeOfDimension(input_, 2);
 
         // Check forward auxiliary input shapes
         {
-            NN_RET_CHECK_EQ(NumDimensions(fw_aux_input_to_input_weights_), 2);
+            NN_RET_CHECK_EQ(NumDimensions(fw_aux_input_to_input_weights_), 2u);
             NN_RET_CHECK_EQ(SizeOfDimension(fw_aux_input_to_input_weights_, 0), n_fw_cell);
             NN_RET_CHECK_EQ(SizeOfDimension(fw_aux_input_to_input_weights_, 1), n_aux_input);
 
-            NN_RET_CHECK_EQ(NumDimensions(fw_aux_input_to_forget_weights_), 2);
+            NN_RET_CHECK_EQ(NumDimensions(fw_aux_input_to_forget_weights_), 2u);
             NN_RET_CHECK_EQ(SizeOfDimension(fw_aux_input_to_forget_weights_, 0), n_fw_cell);
             NN_RET_CHECK_EQ(SizeOfDimension(fw_aux_input_to_forget_weights_, 1), n_aux_input);
 
-            NN_RET_CHECK_EQ(NumDimensions(fw_aux_input_to_cell_weights_), 2);
+            NN_RET_CHECK_EQ(NumDimensions(fw_aux_input_to_cell_weights_), 2u);
             NN_RET_CHECK_EQ(SizeOfDimension(fw_aux_input_to_cell_weights_, 0), n_fw_cell);
             NN_RET_CHECK_EQ(SizeOfDimension(fw_aux_input_to_cell_weights_, 1), n_aux_input);
 
-            NN_RET_CHECK_EQ(NumDimensions(fw_aux_input_to_output_weights_), 2);
+            NN_RET_CHECK_EQ(NumDimensions(fw_aux_input_to_output_weights_), 2u);
             NN_RET_CHECK_EQ(SizeOfDimension(fw_aux_input_to_output_weights_, 0), n_fw_cell);
             NN_RET_CHECK_EQ(SizeOfDimension(fw_aux_input_to_output_weights_, 1), n_aux_input);
         }
 
         // Check backward auxiliary input shapes
         {
-            NN_RET_CHECK_EQ(NumDimensions(bw_aux_input_to_input_weights_), 2);
+            NN_RET_CHECK_EQ(NumDimensions(bw_aux_input_to_input_weights_), 2u);
             NN_RET_CHECK_EQ(SizeOfDimension(bw_aux_input_to_input_weights_, 0), n_bw_cell);
             NN_RET_CHECK_EQ(SizeOfDimension(bw_aux_input_to_input_weights_, 1), n_aux_input);
 
-            NN_RET_CHECK_EQ(NumDimensions(bw_aux_input_to_forget_weights_), 2);
+            NN_RET_CHECK_EQ(NumDimensions(bw_aux_input_to_forget_weights_), 2u);
             NN_RET_CHECK_EQ(SizeOfDimension(bw_aux_input_to_forget_weights_, 0), n_bw_cell);
             NN_RET_CHECK_EQ(SizeOfDimension(bw_aux_input_to_forget_weights_, 1), n_aux_input);
 
-            NN_RET_CHECK_EQ(NumDimensions(bw_aux_input_to_cell_weights_), 2);
+            NN_RET_CHECK_EQ(NumDimensions(bw_aux_input_to_cell_weights_), 2u);
             NN_RET_CHECK_EQ(SizeOfDimension(bw_aux_input_to_cell_weights_, 0), n_bw_cell);
             NN_RET_CHECK_EQ(SizeOfDimension(bw_aux_input_to_cell_weights_, 1), n_aux_input);
 
-            NN_RET_CHECK_EQ(NumDimensions(bw_aux_input_to_output_weights_), 2);
+            NN_RET_CHECK_EQ(NumDimensions(bw_aux_input_to_output_weights_), 2u);
             NN_RET_CHECK_EQ(SizeOfDimension(bw_aux_input_to_output_weights_, 0), n_bw_cell);
             NN_RET_CHECK_EQ(SizeOfDimension(bw_aux_input_to_output_weights_, 1), n_aux_input);
         }

@@ -24,6 +24,7 @@ cc_library_shared {
         "libcutils",
         "liblog",
         "libutils",
+        "packagemanager_aidl-cpp",
     ],
 
     export_include_dirs: ["include"],

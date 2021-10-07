@@ -52,7 +52,7 @@ bool LSHProjection::Prepare(const Operation& operation, RunTimeOperandInfo* oper
     NN_CHECK_EQ(NumOutputs(operation), 1);
 
     const RunTimeOperandInfo* hash = GetInput(operation, operands, kHashTensor);
-    NN_CHECK_EQ(NumDimensions(hash), 2);
+    NN_CHECK_EQ(NumDimensions(hash), 2u);
     // Support up to 32 bits.
     NN_CHECK(SizeOfDimension(hash, 1) <= 32);
 
@@ -71,7 +71,7 @@ bool LSHProjection::Prepare(const Operation& operation, RunTimeOperandInfo* oper
         case LSHProjectionType_DENSE: {
             RunTimeOperandInfo* weight = GetInput(operation, operands, kWeightTensor);
             NN_CHECK_EQ(NumInputsWithValues(operation, operands), 4);
-            NN_CHECK_EQ(NumDimensions(weight), 1);
+            NN_CHECK_EQ(NumDimensions(weight), 1u);
             NN_CHECK_EQ(SizeOfDimension(weight, 0), SizeOfDimension(input, 0));
             outputShape->dimensions = {SizeOfDimension(hash, 0) * SizeOfDimension(hash, 1)};
             break;

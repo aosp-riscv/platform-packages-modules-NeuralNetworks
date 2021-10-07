@@ -198,7 +198,7 @@ class CpuExecutor {
     // WHILE loop.
     uint64_t mLoopTimeoutDuration = operation_while::kTimeoutNsDefault;
 
-    const IOperationResolver* mOperationResolver;
+    [[maybe_unused]] const IOperationResolver* mOperationResolver;
 };
 
 // Class for setting reasonable OpenMP threading settings. (OpenMP is used by

@@ -160,16 +160,6 @@ cc_library_static {
     },
     cflags: [
         "-DTF_LITE_DISABLE_X86_NEON",
-        "-Wall",
-        "-Werror",
-        "-Wextra",
-        "-Wno-extern-c-compat",
-        "-Wno-invalid-partial-specialization",
-        "-Wno-sign-compare",
-        "-Wno-unused-local-typedef",
-        "-Wno-unused-parameter",
-        "-Wno-unused-private-field",
-        "-Wno-unused-variable",
     ],
 }
 
@@ -288,17 +278,6 @@ cc_defaults {
         "-DNAMESPACE_FOR_HASH_FUNCTIONS=farmhash",
         "-DNN_INCLUDE_CPU_IMPLEMENTATION",
         "-DTF_LITE_DISABLE_X86_NEON",
-        "-Wall",
-        "-Werror",
-        "-Wextra",
-        "-Wno-array-bounds",
-        "-Wno-extern-c-compat",
-        "-Wno-invalid-partial-specialization",
-        "-Wno-sign-compare",
-        "-Wno-unused-local-typedef",
-        "-Wno-unused-parameter",
-        "-Wno-unused-private-field",
-        "-Wno-unused-variable",
     ],
 }
 
@@ -366,17 +345,6 @@ cc_defaults {
     cflags: [
         "-DNAMESPACE_FOR_HASH_FUNCTIONS=farmhash",
         "-DTF_LITE_DISABLE_X86_NEON",
-        "-Wall",
-        "-Werror",
-        "-Wextra",
-        "-Wno-array-bounds",
-        "-Wno-extern-c-compat",
-        "-Wno-invalid-partial-specialization",
-        "-Wno-sign-compare",
-        "-Wno-unused-local-typedef",
-        "-Wno-unused-parameter",
-        "-Wno-unused-private-field",
-        "-Wno-unused-variable",
     ],
 }
 
@@ -435,19 +403,12 @@ cc_library_static {
         "-DNN_COMPATIBILITY_LIBRARY_BUILD",
         "-DNN_INCLUDE_CPU_IMPLEMENTATION",
         "-DTF_LITE_DISABLE_X86_NEON",
-        "-Wno-array-bounds",
-        "-Wno-extern-c-compat",
-        "-Wno-invalid-partial-specialization",
-        "-Wno-sign-compare",
-        "-Wno-unused-local-typedef",
-        "-Wno-unused-parameter",
-        "-Wno-unused-private-field",
-        "-Wno-unused-variable",
     ],
 }
 
 cc_defaults {
     name: "neuralnetworks_utils_defaults",
+    defaults: ["neuralnetworks_defaults"],
     host_supported: true,
     vendor_available: true,
     apex_available: [
@@ -456,11 +417,6 @@ cc_defaults {
         "test_com.android.neuralnetworks",
     ],
     min_sdk_version: "30",
-    cflags: [
-        "-Wall",
-        "-Werror",
-        "-Wextra",
-    ],
     target: {
         host: {
             cflags: [
@@ -577,9 +533,6 @@ cc_defaults {
             ],
         },
     },
-    cflags: [
-        "-Wno-extern-c-compat",
-    ],
     local_include_dirs: ["include"],
 }
 
@@ -595,10 +548,6 @@ cc_test {
         "philox_random_headers",
         "tensorflow_headers",
     ],
-    cflags: [
-        "-Wno-invalid-partial-specialization",
-        "-Wno-unused-parameter",
-    ],
 }
 
 cc_test {
@@ -611,10 +560,6 @@ cc_test {
         "gemmlowp_headers",
         "libeigen",
         "tensorflow_headers",
-    ],
-    cflags: [
-        "-Wno-unused-parameter",
-        "-Wno-unused-variable",
     ],
     test_suites: [
         "general-tests",

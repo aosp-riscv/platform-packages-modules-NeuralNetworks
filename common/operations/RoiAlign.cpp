@@ -26,7 +26,10 @@
 #include "Tracing.h"
 
 #ifdef NN_INCLUDE_CPU_IMPLEMENTATION
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-parameter"
 #include <tensorflow/lite/kernels/internal/common.h>
+#pragma clang diagnostic pop
 
 #include "CpuOperationUtils.h"
 #endif  // NN_INCLUDE_CPU_IMPLEMENTATION
@@ -39,18 +42,18 @@ constexpr char kOperationName[] = "ROI_ALIGN";
 
 constexpr uint32_t kNumInputs = 10;
 constexpr uint32_t kInputTensor = 0;
-constexpr uint32_t kRoiTensor = 1;
-constexpr uint32_t kBatchSplitTensor = 2;
-constexpr uint32_t kOutputHeightScalar = 3;
-constexpr uint32_t kOutputWidthScalar = 4;
-constexpr uint32_t kHeightStrideSalar = 5;
-constexpr uint32_t kWidthStrideScalar = 6;
-constexpr uint32_t kHeightSamplingRatioScalar = 7;
-constexpr uint32_t kWidthSamplingRatioScalar = 8;
-constexpr uint32_t kLayoutScalar = 9;
+[[maybe_unused]] constexpr uint32_t kRoiTensor = 1;
+[[maybe_unused]] constexpr uint32_t kBatchSplitTensor = 2;
+[[maybe_unused]] constexpr uint32_t kOutputHeightScalar = 3;
+[[maybe_unused]] constexpr uint32_t kOutputWidthScalar = 4;
+[[maybe_unused]] constexpr uint32_t kHeightStrideSalar = 5;
+[[maybe_unused]] constexpr uint32_t kWidthStrideScalar = 6;
+[[maybe_unused]] constexpr uint32_t kHeightSamplingRatioScalar = 7;
+[[maybe_unused]] constexpr uint32_t kWidthSamplingRatioScalar = 8;
+[[maybe_unused]] constexpr uint32_t kLayoutScalar = 9;
 
 constexpr uint32_t kNumOutputs = 1;
-constexpr uint32_t kOutputTensor = 0;
+[[maybe_unused]] constexpr uint32_t kOutputTensor = 0;
 
 #ifdef NN_INCLUDE_CPU_IMPLEMENTATION
 namespace {
@@ -58,7 +61,7 @@ namespace {
 template <typename T_Input, typename T_Roi>
 inline bool roiAlignNhwc(const T_Input* inputData, const Shape& inputShape, const T_Roi* roiData,
                          const Shape& roiShape, const int32_t* batchSplitData,
-                         const Shape& batchSplitShape, float heightStride, float widthStride,
+                         const Shape& /*batchSplitShape*/, float heightStride, float widthStride,
                          int32_t heightSamplingRatio, int32_t widthSamplingRatio,
                          T_Input* outputData, const Shape& outputShape) {
     NNTRACE_TRANS("RoiAlign");
@@ -85,7 +88,7 @@ inline bool roiAlignNhwc(const T_Input* inputData, const Shape& inputShape, cons
         // 1. invalid batch id
         // 2. Region out of bound: x1|x2|y1|y2 < 0 || x1|x2 > inWidth || y1|y2 > inHeight
         // 3. Invalid region: x2 < x1 || y2 < y1
-        NN_RET_CHECK_GE(batchId, 0);
+        NN_RET_CHECK_GE(batchId, 0u);
         NN_RET_CHECK_LT(batchId, numBatches);
         NN_RET_CHECK(roiInfo[0] >= 0);
         NN_RET_CHECK(roiInfo[1] >= 0);
@@ -122,9 +125,9 @@ inline bool roiAlignNhwc(const T_Input* inputData, const Shape& inputShape, cons
         for (uint32_t i = 0; i < outHeight; i++) {
             for (uint32_t j = 0; j < outWidth; j++) {
                 T_Roi wStart = wStepSize * j + wRoiStart;
-                T_Roi wEnd = wStepSize * (j + 1) + wRoiStart;
+                [[maybe_unused]] T_Roi wEnd = wStepSize * (j + 1) + wRoiStart;
                 T_Roi hStart = hStepSize * i + hRoiStart;
-                T_Roi hEnd = hStepSize * (i + 1) + hRoiStart;
+                [[maybe_unused]] T_Roi hEnd = hStepSize * (i + 1) + hRoiStart;
 
                 // initialize output to zero
                 for (uint32_t k = 0; k < inDepth; k++) outPtr[k] = 0;
@@ -183,7 +186,7 @@ inline bool roiAlignNhwc(const T_Input* inputData, const Shape& inputShape, cons
 template <typename T_Input>
 inline bool roiAlignQuantNhwc(const T_Input* inputData, const Shape& inputShape,
                               const uint16_t* roiData, const Shape& roiShape,
-                              const int32_t* batchSplitData, const Shape& batchSplitShape,
+                              const int32_t* batchSplitData, const Shape& /*batchSplitShape*/,
                               float heightStride, float widthStride, int32_t heightSamplingRatio,
                               int32_t widthSamplingRatio, T_Input* outputData,
                               const Shape& outputShape) {
@@ -217,7 +220,7 @@ inline bool roiAlignQuantNhwc(const T_Input* inputData, const Shape& inputShape,
         // 1. invalid batch id
         // 2. Region out of bound: x1|x2|y1|y2 < 0 || x1|x2 > inWidth || y1|y2 > inHeight
         // 3. Invalid region: x2 < x1 || y2 < y1
-        NN_RET_CHECK_GE(batchId, 0);
+        NN_RET_CHECK_GE(batchId, 0u);
         NN_RET_CHECK_LT(batchId, numBatches);
         NN_RET_CHECK(wRoiStart <= inWidth);
         NN_RET_CHECK(hRoiStart <= inHeight);
@@ -251,9 +254,9 @@ inline bool roiAlignQuantNhwc(const T_Input* inputData, const Shape& inputShape,
         for (uint32_t i = 0; i < outHeight; i++) {
             for (uint32_t j = 0; j < outWidth; j++) {
                 float wStart = wStepSize * j + wRoiStart;
-                float wEnd = wStepSize * (j + 1) + wRoiStart;
+                [[maybe_unused]] float wEnd = wStepSize * (j + 1) + wRoiStart;
                 float hStart = hStepSize * i + hRoiStart;
-                float hEnd = hStepSize * (i + 1) + hRoiStart;
+                [[maybe_unused]] float hEnd = hStepSize * (i + 1) + hRoiStart;
 
                 std::vector<int32_t> outTemp(inDepth, 0);
                 // calculate the sum of the sampling points
@@ -389,8 +392,8 @@ bool prepare(IOperationExecutionContext* context) {
     Shape input = context->getInputShape(kInputTensor);
     Shape roiShape = context->getInputShape(kRoiTensor);
     Shape batchSplitShape = context->getInputShape(kBatchSplitTensor);
-    NN_RET_CHECK_EQ(getNumberOfDimensions(input), 4);
-    NN_RET_CHECK_EQ(getNumberOfDimensions(roiShape), 2);
+    NN_RET_CHECK_EQ(getNumberOfDimensions(input), 4u);
+    NN_RET_CHECK_EQ(getNumberOfDimensions(roiShape), 2u);
 
     uint32_t numBatches = getSizeOfDimension(input, 0);
     uint32_t inHeight = getSizeOfDimension(input, useNchw ? 2 : 1);
@@ -398,11 +401,11 @@ bool prepare(IOperationExecutionContext* context) {
     uint32_t inDepth = getSizeOfDimension(input, useNchw ? 1 : 3);
     uint32_t numRois = getSizeOfDimension(roiShape, 0);
     // Every dimension must be positive except for numRois.
-    NN_RET_CHECK_GT(numBatches, 0);
-    NN_RET_CHECK_GT(inHeight, 0);
-    NN_RET_CHECK_GT(inWidth, 0);
-    NN_RET_CHECK_GT(inDepth, 0);
-    NN_RET_CHECK_EQ(getSizeOfDimension(roiShape, 1), 4);
+    NN_RET_CHECK_GT(numBatches, 0u);
+    NN_RET_CHECK_GT(inHeight, 0u);
+    NN_RET_CHECK_GT(inWidth, 0u);
+    NN_RET_CHECK_GT(inDepth, 0u);
+    NN_RET_CHECK_EQ(getSizeOfDimension(roiShape, 1), 4u);
     NN_RET_CHECK_EQ(getSizeOfDimension(batchSplitShape, 0), numRois);
 
     int32_t outputHeight = context->getInputValue<int32_t>(kOutputHeightScalar);

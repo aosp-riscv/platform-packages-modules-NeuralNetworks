@@ -24,8 +24,11 @@
 #include "Tracing.h"
 
 #ifdef NN_INCLUDE_CPU_IMPLEMENTATION
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-parameter"
 #include <tensorflow/lite/kernels/internal/optimized/depthwiseconv_uint8.h>
 #include <tensorflow/lite/kernels/internal/reference/depthwiseconv_float.h>
+#pragma clang diagnostic pop
 
 #include "CpuOperationUtils.h"
 #endif  // NN_INCLUDE_CPU_IMPLEMENTATION
@@ -38,7 +41,7 @@ constexpr char kOperationName[] = "DEPTHWISE_CONV_2D";
 constexpr uint32_t kNumInputsArray[] = {8, 9, 11, 12, 14};
 constexpr uint32_t kInputTensor = 0;
 constexpr uint32_t kFilterTensor = 1;
-constexpr uint32_t kBiasTensor = 2;
+[[maybe_unused]] constexpr uint32_t kBiasTensor = 2;
 
 constexpr uint32_t kNumOutputs = 1;
 constexpr uint32_t kOutputTensor = 0;
@@ -119,21 +122,21 @@ struct DepthwiseConv2dParam {
     }
 };
 
-#define ANDROID_NN_DEPTHWISE_CONV_PARAMETERS                    \
-    uint32_t height = getSizeOfDimension(inputShape, 1);        \
-    uint32_t width = getSizeOfDimension(inputShape, 2);         \
-    uint32_t filterHeight = getSizeOfDimension(filterShape, 1); \
-    uint32_t filterWidth = getSizeOfDimension(filterShape, 2);  \
-    uint32_t outHeight = getSizeOfDimension(outputShape, 1);    \
-    uint32_t outWidth = getSizeOfDimension(outputShape, 2);     \
-                                                                \
-    uint32_t paddingHeight = (uint32_t)paddingTop;              \
+#define ANDROID_NN_DEPTHWISE_CONV_PARAMETERS                                     \
+    [[maybe_unused]] uint32_t height = getSizeOfDimension(inputShape, 1);        \
+    [[maybe_unused]] uint32_t width = getSizeOfDimension(inputShape, 2);         \
+    [[maybe_unused]] uint32_t filterHeight = getSizeOfDimension(filterShape, 1); \
+    [[maybe_unused]] uint32_t filterWidth = getSizeOfDimension(filterShape, 2);  \
+    [[maybe_unused]] uint32_t outHeight = getSizeOfDimension(outputShape, 1);    \
+    [[maybe_unused]] uint32_t outWidth = getSizeOfDimension(outputShape, 2);     \
+                                                                                 \
+    uint32_t paddingHeight = (uint32_t)paddingTop;                               \
     uint32_t paddingWidth = (uint32_t)paddingLeft;
 
 bool depthwiseConvNhwc(const float* inputData, const Shape& inputShape, const float* filterData,
                        const Shape& filterShape, const float* biasData, const Shape& biasShape,
-                       int32_t paddingLeft, int32_t paddingRight, int32_t paddingTop,
-                       int32_t paddingBottom, int32_t strideWidth, int32_t strideHeight,
+                       int32_t paddingLeft, int32_t /*paddingRight*/, int32_t paddingTop,
+                       int32_t /*paddingBottom*/, int32_t strideWidth, int32_t strideHeight,
                        int32_t dilationWidthFactor, int32_t dilationHeightFactor,
                        int32_t depthMultiplier, int32_t activation, float* outputData,
                        const Shape& outputShape) {
@@ -192,8 +195,8 @@ bool depthwiseConvNhwc(const _Float16* inputData, const Shape& inputShape,
 
 bool depthwiseConvNhwc(const uint8_t* inputData, const Shape& inputShape, const uint8_t* filterData,
                        const Shape& filterShape, const int32_t* biasData, const Shape& biasShape,
-                       int32_t paddingLeft, int32_t paddingRight, int32_t paddingTop,
-                       int32_t paddingBottom, int32_t strideWidth, int32_t strideHeight,
+                       int32_t paddingLeft, int32_t /*paddingRight*/, int32_t paddingTop,
+                       int32_t /*paddingBottom*/, int32_t strideWidth, int32_t strideHeight,
                        int32_t dilationWidthFactor, int32_t dilationHeightFactor,
                        int32_t depthMultiplier, int32_t activation, uint8_t* outputData,
                        const Shape& outputShape) {
@@ -276,15 +279,15 @@ template <typename T>
 bool depthwiseConvQuant8PerChannelNhwc(
         const T* inputData, const Shape& inputShape, const int8_t* filterData,
         const Shape& filterShape, const float* filterScales, const int32_t* biasData,
-        const Shape& biasShape, int32_t paddingLeft, int32_t paddingRight, int32_t paddingTop,
-        int32_t paddingBottom, int32_t strideWidth, int32_t strideHeight,
+        const Shape& biasShape, int32_t paddingLeft, int32_t /*paddingRight*/, int32_t paddingTop,
+        int32_t /*paddingBottom*/, int32_t strideWidth, int32_t strideHeight,
         int32_t dilationWidthFactor, int32_t dilationHeightFactor,
 
         int32_t depthMultiplier, int32_t activation, T* outputData, const Shape& outputShape) {
     NNTRACE_TRANS("depthwiseConvQuant8");
 
-    uint32_t paddingHeight = (uint32_t)paddingTop;
-    uint32_t paddingWidth = (uint32_t)paddingLeft;
+    [[maybe_unused]] uint32_t paddingHeight = (uint32_t)paddingTop;
+    [[maybe_unused]] uint32_t paddingWidth = (uint32_t)paddingLeft;
 
     uint32_t numBatches = getSizeOfDimension(inputShape, 0);
     uint32_t inputHeight = getSizeOfDimension(inputShape, 1);
@@ -304,7 +307,7 @@ bool depthwiseConvQuant8PerChannelNhwc(
     auto outputMultiplier = std::vector<int32_t>(outputDepth, 0);
     auto outputShift = std::vector<int32_t>(outputDepth, .0f);
 
-    for (int i = 0; i < outputDepth; ++i) {
+    for (uint32_t i = 0; i < outputDepth; ++i) {
         Shape filterChannelShape = filterShape;
         filterChannelShape.scale = filterScales[i];
         Shape biasChannelShape = biasShape;
@@ -326,7 +329,7 @@ bool depthwiseConvQuant8PerChannelNhwc(
         for (uint32_t h = 0; h < outputHeight; h++) {
             for (uint32_t w = 0; w < outputWidth; w++) {
                 for (uint32_t ic = 0; ic < inputDepth; ic++) {
-                    for (uint32_t m = 0; m < depthMultiplier; m++) {
+                    for (int32_t m = 0; m < depthMultiplier; m++) {
                         int32_t wInputOrigin = static_cast<int32_t>(w) * strideWidth - paddingLeft;
                         int32_t hInputOrigin = static_cast<int32_t>(h) * strideHeight - paddingTop;
                         const int oc = m + ic * depthMultiplier;
@@ -449,7 +452,7 @@ Result<Version> validate(const IOperationValidationContext* context) {
             NN_RET_CHECK_EQ(std::get<Operand::SymmPerChannelQuantParams>(
                                     context->getInputExtraParams(kFilterTensor))
                                     .channelDim,
-                            3)
+                            3u)
                     << "Unsupported filter tensor channel dimension for operation "
                     << kOperationName;
         }
@@ -486,14 +489,14 @@ Result<Version> validate(const IOperationValidationContext* context) {
             withExplicitPadding = true;
         }
         int inputOffset = withExplicitPadding ? 3 : 0;
-        if (numInputs >= 9 + inputOffset) {
+        if (numInputs >= 9u + inputOffset) {
             inExpectedTypes.push_back(OperandType::BOOL);
             withLayout = true;
         }
-        NN_RET_CHECK_NE(numInputs, 10 + inputOffset)
+        NN_RET_CHECK_NE(numInputs, 10u + inputOffset)
                 << "Provided only one dilation factor value, two values are required for operation "
                 << kOperationName;
-        if (numInputs == 11 + inputOffset) {
+        if (numInputs == 11u + inputOffset) {
             inExpectedTypes.push_back(OperandType::INT32);
             inExpectedTypes.push_back(OperandType::INT32);
             withDilation = true;
@@ -533,10 +536,10 @@ bool prepare(IOperationExecutionContext* context) {
     } else {
         NN_RET_CHECK(input.type == bias.type);
     }
-    NN_RET_CHECK_EQ(getNumberOfDimensions(input), 4);
-    NN_RET_CHECK_EQ(getNumberOfDimensions(filter), 4);
-    NN_RET_CHECK_EQ(getNumberOfDimensions(bias), 1);
-    NN_RET_CHECK_EQ(getSizeOfDimension(filter, 0), 1);
+    NN_RET_CHECK_EQ(getNumberOfDimensions(input), 4u);
+    NN_RET_CHECK_EQ(getNumberOfDimensions(filter), 4u);
+    NN_RET_CHECK_EQ(getNumberOfDimensions(bias), 1u);
+    NN_RET_CHECK_EQ(getSizeOfDimension(filter, 0), 1u);
     NN_RET_CHECK_EQ(getSizeOfDimension(filter, 3), getSizeOfDimension(bias, 0));
 
     DepthwiseConv2dParam param;

@@ -42,20 +42,22 @@ bool validateMemoryDesc(
                 getModel,
         std::set<AidlHalPreparedModelRole>* preparedModelRoles,
         aidl_hal::Operand* combinedOperand) {
-    NN_RET_CHECK(preparedModels.size() != 0);
-    NN_RET_CHECK(inputRoles.size() != 0 || outputRoles.size() != 0);
+    NN_RET_CHECK(!preparedModels.empty());
+    NN_RET_CHECK(!inputRoles.empty() || !outputRoles.empty());
 
     std::set<AidlHalPreparedModelRole> roles;
     std::vector<aidl_hal::Operand> operands;
     operands.reserve(inputRoles.size() + outputRoles.size());
     for (const auto& role : inputRoles) {
-        NN_RET_CHECK_LT(role.modelIndex, preparedModels.size());
+        NN_RET_CHECK_GE(role.modelIndex, 0);
+        NN_RET_CHECK_LT(static_cast<size_t>(role.modelIndex), preparedModels.size());
         const auto& preparedModel = preparedModels[role.modelIndex];
         NN_RET_CHECK(preparedModel != nullptr);
         const auto* model = getModel(preparedModel);
         NN_RET_CHECK(model != nullptr);
         const auto& inputIndexes = model->main.inputIndexes;
-        NN_RET_CHECK_LT(role.ioIndex, inputIndexes.size());
+        NN_RET_CHECK_GE(role.ioIndex, 0);
+        NN_RET_CHECK_LT(static_cast<size_t>(role.ioIndex), inputIndexes.size());
         NN_RET_CHECK_GT(role.probability, 0.0f);
         NN_RET_CHECK_LE(role.probability, 1.0f);
         const auto [it, success] = roles.emplace(preparedModel.get(), IOType::INPUT, role.ioIndex);
@@ -63,13 +65,15 @@ bool validateMemoryDesc(
         operands.push_back(model->main.operands[inputIndexes[role.ioIndex]]);
     }
     for (const auto& role : outputRoles) {
-        NN_RET_CHECK_LT(role.modelIndex, preparedModels.size());
+        NN_RET_CHECK_GE(role.modelIndex, 0);
+        NN_RET_CHECK_LT(static_cast<size_t>(role.modelIndex), preparedModels.size());
         const auto& preparedModel = preparedModels[role.modelIndex];
         NN_RET_CHECK(preparedModel != nullptr);
         const auto* model = getModel(preparedModel);
         NN_RET_CHECK(model != nullptr);
         const auto& outputIndexes = model->main.outputIndexes;
-        NN_RET_CHECK_LT(role.ioIndex, outputIndexes.size());
+        NN_RET_CHECK_GE(role.ioIndex, 0);
+        NN_RET_CHECK_LT(static_cast<size_t>(role.ioIndex), outputIndexes.size());
         NN_RET_CHECK_GT(role.probability, 0.0f);
         NN_RET_CHECK_LE(role.probability, 1.0f);
         const auto [it, success] = roles.emplace(preparedModel.get(), IOType::OUTPUT, role.ioIndex);

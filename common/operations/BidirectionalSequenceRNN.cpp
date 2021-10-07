@@ -30,33 +30,33 @@ namespace bidirectional_sequence_rnn {
 constexpr uint32_t kNumInputs = 15;
 constexpr uint32_t kInputTensor = 0;
 // Forward cell tensors
-constexpr uint32_t kFwWeightsTensor = 1;
-constexpr uint32_t kFwRecurrentWeightsTensor = 2;
-constexpr uint32_t kFwBiasTensor = 3;
-constexpr uint32_t kFwHiddenStateTensor = 4;
+[[maybe_unused]] constexpr uint32_t kFwWeightsTensor = 1;
+[[maybe_unused]] constexpr uint32_t kFwRecurrentWeightsTensor = 2;
+[[maybe_unused]] constexpr uint32_t kFwBiasTensor = 3;
+[[maybe_unused]] constexpr uint32_t kFwHiddenStateTensor = 4;
 // Backward cell tensors
-constexpr uint32_t kBwWeightsTensor = 5;
-constexpr uint32_t kBwRecurrentWeightsTensor = 6;
-constexpr uint32_t kBwBiasTensor = 7;
-constexpr uint32_t kBwHiddenStateTensor = 8;
+[[maybe_unused]] constexpr uint32_t kBwWeightsTensor = 5;
+[[maybe_unused]] constexpr uint32_t kBwRecurrentWeightsTensor = 6;
+[[maybe_unused]] constexpr uint32_t kBwBiasTensor = 7;
+[[maybe_unused]] constexpr uint32_t kBwHiddenStateTensor = 8;
 // Auxiliary inputs
-constexpr uint32_t kAuxInputTensor = 9;       // optional
-constexpr uint32_t kFwAuxWeightsTensor = 10;  // optional
-constexpr uint32_t kBwAuxWeightsTensor = 11;  // optional
+[[maybe_unused]] constexpr uint32_t kAuxInputTensor = 9;       // optional
+[[maybe_unused]] constexpr uint32_t kFwAuxWeightsTensor = 10;  // optional
+[[maybe_unused]] constexpr uint32_t kBwAuxWeightsTensor = 11;  // optional
 // Cell parameters
-constexpr uint32_t kActivationParam = 12;
-constexpr uint32_t kTimeMajorParam = 13;
-constexpr uint32_t kMergeOutputsParam = 14;
+[[maybe_unused]] constexpr uint32_t kActivationParam = 12;
+[[maybe_unused]] constexpr uint32_t kTimeMajorParam = 13;
+[[maybe_unused]] constexpr uint32_t kMergeOutputsParam = 14;
 
 constexpr uint32_t kNumOutputs = 2;
 constexpr uint32_t kNumOutputsMerged = 1;
 constexpr uint32_t kNumOutputsWithState = 4;
 constexpr uint32_t kNumOutputsMergedWithState = 3;
 
-constexpr uint32_t kFwOutputTensor = 0;
-constexpr uint32_t kBwOutputTensor = 1;  // Only if mergeOutputs parameter is false
-constexpr uint32_t kFwOutputHiddenStateTensor = 2;
-constexpr uint32_t kBwOutputHiddenStateTensor = 3;
+[[maybe_unused]] constexpr uint32_t kFwOutputTensor = 0;
+[[maybe_unused]] constexpr uint32_t kBwOutputTensor = 1;  // Only if mergeOutputs parameter is false
+[[maybe_unused]] constexpr uint32_t kFwOutputHiddenStateTensor = 2;
+[[maybe_unused]] constexpr uint32_t kBwOutputHiddenStateTensor = 3;
 
 #ifdef NN_INCLUDE_CPU_IMPLEMENTATION
 namespace {
@@ -66,9 +66,9 @@ void transposeFirstTwoDims(const T* input, const Shape& inputShape, T* output) {
     const uint32_t firstDimSize = getSizeOfDimension(inputShape, 0);
     const uint32_t secondDimSize = getSizeOfDimension(inputShape, 1);
     const uint32_t inputSize = getSizeOfDimension(inputShape, 2);
-    for (int f = 0; f < firstDimSize; ++f) {
-        for (int s = 0; s < secondDimSize; ++s) {
-            for (int i = 0; i < inputSize; ++i) {
+    for (uint32_t f = 0; f < firstDimSize; ++f) {
+        for (uint32_t s = 0; s < secondDimSize; ++s) {
+            for (uint32_t i = 0; i < inputSize; ++i) {
                 const uint32_t inputIndex = f * secondDimSize * inputSize + s * inputSize + i;
                 const uint32_t outputIndex = s * firstDimSize * inputSize + f * inputSize + i;
                 output[outputIndex] = input[inputIndex];
@@ -80,7 +80,7 @@ void transposeFirstTwoDims(const T* input, const Shape& inputShape, T* output) {
 Shape removeFirstDim(const Shape& input) {
     Shape output = input;
     output.dimensions.resize(input.dimensions.size() - 1);
-    for (int i = 0; i < input.dimensions.size() - 1; ++i) {
+    for (size_t i = 0; i < input.dimensions.size() - 1; ++i) {
         output.dimensions[i] = input.dimensions[i + 1];
     }
     return output;
@@ -253,7 +253,7 @@ bool executeTyped(IOperationExecutionContext* context) {
     }
 
     // Forward pass
-    for (int i = 0; i < maxTime; ++i) {
+    for (uint32_t i = 0; i < maxTime; ++i) {
         const T* inputBatchPtr = input + i * batchSize * inputSize;
         const T* auxInputBatchPtr = nullptr;
         if (hasAuxWeights) {
@@ -390,15 +390,15 @@ bool prepare(IOperationExecutionContext* context) {
     const uint32_t bwNumUnits = getSizeOfDimension(bwWeights, 0);
     const uint32_t inputSize = getSizeOfDimension(input, 2);
 
-    NN_RET_CHECK_EQ(getNumberOfDimensions(input), 3);
-    NN_RET_CHECK_EQ(getNumberOfDimensions(fwWeights), 2);
-    NN_RET_CHECK_EQ(getNumberOfDimensions(fwRecurrentWeights), 2);
-    NN_RET_CHECK_EQ(getNumberOfDimensions(fwBias), 1);
-    NN_RET_CHECK_EQ(getNumberOfDimensions(fwHiddenState), 2);
-    NN_RET_CHECK_EQ(getNumberOfDimensions(bwWeights), 2);
-    NN_RET_CHECK_EQ(getNumberOfDimensions(bwRecurrentWeights), 2);
-    NN_RET_CHECK_EQ(getNumberOfDimensions(bwBias), 1);
-    NN_RET_CHECK_EQ(getNumberOfDimensions(bwHiddenState), 2);
+    NN_RET_CHECK_EQ(getNumberOfDimensions(input), 3u);
+    NN_RET_CHECK_EQ(getNumberOfDimensions(fwWeights), 2u);
+    NN_RET_CHECK_EQ(getNumberOfDimensions(fwRecurrentWeights), 2u);
+    NN_RET_CHECK_EQ(getNumberOfDimensions(fwBias), 1u);
+    NN_RET_CHECK_EQ(getNumberOfDimensions(fwHiddenState), 2u);
+    NN_RET_CHECK_EQ(getNumberOfDimensions(bwWeights), 2u);
+    NN_RET_CHECK_EQ(getNumberOfDimensions(bwRecurrentWeights), 2u);
+    NN_RET_CHECK_EQ(getNumberOfDimensions(bwBias), 1u);
+    NN_RET_CHECK_EQ(getNumberOfDimensions(bwHiddenState), 2u);
 
     NN_RET_CHECK_EQ(inputSize, getSizeOfDimension(fwWeights, 1));
     NN_RET_CHECK_EQ(fwNumUnits, getSizeOfDimension(fwBias, 0));
@@ -417,9 +417,9 @@ bool prepare(IOperationExecutionContext* context) {
     NN_RET_CHECK_EQ(bwNumUnits, getSizeOfDimension(bwHiddenState, 1));
 
     if (linkingMode == LinkingMode::CROSS_LINKING) {
-        NN_RET_CHECK_EQ(getNumberOfDimensions(auxInput), 3);
-        NN_RET_CHECK_EQ(getNumberOfDimensions(fwAuxWeights), 2);
-        NN_RET_CHECK_EQ(getNumberOfDimensions(bwAuxWeights), 2);
+        NN_RET_CHECK_EQ(getNumberOfDimensions(auxInput), 3u);
+        NN_RET_CHECK_EQ(getNumberOfDimensions(fwAuxWeights), 2u);
+        NN_RET_CHECK_EQ(getNumberOfDimensions(bwAuxWeights), 2u);
 
         NN_RET_CHECK_EQ(getSizeOfDimension(auxInput, 0), getSizeOfDimension(input, 0));
         NN_RET_CHECK_EQ(getSizeOfDimension(auxInput, 1), getSizeOfDimension(input, 1));
@@ -428,7 +428,7 @@ bool prepare(IOperationExecutionContext* context) {
         NN_RET_CHECK_EQ(getSizeOfDimension(bwAuxWeights, 0), bwNumUnits);
         NN_RET_CHECK_EQ(getSizeOfDimension(bwAuxWeights, 1), getSizeOfDimension(auxInput, 2));
     } else if (linkingMode == LinkingMode::PARALLEL_LINKING) {
-        NN_RET_CHECK_EQ(getNumberOfDimensions(auxInput), 3);
+        NN_RET_CHECK_EQ(getNumberOfDimensions(auxInput), 3u);
 
         NN_RET_CHECK_EQ(getSizeOfDimension(auxInput, 0), getSizeOfDimension(input, 0));
         NN_RET_CHECK_EQ(getSizeOfDimension(auxInput, 1), getSizeOfDimension(input, 1));

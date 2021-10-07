@@ -30,17 +30,17 @@ namespace unidirectional_sequence_rnn {
 
 constexpr uint32_t kNumInputs = 7;
 constexpr uint32_t kInputTensor = 0;
-constexpr uint32_t kWeightsTensor = 1;
-constexpr uint32_t kRecurrentWeightsTensor = 2;
-constexpr uint32_t kBiasTensor = 3;
-constexpr uint32_t kHiddenStateTensor = 4;
-constexpr uint32_t kActivationParam = 5;
-constexpr uint32_t kTimeMajorParam = 6;
+[[maybe_unused]] constexpr uint32_t kWeightsTensor = 1;
+[[maybe_unused]] constexpr uint32_t kRecurrentWeightsTensor = 2;
+[[maybe_unused]] constexpr uint32_t kBiasTensor = 3;
+[[maybe_unused]] constexpr uint32_t kHiddenStateTensor = 4;
+[[maybe_unused]] constexpr uint32_t kActivationParam = 5;
+[[maybe_unused]] constexpr uint32_t kTimeMajorParam = 6;
 
 constexpr uint32_t kNumOutputs = 1;
 constexpr uint32_t kNumOutputsWithState = 2;
-constexpr uint32_t kOutputTensor = 0;
-constexpr uint32_t kStateOutputTensor = 1;
+[[maybe_unused]] constexpr uint32_t kOutputTensor = 0;
+[[maybe_unused]] constexpr uint32_t kStateOutputTensor = 1;
 
 #ifdef NN_INCLUDE_CPU_IMPLEMENTATION
 namespace {
@@ -50,9 +50,9 @@ void transposeFirstTwoDims(const T* input, const Shape& inputShape, T* output) {
     const uint32_t firstDimSize = getSizeOfDimension(inputShape, 0);
     const uint32_t secondDimSize = getSizeOfDimension(inputShape, 1);
     const uint32_t inputSize = getSizeOfDimension(inputShape, 2);
-    for (int f = 0; f < firstDimSize; ++f) {
-        for (int s = 0; s < secondDimSize; ++s) {
-            for (int i = 0; i < inputSize; ++i) {
+    for (uint32_t f = 0; f < firstDimSize; ++f) {
+        for (uint32_t s = 0; s < secondDimSize; ++s) {
+            for (uint32_t i = 0; i < inputSize; ++i) {
                 const uint32_t inputIndex = f * secondDimSize * inputSize + s * inputSize + i;
                 const uint32_t outputIndex = s * firstDimSize * inputSize + f * inputSize + i;
                 output[outputIndex] = input[inputIndex];
@@ -104,7 +104,7 @@ bool executeTyped(IOperationExecutionContext* context) {
     fixedTimeInputShape.dimensions[0] = inputShape.dimensions[1];
     fixedTimeInputShape.dimensions[1] = inputShape.dimensions[2];
 
-    for (int i = 0; i < maxTime; ++i) {
+    for (uint32_t i = 0; i < maxTime; ++i) {
         RNN::RNNStep<T>(input, fixedTimeInputShape, hiddenState, bias, weights, weightsShape,
                         recurrentWeights, recurrentWeightsShape, activation, output);
         input += batchSize * inputSize;
@@ -166,11 +166,11 @@ bool prepare(IOperationExecutionContext* context) {
     const uint32_t numUnits = getSizeOfDimension(weights, 0);
     const uint32_t inputSize = getSizeOfDimension(input, 2);
 
-    NN_RET_CHECK_EQ(getNumberOfDimensions(input), 3);
-    NN_RET_CHECK_EQ(getNumberOfDimensions(weights), 2);
-    NN_RET_CHECK_EQ(getNumberOfDimensions(recurrentWeights), 2);
-    NN_RET_CHECK_EQ(getNumberOfDimensions(bias), 1);
-    NN_RET_CHECK_EQ(getNumberOfDimensions(hiddenState), 2);
+    NN_RET_CHECK_EQ(getNumberOfDimensions(input), 3u);
+    NN_RET_CHECK_EQ(getNumberOfDimensions(weights), 2u);
+    NN_RET_CHECK_EQ(getNumberOfDimensions(recurrentWeights), 2u);
+    NN_RET_CHECK_EQ(getNumberOfDimensions(bias), 1u);
+    NN_RET_CHECK_EQ(getNumberOfDimensions(hiddenState), 2u);
 
     NN_RET_CHECK_EQ(inputSize, getSizeOfDimension(weights, 1));
     NN_RET_CHECK_EQ(numUnits, getSizeOfDimension(bias, 0));

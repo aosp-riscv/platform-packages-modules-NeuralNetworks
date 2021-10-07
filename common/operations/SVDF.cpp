@@ -80,7 +80,7 @@ bool SVDF::Prepare(const Operation& operation, RunTimeOperandInfo* operands, Sha
     const int rank = getScalarData<int>(*GetInput(operation, operands, kRankParam));
     const uint32_t batch_size = SizeOfDimension(input, 0);
     const uint32_t num_filters = SizeOfDimension(weights_feature, 0);
-    NN_CHECK_EQ(num_filters % rank, 0);
+    NN_CHECK_EQ(num_filters % rank, 0u);
     const uint32_t num_units = num_filters / rank;
     const uint32_t memory_size = SizeOfDimension(weights_time, 1);
     NN_CHECK_EQ(SizeOfDimension(input, 1), SizeOfDimension(weights_feature, 1));

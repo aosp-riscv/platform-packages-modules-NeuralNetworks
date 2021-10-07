@@ -18,8 +18,12 @@
 
 #include "QuantizedLSTM.h"
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-parameter"
+#pragma clang diagnostic ignored "-Wsign-compare"
 #include <public/gemmlowp.h>
 #include <tensorflow/lite/kernels/internal/reference/legacy_reference_ops.h>
+#pragma clang diagnostic pop
 
 #include <algorithm>
 #include <vector>
@@ -245,14 +249,14 @@ QuantizedLSTMCell::QuantizedLSTMCell(const Operation& operation, RunTimeOperandI
 bool QuantizedLSTMCell::prepare(const Operation& operation, RunTimeOperandInfo* operands,
                                 Shape* cellStateOutShape, Shape* outputShape) {
     auto input = GetInput(operation, operands, kInputTensor);
-    NN_RET_CHECK_EQ(NumDimensions(input), 2);
+    NN_RET_CHECK_EQ(NumDimensions(input), 2u);
     NN_RET_CHECK_EQ(input->scale, 1. / 128.0);
     NN_RET_CHECK_EQ(input->zeroPoint, 128);
     const uint32_t numBatches = SizeOfDimension(input, 0);
     const uint32_t inputSize = SizeOfDimension(input, 1);
 
     auto prevOutput = GetInput(operation, operands, kPrevOutputTensor);
-    NN_RET_CHECK_EQ(NumDimensions(prevOutput), 2);
+    NN_RET_CHECK_EQ(NumDimensions(prevOutput), 2u);
     NN_RET_CHECK_EQ(SizeOfDimension(prevOutput, 0), numBatches);
     NN_RET_CHECK_EQ(prevOutput->scale, 1. / 128.0);
     NN_RET_CHECK_EQ(prevOutput->zeroPoint, 128);
@@ -264,7 +268,7 @@ bool QuantizedLSTMCell::prepare(const Operation& operation, RunTimeOperandInfo* 
     const float weightsZeroPoint = inputToInputWeights->zeroPoint;
 
     auto checkWeightsShape = [&](const RunTimeOperandInfo* weights, uint32_t columns) -> bool {
-        NN_RET_CHECK_EQ(NumDimensions(weights), 2);
+        NN_RET_CHECK_EQ(NumDimensions(weights), 2u);
         NN_RET_CHECK_EQ(SizeOfDimension(weights, 0), outputSize);
         NN_RET_CHECK_EQ(SizeOfDimension(weights, 1), columns);
         NN_RET_CHECK_EQ(weights->scale, weightsScale);
@@ -296,7 +300,7 @@ bool QuantizedLSTMCell::prepare(const Operation& operation, RunTimeOperandInfo* 
     NN_RET_CHECK_EQ(biasZeroPoint, 0);
 
     auto checkBiasShape = [&](const RunTimeOperandInfo* bias) -> bool {
-        NN_RET_CHECK_EQ(NumDimensions(bias), 1);
+        NN_RET_CHECK_EQ(NumDimensions(bias), 1u);
         NN_RET_CHECK_EQ(SizeOfDimension(bias, 0), outputSize);
         NN_RET_CHECK_EQ(bias->scale, biasScale);
         NN_RET_CHECK_EQ(bias->zeroPoint, biasZeroPoint);
@@ -312,7 +316,7 @@ bool QuantizedLSTMCell::prepare(const Operation& operation, RunTimeOperandInfo* 
     NN_RET_CHECK(checkBiasShape(outputGateBias));
 
     auto prevCellState = GetInput(operation, operands, kPrevCellStateTensor);
-    NN_CHECK_EQ(NumDimensions(prevCellState), 2);
+    NN_CHECK_EQ(NumDimensions(prevCellState), 2u);
     NN_CHECK_EQ(SizeOfDimension(prevCellState, 0), numBatches);
     NN_CHECK_EQ(SizeOfDimension(prevCellState, 1), outputSize);
     NN_CHECK_EQ(prevCellState->zeroPoint, 0);

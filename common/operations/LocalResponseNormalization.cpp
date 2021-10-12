@@ -23,7 +23,12 @@
 #include "Tracing.h"
 
 #ifdef NN_INCLUDE_CPU_IMPLEMENTATION
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-parameter"
+#pragma clang diagnostic ignored "-Wsign-compare"
+#pragma clang diagnostic ignored "-Winvalid-partial-specialization"
 #include <tensorflow/lite/kernels/internal/optimized/optimized_ops.h>
+#pragma clang diagnostic pop
 
 #include "CpuOperationUtils.h"
 #endif  // NN_INCLUDE_CPU_IMPLEMENTATION
@@ -36,14 +41,14 @@ constexpr char kOperationName[] = "LOCAL_RESPONSE_NORMALIZATION";
 
 constexpr uint32_t kNumInputs = 6;
 constexpr uint32_t kInputTensor = 0;
-constexpr uint32_t kRadiusScalar = 1;
-constexpr uint32_t kBiasScalar = 2;
-constexpr uint32_t kAlphaScalar = 3;
-constexpr uint32_t kBetaScalar = 4;
-constexpr uint32_t kAxisScalar = 5;
+[[maybe_unused]] constexpr uint32_t kRadiusScalar = 1;
+[[maybe_unused]] constexpr uint32_t kBiasScalar = 2;
+[[maybe_unused]] constexpr uint32_t kAlphaScalar = 3;
+[[maybe_unused]] constexpr uint32_t kBetaScalar = 4;
+[[maybe_unused]] constexpr uint32_t kAxisScalar = 5;
 
 constexpr uint32_t kNumOutputs = 1;
-constexpr uint32_t kOutputTensor = 0;
+[[maybe_unused]] constexpr uint32_t kOutputTensor = 0;
 
 #ifdef NN_INCLUDE_CPU_IMPLEMENTATION
 namespace {
@@ -51,7 +56,7 @@ namespace {
 inline bool localResponseNormFloat32Impl(const float* inputData, const Shape& inputShape,
                                          int32_t radius, float bias, float alpha, float beta,
                                          int32_t axis, float* outputData,
-                                         const Shape& outputShape) {
+                                         const Shape& /*outputShape*/) {
     NNTRACE_TRANS("localResponseNormFloat32");
     const uint32_t outerSize = getNumberOfElements(inputShape, 0, axis);
     const uint32_t axisSize = getSizeOfDimension(inputShape, axis);
@@ -61,7 +66,7 @@ inline bool localResponseNormFloat32Impl(const float* inputData, const Shape& in
         const float* inputBase = inputData + outer * axisSize * innerSize;
         float* outputBase = outputData + outer * axisSize * innerSize;
         for (uint32_t inner = 0; inner < innerSize; ++inner, ++inputBase, ++outputBase) {
-            for (int32_t i = 0; i < axisSize; i++) {
+            for (int32_t i = 0; i < static_cast<int32_t>(axisSize); i++) {
                 const int32_t dBegin = std::max(0, i - radius);
                 // Add 1 on dEnd to comply with optimized_ops in TFLite
                 const int32_t dEnd = std::min(static_cast<int32_t>(axisSize), i + radius + 1);
@@ -172,7 +177,7 @@ Result<Version> validate(const IOperationValidationContext* context) {
 
     const Shape& input = context->getInputShape(kInputTensor);
     if (hasKnownRank(input)) {
-        NN_RET_CHECK_LE(getNumberOfDimensions(input), 4);
+        NN_RET_CHECK_LE(getNumberOfDimensions(input), 4u);
     }
     NN_RET_CHECK(validateInputTypes(context, inExpectedTypes));
     NN_RET_CHECK(validateOutputTypes(context, {inputType}));

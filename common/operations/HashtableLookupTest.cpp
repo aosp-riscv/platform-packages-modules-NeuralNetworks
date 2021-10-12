@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <gmock/gmock-matchers.h>
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <vector>

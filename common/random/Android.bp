@@ -46,8 +46,6 @@ cc_library_static {
     ],
     cflags: [
         "-DLOG_TAG=\"Random\"",
-        "-Wno-invalid-partial-specialization",
-        "-Wno-unused-parameter",
     ],
     header_libs: [
         "libeigen",

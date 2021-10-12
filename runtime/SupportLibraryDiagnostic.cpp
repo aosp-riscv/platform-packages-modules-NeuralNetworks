@@ -88,8 +88,8 @@ ANeuralNetworksDiagnosticExecutionMode convert(ExecutionMode executionMode) {
 }  // namespace
 
 int32_t SL_ANeuralNetworksDiagnosticCompilationInfo_getSessionId(
-        const ANeuralNetworksDiagnosticCompilationInfo* diagnosticCompilationInfo) {
-    return castTo(diagnosticCompilationInfo)->sessionId;
+        const ANeuralNetworksDiagnosticCompilationInfo* /*diagnosticCompilationInfo*/) {
+    return android::nn::telemetry::getSessionId();
 }
 
 int64_t SL_ANeuralNetworksDiagnosticCompilationInfo_getNnApiVersion(
@@ -143,8 +143,8 @@ bool SL_ANeuralNetworksDiagnosticCompilationInfo_areDynamicTensorsUsed(
 }
 
 int32_t SL_ANeuralNetworksDiagnosticExecutionInfo_getSessionId(
-        const ANeuralNetworksDiagnosticExecutionInfo* diagnosticExecutionInfo) {
-    return castTo(diagnosticExecutionInfo)->sessionId;
+        const ANeuralNetworksDiagnosticExecutionInfo* /*diagnosticExecutionInfo*/) {
+    return android::nn::telemetry::getSessionId();
 }
 
 int64_t SL_ANeuralNetworksDiagnosticExecutionInfo_getNnApiVersion(

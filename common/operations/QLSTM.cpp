@@ -79,18 +79,18 @@ constexpr uint32_t kCellLayerNormTensor = 22;
 constexpr uint32_t kOutputLayerNormTensor = 23;
 
 // Clipping.
-constexpr uint32_t kCellClip = 24;
-constexpr uint32_t kProjectionClip = 25;
+[[maybe_unused]] constexpr uint32_t kCellClip = 24;
+[[maybe_unused]] constexpr uint32_t kProjectionClip = 25;
 
 // Scales of the result of matmul, i.e. input to layer normalization.
-constexpr uint32_t kInputIntermediateScale = 26;
-constexpr uint32_t kForgetIntermediateScale = 27;
-constexpr uint32_t kCellIntermediateScale = 28;
-constexpr uint32_t kOutputIntermediateScale = 29;
+[[maybe_unused]] constexpr uint32_t kInputIntermediateScale = 26;
+[[maybe_unused]] constexpr uint32_t kForgetIntermediateScale = 27;
+[[maybe_unused]] constexpr uint32_t kCellIntermediateScale = 28;
+[[maybe_unused]] constexpr uint32_t kOutputIntermediateScale = 29;
 
 // Zero point and scale of hidden state.
-constexpr uint32_t kHiddenStateZeroPoint = 30;
-constexpr uint32_t kHiddenStateScale = 31;
+[[maybe_unused]] constexpr uint32_t kHiddenStateZeroPoint = 30;
+[[maybe_unused]] constexpr uint32_t kHiddenStateScale = 31;
 
 // Outputs:
 constexpr uint32_t kNumOutputs = 3;
@@ -178,50 +178,50 @@ bool prepare(IOperationExecutionContext* context) {
 
     const Shape inputShape = context->getInputShape(kInputTensor);
     const uint32_t inputRank = getNumberOfDimensions(inputShape);
-    NN_RET_CHECK_EQ(inputRank, 2) << "Invalid input tensor rank: " << inputRank;
+    NN_RET_CHECK_EQ(inputRank, 2u) << "Invalid input tensor rank: " << inputRank;
 
     const uint32_t batchSize = getSizeOfDimension(inputShape, 0);
     const uint32_t inputSize = getSizeOfDimension(inputShape, 1);
 
     const Shape inputToOutputShape = context->getInputShape(kInputToOutputWeightsTensor);
-    NN_RET_CHECK_EQ(getNumberOfDimensions(inputToOutputShape), 2);
+    NN_RET_CHECK_EQ(getNumberOfDimensions(inputToOutputShape), 2u);
     NN_RET_CHECK_EQ(getSizeOfDimension(inputToOutputShape, 1), inputSize);
     const uint32_t numUnits = getSizeOfDimension(inputToOutputShape, 0);
 
     const Shape recurrentToOutputShape = context->getInputShape(kRecurrentToOutputWeightsTensor);
-    NN_RET_CHECK_EQ(getNumberOfDimensions(recurrentToOutputShape), 2);
+    NN_RET_CHECK_EQ(getNumberOfDimensions(recurrentToOutputShape), 2u);
     NN_RET_CHECK_EQ(getSizeOfDimension(recurrentToOutputShape, 0), numUnits);
     const uint32_t outputSize = getSizeOfDimension(recurrentToOutputShape, 1);
 
     if (hasTensor(context, kInputToInputWeightsTensor)) {
         const Shape inputToInputShape = context->getInputShape(kInputToInputWeightsTensor);
-        NN_RET_CHECK_EQ(getNumberOfDimensions(inputToInputShape), 2);
+        NN_RET_CHECK_EQ(getNumberOfDimensions(inputToInputShape), 2u);
         NN_RET_CHECK_EQ(getSizeOfDimension(inputToInputShape, 0), numUnits);
         NN_RET_CHECK_EQ(getSizeOfDimension(inputToInputShape, 1), inputSize);
     }
 
     const Shape inputToForgetShape = context->getInputShape(kInputToForgetWeightsTensor);
-    NN_RET_CHECK_EQ(getNumberOfDimensions(inputToForgetShape), 2);
+    NN_RET_CHECK_EQ(getNumberOfDimensions(inputToForgetShape), 2u);
     NN_RET_CHECK_EQ(getSizeOfDimension(inputToForgetShape, 0), numUnits);
     NN_RET_CHECK_EQ(getSizeOfDimension(inputToForgetShape, 1), inputSize);
     const Shape inputToCellShape = context->getInputShape(kInputToCellWeightsTensor);
-    NN_RET_CHECK_EQ(getNumberOfDimensions(inputToCellShape), 2);
+    NN_RET_CHECK_EQ(getNumberOfDimensions(inputToCellShape), 2u);
     NN_RET_CHECK_EQ(getSizeOfDimension(inputToCellShape, 0), numUnits);
     NN_RET_CHECK_EQ(getSizeOfDimension(inputToCellShape, 1), inputSize);
 
     if (hasTensor(context, kRecurrentToInputWeightsTensor)) {
         const Shape recurrentToInputShape = context->getInputShape(kRecurrentToInputWeightsTensor);
-        NN_RET_CHECK_EQ(getNumberOfDimensions(recurrentToInputShape), 2);
+        NN_RET_CHECK_EQ(getNumberOfDimensions(recurrentToInputShape), 2u);
         NN_RET_CHECK_EQ(getSizeOfDimension(recurrentToInputShape, 0), numUnits);
         NN_RET_CHECK_EQ(getSizeOfDimension(recurrentToInputShape, 1), outputSize);
     }
 
     const Shape recurrentToForgetShape = context->getInputShape(kRecurrentToForgetWeightsTensor);
-    NN_RET_CHECK_EQ(getNumberOfDimensions(recurrentToForgetShape), 2);
+    NN_RET_CHECK_EQ(getNumberOfDimensions(recurrentToForgetShape), 2u);
     NN_RET_CHECK_EQ(getSizeOfDimension(recurrentToForgetShape, 0), numUnits);
     NN_RET_CHECK_EQ(getSizeOfDimension(recurrentToForgetShape, 1), outputSize);
     const Shape recurrentToCellShape = context->getInputShape(kRecurrentToCellWeightsTensor);
-    NN_RET_CHECK_EQ(getNumberOfDimensions(recurrentToCellShape), 2);
+    NN_RET_CHECK_EQ(getNumberOfDimensions(recurrentToCellShape), 2u);
     NN_RET_CHECK_EQ(getSizeOfDimension(recurrentToCellShape, 0), numUnits);
     NN_RET_CHECK_EQ(getSizeOfDimension(recurrentToCellShape, 1), outputSize);
 
@@ -235,19 +235,19 @@ bool prepare(IOperationExecutionContext* context) {
 
     if (hasTensor(context, kCellToInputWeightsTensor)) {
         const Shape cellToInputShape = context->getInputShape(kCellToInputWeightsTensor);
-        NN_RET_CHECK_EQ(getNumberOfDimensions(cellToInputShape), 1);
+        NN_RET_CHECK_EQ(getNumberOfDimensions(cellToInputShape), 1u);
         NN_RET_CHECK_EQ(getSizeOfDimension(cellToInputShape, 0), numUnits);
     }
 
     if (hasTensor(context, kCellToForgetWeightsTensor)) {
         const Shape cellToForgetShape = context->getInputShape(kCellToForgetWeightsTensor);
-        NN_RET_CHECK_EQ(getNumberOfDimensions(cellToForgetShape), 1);
+        NN_RET_CHECK_EQ(getNumberOfDimensions(cellToForgetShape), 1u);
         NN_RET_CHECK_EQ(getSizeOfDimension(cellToForgetShape, 0), numUnits);
     }
 
     if (hasTensor(context, kCellToOutputWeightsTensor)) {
         const Shape cellToOutputShape = context->getInputShape(kCellToOutputWeightsTensor);
-        NN_RET_CHECK_EQ(getNumberOfDimensions(cellToOutputShape), 1);
+        NN_RET_CHECK_EQ(getNumberOfDimensions(cellToOutputShape), 1u);
         NN_RET_CHECK_EQ(getSizeOfDimension(cellToOutputShape, 0), numUnits);
     }
 
@@ -265,7 +265,7 @@ bool prepare(IOperationExecutionContext* context) {
     if (!cifgUsed) {
         NN_RET_CHECK(hasTensor(context, kInputGateBiasTensor));
         const Shape inputGateBiasShape = context->getInputShape(kInputGateBiasTensor);
-        NN_RET_CHECK_EQ(getNumberOfDimensions(inputGateBiasShape), 1);
+        NN_RET_CHECK_EQ(getNumberOfDimensions(inputGateBiasShape), 1u);
         NN_RET_CHECK_EQ(getSizeOfDimension(inputGateBiasShape, 0), numUnits);
     } else {
         NN_RET_CHECK(!hasTensor(context, kInputGateBiasTensor))
@@ -273,58 +273,58 @@ bool prepare(IOperationExecutionContext* context) {
     }
 
     const Shape forgetGateBiasShape = context->getInputShape(kForgetGateBiasTensor);
-    NN_RET_CHECK_EQ(getNumberOfDimensions(forgetGateBiasShape), 1);
+    NN_RET_CHECK_EQ(getNumberOfDimensions(forgetGateBiasShape), 1u);
     NN_RET_CHECK_EQ(getSizeOfDimension(forgetGateBiasShape, 0), numUnits);
     const Shape cellGateBiasShape = context->getInputShape(kCellGateBiasTensor);
-    NN_RET_CHECK_EQ(getNumberOfDimensions(cellGateBiasShape), 1);
+    NN_RET_CHECK_EQ(getNumberOfDimensions(cellGateBiasShape), 1u);
     NN_RET_CHECK_EQ(getSizeOfDimension(cellGateBiasShape, 0), numUnits);
     const Shape outputGateBiasShape = context->getInputShape(kOutputGateBiasTensor);
-    NN_RET_CHECK_EQ(getNumberOfDimensions(outputGateBiasShape), 1);
+    NN_RET_CHECK_EQ(getNumberOfDimensions(outputGateBiasShape), 1u);
     NN_RET_CHECK_EQ(getSizeOfDimension(outputGateBiasShape, 0), numUnits);
 
     if (hasTensor(context, kProjectionWeightsTensor)) {
         const Shape projectionShape = context->getInputShape(kProjectionWeightsTensor);
-        NN_RET_CHECK_EQ(getNumberOfDimensions(projectionShape), 2);
+        NN_RET_CHECK_EQ(getNumberOfDimensions(projectionShape), 2u);
         NN_RET_CHECK_EQ(getSizeOfDimension(projectionShape, 0), outputSize);
         NN_RET_CHECK_EQ(getSizeOfDimension(projectionShape, 1), numUnits);
     }
 
     if (hasTensor(context, kProjectionBiasTensor)) {
         const Shape projectionBiasShape = context->getInputShape(kProjectionBiasTensor);
-        NN_RET_CHECK_EQ(getNumberOfDimensions(projectionBiasShape), 1);
+        NN_RET_CHECK_EQ(getNumberOfDimensions(projectionBiasShape), 1u);
         NN_RET_CHECK_EQ(getSizeOfDimension(projectionBiasShape, 0), outputSize);
     }
 
     const Shape outputStateShape = context->getInputShape(kPrevOutputTensor);
-    NN_RET_CHECK_EQ(getNumberOfDimensions(outputStateShape), 2);
+    NN_RET_CHECK_EQ(getNumberOfDimensions(outputStateShape), 2u);
     NN_RET_CHECK_EQ(getSizeOfDimension(outputStateShape, 0), batchSize);
     NN_RET_CHECK_EQ(getSizeOfDimension(outputStateShape, 1), outputSize);
     const Shape cellStateShape = context->getInputShape(kPrevCellStateTensor);
-    NN_RET_CHECK_EQ(getNumberOfDimensions(cellStateShape), 2);
+    NN_RET_CHECK_EQ(getNumberOfDimensions(cellStateShape), 2u);
     NN_RET_CHECK_EQ(getSizeOfDimension(cellStateShape, 0), batchSize);
     NN_RET_CHECK_EQ(getSizeOfDimension(cellStateShape, 1), numUnits);
 
     if (hasTensor(context, kInputLayerNormTensor)) {
         const Shape inputLayerNormShape = context->getInputShape(kInputLayerNormTensor);
-        NN_RET_CHECK_EQ(getNumberOfDimensions(inputLayerNormShape), 1);
+        NN_RET_CHECK_EQ(getNumberOfDimensions(inputLayerNormShape), 1u);
         NN_RET_CHECK_EQ(getSizeOfDimension(inputLayerNormShape, 0), numUnits);
     }
 
     if (hasTensor(context, kForgetLayerNormTensor)) {
         const Shape forgetLayerNormShape = context->getInputShape(kForgetLayerNormTensor);
-        NN_RET_CHECK_EQ(getNumberOfDimensions(forgetLayerNormShape), 1);
+        NN_RET_CHECK_EQ(getNumberOfDimensions(forgetLayerNormShape), 1u);
         NN_RET_CHECK_EQ(getSizeOfDimension(forgetLayerNormShape, 0), numUnits);
     }
 
     if (hasTensor(context, kCellLayerNormTensor)) {
         const Shape cellLayerNormShape = context->getInputShape(kCellLayerNormTensor);
-        NN_RET_CHECK_EQ(getNumberOfDimensions(cellLayerNormShape), 1);
+        NN_RET_CHECK_EQ(getNumberOfDimensions(cellLayerNormShape), 1u);
         NN_RET_CHECK_EQ(getSizeOfDimension(cellLayerNormShape, 0), numUnits);
     }
 
     if (hasTensor(context, kOutputLayerNormTensor)) {
         const Shape outputLayerNormShape = context->getInputShape(kOutputLayerNormTensor);
-        NN_RET_CHECK_EQ(getNumberOfDimensions(outputLayerNormShape), 1);
+        NN_RET_CHECK_EQ(getNumberOfDimensions(outputLayerNormShape), 1u);
         NN_RET_CHECK_EQ(getSizeOfDimension(outputLayerNormShape, 0), numUnits);
     }
 

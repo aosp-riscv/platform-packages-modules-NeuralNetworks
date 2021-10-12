@@ -68,7 +68,7 @@ Result<Version> validate(const IOperationValidationContext* context) {
             << "Unsupported tensor type for operation " << kOperationName;
     const Shape& inputShape = context->getInputShape(kInputTensor);
     if (hasKnownRank(inputShape)) {
-        NN_RET_CHECK_LE(getNumberOfDimensions(inputShape), 4);
+        NN_RET_CHECK_LE(getNumberOfDimensions(inputShape), 4u);
     }
     NN_RET_CHECK(validateInputTypes(context, {inputType, OperandType::INT32, OperandType::INT32}));
     NN_RET_CHECK(validateOutputTypes(context, {inputType}));

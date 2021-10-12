@@ -29,10 +29,6 @@
 #include "Manager.h"
 #include "NeuralNetworks.h"
 
-#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
-#include "AppInfoFetcher.h"
-#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
-
 namespace android::nn::telemetry {
 namespace {
 
@@ -80,12 +76,6 @@ int32_t generateSessionId() {
     return (getpid() * 123 + timestamp) % 999983;
 }
 
-// Generate and store session identifier
-int32_t getSessionId() {
-    static int32_t ident = generateSessionId();
-    return ident;
-}
-
 // Operand type to atom datatype
 DataClass operandToDataClass(const OperandType& op) {
     switch (op) {
@@ -124,17 +114,6 @@ DataClass evalOutputDataClass(const ModelBuilder* m) {
     return result;
 }
 
-const char* getPackageName() {
-#ifndef NN_COMPATIBILITY_LIBRARY_BUILD
-    auto& appInfo = AppInfoFetcher::get()->getAppInfo();
-    // If no package, return binary name
-    return appInfo.appPackageName.empty() ? appInfo.binaryPath.c_str()
-                                          : appInfo.appPackageName.c_str();
-#else   // NN_COMPATIBILITY_LIBRARY_BUILD
-    return "<package info not available>";
-#endif  // NN_COMPATIBILITY_LIBRARY_BUILD
-}
-
 }  // namespace
 
 // Infer a data class from an operand type. Call iteratievly on operands set, previousDataClass is
@@ -157,6 +136,12 @@ DataClass evalDataClass(const OperandType& op, DataClass previousDataClass) {
     return operandClass;
 }
 
+// Generate and store session identifier
+int32_t getSessionId() {
+    static int32_t ident = generateSessionId();
+    return ident;
+}
+
 void onCompilationFinish(CompilationBuilder* c, int resultCode) {
     // Allow to emit even only if compilation was finished
     if (!c->isFinished()) {
@@ -171,8 +156,6 @@ void onCompilationFinish(CompilationBuilder* c, int resultCode) {
     const std::string deviceId = makeDeviceId(c->getDevices());
 
     const DiagnosticCompilationInfo info{
-            .sessionId = getSessionId(),
-            .packageName = getPackageName(),
             .modelArchHash = c->getModel()->getModelArchHash(),
             .deviceId = deviceId.c_str(),
             .errorCode = resultCode,
@@ -219,8 +202,6 @@ void onExecutionFinish(ExecutionBuilder* e, ExecutionMode executionMode, int res
     const std::string deviceId = makeDeviceId(compilation->getDevices());
 
     const DiagnosticExecutionInfo info{
-            .sessionId = getSessionId(),
-            .packageName = getPackageName(),
             .modelArchHash = e->getModel()->getModelArchHash(),
             .deviceId = deviceId.c_str(),
             .executionMode = executionMode,

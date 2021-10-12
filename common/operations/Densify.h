@@ -66,7 +66,7 @@ uint64_t getFlattenedIndex(const std::vector<int32_t>& indices, const std::vecto
  * * origRank = the size of denseShape. Used for calculating flattened index of indices.
  */
 template <typename T>
-void populate(const T* srcData, std::vector<int32_t>* indices, int32_t level, int32_t prevIdx,
+void populate(const T* srcData, std::vector<int32_t>* indices, uint32_t level, uint32_t prevIdx,
               T* destData, const std::vector<uint32_t>& denseShape,
               const std::vector<int32_t>& dimFormat, const int32_t* traversalOrder,
               const std::vector<int32_t>& blockSize, const int32_t* blockMap,

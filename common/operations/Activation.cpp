@@ -26,11 +26,16 @@
 #include "Tracing.h"
 
 #ifdef NN_INCLUDE_CPU_IMPLEMENTATION
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-parameter"
+#pragma clang diagnostic ignored "-Wsign-compare"
+#pragma clang diagnostic ignored "-Winvalid-partial-specialization"
 #include <tensorflow/lite/kernels/internal/optimized/legacy_optimized_ops.h>
 #include <tensorflow/lite/kernels/internal/optimized/optimized_ops.h>
 #include <tensorflow/lite/kernels/internal/reference/integer_ops/logistic.h>
 #include <tensorflow/lite/kernels/internal/reference/integer_ops/tanh.h>
 #include <tensorflow/lite/kernels/internal/reference/reference_ops.h>
+#pragma clang diagnostic pop
 
 #include "CpuOperationUtils.h"
 #endif  // NN_INCLUDE_CPU_IMPLEMENTATION
@@ -44,14 +49,15 @@ constexpr uint32_t kNumInputs = 1;
 constexpr uint32_t kInputTensor = 0;
 
 constexpr uint32_t kNumOutputs = 1;
-constexpr uint32_t kOutputTensor = 0;
+[[maybe_unused]] constexpr uint32_t kOutputTensor = 0;
 
 #ifdef NN_INCLUDE_CPU_IMPLEMENTATION
 namespace {
 
 template <typename T>
-bool reluFloat(const T* inputData, const Shape& inputShape, T* outputData, const Shape& outputShape,
-               float reluMin = 0.f, float reluMax = std::numeric_limits<float>::max()) {
+bool reluFloat(const T* inputData, const Shape& inputShape, T* outputData,
+               const Shape& /*outputShape*/, float reluMin = 0.f,
+               float reluMax = std::numeric_limits<float>::max()) {
     NNTRACE_COMP("reluX");
     int numElements = getNumberOfElements(inputShape);
     for (int i = 0; i < numElements; i++, inputData++, outputData++) {
@@ -87,7 +93,7 @@ template bool relu6Float<_Float16>(const _Float16* inputData, const Shape& input
                                    _Float16* outputData, const Shape& outputShape);
 
 bool tanhFloat16(const _Float16* inputData, const Shape& inputShape, _Float16* outputData,
-                 const Shape& outputShape) {
+                 const Shape& /*outputShape*/) {
     NNTRACE_COMP("tanhFloat16");
     int numElements = getNumberOfElements(inputShape);
     for (int i = 0; i < numElements; i++, inputData++, outputData++) {
@@ -97,7 +103,7 @@ bool tanhFloat16(const _Float16* inputData, const Shape& inputShape, _Float16* o
 }
 
 bool tanhFloat32(const float* inputData, const Shape& inputShape, float* outputData,
-                 const Shape& outputShape) {
+                 const Shape& /*outputShape*/) {
     NNTRACE_COMP("tanhFloat32");
     int numElements = getNumberOfElements(inputShape);
     for (int i = 0; i < numElements; i++, inputData++, outputData++) {
@@ -108,7 +114,7 @@ bool tanhFloat32(const float* inputData, const Shape& inputShape, float* outputD
 
 template <typename T>
 bool logisticFloat(const T* inputData, const Shape& inputShape, T* outputData,
-                   const Shape& outputShape) {
+                   const Shape& /*outputShape*/) {
     NNTRACE_COMP("logisticFloat");
     int numElements = getNumberOfElements(inputShape);
     for (int i = 0; i < numElements; i++, inputData++, outputData++) {
@@ -123,7 +129,7 @@ template bool logisticFloat<_Float16>(const _Float16* inputData, const Shape& in
 
 template <ActivationFn activation>
 inline bool reluXQuant8(const uint8_t* inputData, const Shape& inputShape, uint8_t* outputData,
-                        const Shape& outputShape) {
+                        const Shape& /*outputShape*/) {
     int numElements = getNumberOfElements(inputShape);
     int32_t output_activation_min = 0;
     int32_t output_activation_max = 0;
@@ -164,7 +170,7 @@ bool tanhQuant8(const uint8_t* inputData, const Shape& inputShape, uint8_t* outp
         return false;
     }
 
-    int numElements = getNumberOfElements(inputShape);
+    [[maybe_unused]] int numElements = getNumberOfElements(inputShape);
     static constexpr int kInputIntegerBits = 4;
 
     const double input_real_multiplier =
@@ -194,7 +200,7 @@ bool logisticQuant8(const uint8_t* inputData, const Shape& inputShape, uint8_t* 
         return false;
     }
 
-    int numElements = getNumberOfElements(inputShape);
+    [[maybe_unused]] int numElements = getNumberOfElements(inputShape);
     static constexpr int kInputIntegerBits = 4;
 
     const double input_real_multiplier =
@@ -218,7 +224,7 @@ bool logisticQuant8(const uint8_t* inputData, const Shape& inputShape, uint8_t* 
 
 template <ActivationFn activation>
 inline bool reluXQuant8Signed(const int8_t* inputData, const Shape& inputShape, int8_t* outputData,
-                              const Shape& outputShape) {
+                              const Shape& /*outputShape*/) {
     int numElements = getNumberOfElements(inputShape);
     int32_t output_activation_min = 0;
     int32_t output_activation_max = 0;
@@ -259,7 +265,7 @@ bool tanhQuant8Signed(const int8_t* inputData, const Shape& inputShape, int8_t* 
         return false;
     }
 
-    int numElements = getNumberOfElements(inputShape);
+    [[maybe_unused]] int numElements = getNumberOfElements(inputShape);
     static constexpr int kInputIntegerBits = 4;
 
     const double input_real_multiplier =
@@ -381,7 +387,7 @@ Result<Version> validate(OperationType opType, const IOperationValidationContext
     }
     const Shape& input = context->getInputShape(kInputTensor);
     if (hasKnownRank(input)) {
-        NN_RET_CHECK_LE(getNumberOfDimensions(input), 4);
+        NN_RET_CHECK_LE(getNumberOfDimensions(input), 4u);
     }
     NN_RET_CHECK(validateInputTypes(context, {inputType}));
     NN_RET_CHECK(validateOutputTypes(context, {inputType}));
@@ -409,7 +415,7 @@ Result<Version> validateHardSwish(const IOperationValidationContext* context) {
 bool prepare(OperationType opType, IOperationExecutionContext* context) {
     Shape input = context->getInputShape(kInputTensor);
     if (opType != OperationType::HARD_SWISH) {
-        NN_RET_CHECK_LE(getNumberOfDimensions(input), 4);
+        NN_RET_CHECK_LE(getNumberOfDimensions(input), 4u);
     }
     Shape output = input;
     if (input.type == OperandType::TENSOR_QUANT8_ASYMM ||

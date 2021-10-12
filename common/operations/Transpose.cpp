@@ -22,8 +22,13 @@
 #include "Tracing.h"
 
 #ifdef NN_INCLUDE_CPU_IMPLEMENTATION
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-parameter"
+#pragma clang diagnostic ignored "-Wsign-compare"
+#pragma clang diagnostic ignored "-Winvalid-partial-specialization"
 #include <tensorflow/lite/kernels/internal/optimized/legacy_optimized_ops.h>
 #include <tensorflow/lite/kernels/internal/reference/reference_ops.h>
+#pragma clang diagnostic pop
 
 #include "CpuOperationUtils.h"
 #endif  // NN_INCLUDE_CPU_IMPLEMENTATION
@@ -36,10 +41,10 @@ constexpr char kOperationName[] = "TRANSPOSE";
 
 constexpr uint32_t kNumInputs = 2;
 constexpr uint32_t kInputTensor = 0;
-constexpr uint32_t kPermTensor = 1;
+[[maybe_unused]] constexpr uint32_t kPermTensor = 1;
 
 constexpr uint32_t kNumOutputs = 1;
-constexpr uint32_t kOutputTensor = 0;
+[[maybe_unused]] constexpr uint32_t kOutputTensor = 0;
 
 #ifdef NN_INCLUDE_CPU_IMPLEMENTATION
 namespace {
@@ -91,7 +96,7 @@ Result<Version> validate(const IOperationValidationContext* context) {
     }
     const Shape& input = context->getInputShape(kInputTensor);
     if (hasKnownRank(input)) {
-        NN_RET_CHECK_LE(getNumberOfDimensions(input), 4);
+        NN_RET_CHECK_LE(getNumberOfDimensions(input), 4u);
     }
     NN_RET_CHECK(validateInputTypes(context, {inputType, OperandType::TENSOR_INT32}));
     NN_RET_CHECK(validateOutputTypes(context, {inputType}));
@@ -113,18 +118,18 @@ bool prepare(IOperationExecutionContext* context) {
 
     // permData can be NO_VALUE representing a regular 2D matrix transpose
     if (context->isOmittedInput(kPermTensor)) {
-        NN_RET_CHECK_EQ(numInputDims, 2);
+        NN_RET_CHECK_EQ(numInputDims, 2u);
         output.dimensions = {getSizeOfDimension(input, 1), getSizeOfDimension(input, 0)};
     } else {
         const Shape& permShape = context->getInputShape(kPermTensor);
         const int32_t* permData = context->getInputBuffer<int32_t>(kPermTensor);
 
         // Transpose op only supports 1D-4D input arrays.
-        NN_RET_CHECK_LE(numInputDims, 4);
+        NN_RET_CHECK_LE(numInputDims, 4u);
 
         // perm need to be provided as a 1-D int32 tensor.
         NN_RET_CHECK(permShape.type == OperandType::TENSOR_INT32);
-        NN_RET_CHECK_EQ(getNumberOfDimensions(permShape), 1);
+        NN_RET_CHECK_EQ(getNumberOfDimensions(permShape), 1u);
         NN_RET_CHECK_EQ(numInputDims, getSizeOfDimension(permShape, 0));
 
         std::vector<uint32_t> outDims(numInputDims);

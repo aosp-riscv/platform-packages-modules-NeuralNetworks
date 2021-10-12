@@ -14,10 +14,15 @@
  * limitations under the License.
  */
 
-#include <gmock/gmock-matchers.h>
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-parameter"
+#pragma clang diagnostic ignored "-Winvalid-partial-specialization"
 #include <unsupported/Eigen/CXX11/Tensor>
+#pragma clang diagnostic pop
+
 #include <vector>
 
 #include "Multinomial.h"

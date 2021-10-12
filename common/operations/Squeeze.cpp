@@ -30,10 +30,10 @@ namespace squeeze {
 
 constexpr uint32_t kNumInputs = 2;
 constexpr uint32_t kInputTensor = 0;
-constexpr uint32_t kSqueezeDims = 1;
+[[maybe_unused]] constexpr uint32_t kSqueezeDims = 1;
 
 constexpr uint32_t kNumOutputs = 1;
-constexpr uint32_t kOutputTensor = 0;
+[[maybe_unused]] constexpr uint32_t kOutputTensor = 0;
 
 Result<Version> validate(const IOperationValidationContext* context) {
     NN_RET_CHECK_EQ(context->getNumInputs(), kNumInputs);
@@ -61,7 +61,7 @@ Result<Version> validate(const IOperationValidationContext* context) {
     NN_RET_CHECK(validateOutputTypes(context, {inputType}));
     const Shape& input = context->getInputShape(kInputTensor);
     if (hasKnownRank(input)) {
-        NN_RET_CHECK_LE(getNumberOfDimensions(input), 4);
+        NN_RET_CHECK_LE(getNumberOfDimensions(input), 4u);
     }
     return minSupportedVersion;
 }
@@ -77,7 +77,7 @@ bool prepare(IOperationExecutionContext* context) {
     const Shape squeezeDimsShape = context->getInputShape(kSqueezeDims);
     int32_t numInputDims = static_cast<int32_t>(getNumberOfDimensions(inputShape));
 
-    NN_RET_CHECK_LE(getNumberOfDimensions(inputShape), 4);
+    NN_RET_CHECK_LE(getNumberOfDimensions(inputShape), 4u);
 
     // squeezeDims need to be provided as a 1-D int32 tensor.
     NN_OPS_CHECK(squeezeDimsShape.type == OperandType::TENSOR_INT32);

@@ -34,7 +34,7 @@ cc_defaults {
         "libneuralnetworks_headers",
     ],
     shared_libs: [
-        "android.hardware.neuralnetworks-V1-ndk",
+        "android.hardware.neuralnetworks-V2-ndk",
         "android.hardware.neuralnetworks@1.0",
         "android.hardware.neuralnetworks@1.1",
         "android.hardware.neuralnetworks@1.2",

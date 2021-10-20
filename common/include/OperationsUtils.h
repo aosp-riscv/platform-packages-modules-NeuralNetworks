@@ -180,6 +180,9 @@ __wur bool GetQuantizedConvolutionMultipler(const Shape& inputShape, const Shape
                                             const Shape& biasShape, const Shape& outputShape,
                                             double* multiplier);
 
+__wur bool GetQuantizedConvolutionMultiplier(const Shape& inputShape, const Shape& filterShape,
+                                             const Shape& outputShape, double* multiplier);
+
 void CalculateActivationRangeUint8(int32_t activation, const Shape& outputShape, int32_t* act_min,
                                    int32_t* act_max);
 

@@ -111,8 +111,12 @@ enum class ErrorStatus {
 };
 
 struct GeneralError {
+    // NOLINTNEXTLINE(google-explicit-constructor)
+    /*implicit*/ GeneralError(std::string message = {},
+                              ErrorStatus code = ErrorStatus::GENERAL_FAILURE);
+
     std::string message;
-    ErrorStatus code = ErrorStatus::GENERAL_FAILURE;
+    ErrorStatus code;
 };
 
 template <typename Type>
@@ -128,10 +132,18 @@ using CacheToken = std::array<uint8_t, kByteSizeOfCacheToken>;
 %insert OutputShape
 
 struct ExecutionError {
+    // NOLINTNEXTLINE(google-explicit-constructor)
+    /*implicit*/ ExecutionError(std::string message = {},
+                                ErrorStatus code = ErrorStatus::GENERAL_FAILURE,
+                                std::vector<OutputShape> outputShapes = {});
+
+    // NOLINTNEXTLINE(google-explicit-constructor)
+    /*implicit*/ ExecutionError(GeneralError error);
+
     std::string message;
-    ErrorStatus code = ErrorStatus::GENERAL_FAILURE;
+    ErrorStatus code;
     // OutputShapes for code == OUTPUT_INSUFFICIENT_SIZE
-    std::vector<OutputShape> outputShapes = {};
+    std::vector<OutputShape> outputShapes;
 };
 
 template <typename Type>
@@ -241,6 +253,7 @@ enum class Version {
     ANDROID_Q,
     ANDROID_R,
     ANDROID_S,
+    FEATURE_LEVEL_6,
     CURRENT_RUNTIME,
 #ifdef NN_EXPERIMENTAL_FEATURE
     EXPERIMENTAL,

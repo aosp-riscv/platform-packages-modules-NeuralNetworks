@@ -31,6 +31,8 @@ enum class OperationType {
 
 %insert Operation_1.3
 
+%insert Operation_fl6
+
     /**
      * DEPRECATED. Since HAL version 1.2, extensions are the preferred
      * alternative to OEM operation and data types.

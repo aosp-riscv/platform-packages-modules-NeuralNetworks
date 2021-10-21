@@ -90,8 +90,8 @@ class BuiltinOperationResolver : public IOperationResolver {
 
     const OperationRegistration* findOperation(OperationType operationType) const override;
 
-    // The number of operation types (OperationCode) defined in NeuralNetworks.h.
-    static constexpr int kNumberOfOperationTypes = 102;
+    // The number of operation types (OperationCode) defined in NeuralNetworksTypes.h.
+    static constexpr int kNumberOfOperationTypes = 104;
 
 #ifdef NN_EXPERIMENTAL_FEATURE
     // The number of experimental operation types (ANeuralNetworksExperimentalOperationCode) defined

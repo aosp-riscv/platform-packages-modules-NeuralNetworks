@@ -238,6 +238,9 @@ TEST_P(GeneratedComplianceTest, Test) {
         case TestHalVersion::V1_3:
             testAvailableSinceV1_3(model);
             break;
+        case TestHalVersion::FL_6:
+            // TODO(b/202585778): Add testAvailableSinceFL_6.
+            break;
         case TestHalVersion::UNKNOWN:
             FAIL();
     }

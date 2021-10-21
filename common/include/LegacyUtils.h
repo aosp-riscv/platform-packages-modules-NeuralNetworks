@@ -37,11 +37,11 @@
 namespace android {
 namespace nn {
 
-// The number of data types (OperandCode) defined in NeuralNetworks.h.
+// The number of data types (OperandCode) defined in NeuralNetworksTypes.h.
 const int kNumberOfDataTypes = 16;
 
-// The number of operation types (OperationCode) defined in NeuralNetworks.h.
-const int kNumberOfOperationTypes = 102;
+// The number of operation types (OperationCode) defined in NeuralNetworksTypes.h.
+const int kNumberOfOperationTypes = 104;
 
 #ifdef NN_EXPERIMENTAL_FEATURE
 const int kNumberOfExperimentalOperationTypes = 1;

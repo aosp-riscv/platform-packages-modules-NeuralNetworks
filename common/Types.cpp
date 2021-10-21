@@ -43,6 +43,16 @@ namespace android::nn {
 // returns a larger alignment.
 static_assert(__STDCPP_DEFAULT_NEW_ALIGNMENT__ >= 4, "`New` alignment is not sufficient");
 
+GeneralError::GeneralError(std::string message, ErrorStatus code)
+    : message(std::move(message)), code(code) {}
+
+ExecutionError::ExecutionError(std::string message, ErrorStatus code,
+                               std::vector<OutputShape> outputShapes)
+    : message(std::move(message)), code(code), outputShapes(std::move(outputShapes)) {}
+
+ExecutionError::ExecutionError(GeneralError error)
+    : message(std::move(error.message)), code(error.code) {}
+
 Model::OperandValues::OperandValues() {
     constexpr size_t kNumberBytes = 4 * 1024;
     mData.reserve(kNumberBytes);

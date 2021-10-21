@@ -255,6 +255,8 @@ int64_t DriverDevice::getFeatureLevel() const {
             return ANEURALNETWORKS_FEATURE_LEVEL_4;
         case Version::ANDROID_S:
             return ANEURALNETWORKS_FEATURE_LEVEL_5;
+        case Version::FEATURE_LEVEL_6:
+            return ANEURALNETWORKS_FEATURE_LEVEL_6;
         case Version::CURRENT_RUNTIME:
 #ifdef NN_EXPERIMENTAL_FEATURE
         case Version::EXPERIMENTAL:

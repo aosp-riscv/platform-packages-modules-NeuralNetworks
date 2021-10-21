@@ -268,6 +268,17 @@ bool GetQuantizedConvolutionMultipler(const Shape& inputShape, const Shape& filt
     return true;
 }
 
+bool GetQuantizedConvolutionMultiplier(const Shape& inputShape, const Shape& filterShape,
+                                       const Shape& outputShape, double* multiplier) {
+    // Upcast input_product to double
+    const double input_product_scale = inputShape.scale * filterShape.scale;
+
+    // The following conditions must be guaranteed by the training pipeline.
+    NN_OPS_CHECK(input_product_scale >= 0);
+    *multiplier = input_product_scale / outputShape.scale;
+    return true;
+}
+
 void CalculateActivationRangeUint8(int32_t activation, const Shape& outputShape, int32_t* act_min,
                                    int32_t* act_max) {
     const int32_t qmin = std::numeric_limits<uint8_t>::min();

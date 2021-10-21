@@ -787,6 +787,10 @@ int validateOperation(ANeuralNetworksOperationType opType, uint32_t inputCount,
                 inExpectedTypes = {OperandType::TENSOR_QUANT8_ASYMM_SIGNED,
                                    OperandType::TENSOR_INT32};
                 outExpectedTypes = {OperandType::TENSOR_QUANT8_ASYMM_SIGNED};
+            } else if (inputType == OperandType::TENSOR_INT32) {
+                // TODO(b/202585778): Add validateHalVersion against AIDL_V2.
+                inExpectedTypes = {OperandType::TENSOR_INT32, OperandType::TENSOR_INT32};
+                outExpectedTypes = {OperandType::TENSOR_INT32};
             } else {
                 LOG(ERROR) << "Unsupported input tensor type for operation " << opType;
                 return ANEURALNETWORKS_BAD_DATA;

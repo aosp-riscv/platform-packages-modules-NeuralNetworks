@@ -437,6 +437,7 @@ std::pair<int, std::shared_ptr<RuntimePreparedModel>> DriverDevice::prepareModel
     if (maybeToken.has_value()) {
         auto result = prepareModelFromCacheInternal(deadline, cacheInfo, *maybeToken);
         if (result.has_value()) {
+            LOG(INFO) << "prepareModelFromCache: successfully prepared model from cache";
             return {ANEURALNETWORKS_NO_ERROR,
                     std::make_shared<DriverPreparedModel>(this, std::move(result).value())};
         } else {

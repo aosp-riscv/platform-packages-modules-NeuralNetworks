@@ -79,6 +79,10 @@ typedef enum {
     // Operations below are available since NNAPI feature level 4.
 
 %insert Operation_1.3
+
+    // Operations below are available since NNAPI feature level 6.
+
+%insert Operation_fl6
 } OperationCode;
 
 %insert FusedActivationFunc
@@ -152,6 +156,8 @@ typedef enum {
      * API releases.
      */
     ANEURALNETWORKS_FEATURE_LEVEL_5 = 31,
+    /** Android NNAPI feature level 6 */
+    ANEURALNETWORKS_FEATURE_LEVEL_6 = 1000006,
 } FeatureLevelCode;
 
 /**

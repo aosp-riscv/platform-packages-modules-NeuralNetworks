@@ -69,15 +69,6 @@ createRunTimePoolInfos(const Request& request, const BufferTracker& bufferTracke
     return std::make_pair(std::move(requestPoolInfos), std::move(bufferWrappers));
 }
 
-template <typename T>
-ExecutionResult<T> makeExecutionResult(GeneralResult<T> result) {
-    if (!result.has_value()) {
-        const auto& [message, code] = std::move(result).error();
-        return error(code) << message;
-    }
-    return std::move(result).value();
-}
-
 ErrorStatus updateDeviceMemories(ErrorStatus status, const Request& request,
                                  const std::vector<std::shared_ptr<ManagedBuffer>>& bufferWrappers,
                                  const std::vector<OutputShape>& outputShapes) {
@@ -152,7 +143,7 @@ ExecutionResult<std::pair<std::vector<OutputShape>, Timing>> PreparedModel::exec
     NNTRACE_FULL_SWITCH(NNTRACE_LAYER_DRIVER, NNTRACE_PHASE_INPUTS_AND_OUTPUTS,
                         "sample::Device::execute");
     const auto [requestPoolInfos, bufferWrappers] =
-            NN_TRY(makeExecutionResult(createRunTimePoolInfos(request, *kBufferTracker, *this)));
+            NN_TRY(createRunTimePoolInfos(request, *kBufferTracker, *this));
 
     NNTRACE_FULL_SWITCH(NNTRACE_LAYER_DRIVER, NNTRACE_PHASE_EXECUTION, "sample::Device::execute");
     auto executor = CpuExecutor(&kOperationResolver);

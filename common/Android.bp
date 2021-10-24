@@ -47,6 +47,7 @@ cc_defaults {
     srcs: [
         "OperationResolver.cpp",
         "operations/Activation.cpp",
+        "operations/BatchMatmul.cpp",
         "operations/BidirectionalSequenceRNN.cpp",
         "operations/Broadcast.cpp",
         "operations/ChannelShuffle.cpp",
@@ -71,6 +72,7 @@ cc_defaults {
         "operations/LogicalNot.cpp",
         "operations/Neg.cpp",
         "operations/PRelu.cpp",
+        "operations/Pack.cpp",
         "operations/Pooling.cpp",
         "operations/QLSTM.cpp",
         "operations/Quantize.cpp",
@@ -123,7 +125,7 @@ cc_library_static {
         "tensorflow_headers",
     ],
     shared_libs: [
-        "android.hardware.neuralnetworks-V1-ndk",
+        "android.hardware.neuralnetworks-V2-ndk",
         "android.hardware.neuralnetworks@1.0",
         "android.hardware.neuralnetworks@1.1",
         "android.hardware.neuralnetworks@1.2",
@@ -221,7 +223,7 @@ cc_defaults {
         "operations/Tile.cpp",
     ],
     shared_libs: [
-        "android.hardware.neuralnetworks-V1-ndk",
+        "android.hardware.neuralnetworks-V2-ndk",
         "android.hardware.neuralnetworks@1.0",
         "android.hardware.neuralnetworks@1.1",
         "android.hardware.neuralnetworks@1.2",
@@ -508,7 +510,7 @@ cc_defaults {
         "libutils",
     ],
     static_libs: [
-        "android.hardware.neuralnetworks-V1-ndk",
+        "android.hardware.neuralnetworks-V2-ndk",
         "android.hardware.neuralnetworks@1.0",
         "android.hardware.neuralnetworks@1.1",
         "android.hardware.neuralnetworks@1.2",

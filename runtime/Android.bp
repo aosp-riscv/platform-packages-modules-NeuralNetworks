@@ -123,7 +123,7 @@ cc_defaults {
     static_libs: [
         "android.hardware.common-V2-ndk",
         "android.hardware.graphics.common-V2-ndk",
-        "android.hardware.neuralnetworks-V1-ndk",
+        "android.hardware.neuralnetworks-V2-ndk",
         "android.hardware.neuralnetworks@1.0",
         "android.hardware.neuralnetworks@1.1",
         "android.hardware.neuralnetworks@1.2",

@@ -206,6 +206,8 @@ static_assert(ANEURALNETWORKS_ELU == 98, "ANEURALNETWORKS_ELU has changed");
 static_assert(ANEURALNETWORKS_HARD_SWISH == 99, "ANEURALNETWORKS_HARD_SWISH has changed");
 static_assert(ANEURALNETWORKS_FILL == 100, "ANEURALNETWORKS_FILL has changed");
 static_assert(ANEURALNETWORKS_RANK == 101, "ANEURALNETWORKS_RANK has changed");
+static_assert(ANEURALNETWORKS_BATCH_MATMUL == 102, "ANEURALNETWORKS_BATCH_MATMUL has changed");
+static_assert(ANEURALNETWORKS_PACK == 103, "ANEURALNETWORKS_PACK has changed");
 
 static_assert(ANEURALNETWORKS_OEM_OPERATION == 10000, "ANEURALNETWORKS_OEM_OPERATION has changed");
 
@@ -551,6 +553,10 @@ static_assert(static_cast<int32_t>(OperationType::FILL) == ANEURALNETWORKS_FILL,
               "OperationType::FILL != ANEURALNETWORKS_FILL");
 static_assert(static_cast<int32_t>(OperationType::RANK) == ANEURALNETWORKS_RANK,
               "OperationType::RANK != ANEURALNETWORKS_RANK");
+static_assert(static_cast<int32_t>(OperationType::BATCH_MATMUL) == ANEURALNETWORKS_BATCH_MATMUL,
+              "OperationType::BATCH_MATMUL != ANEURALNETWORKS_BATCH_MATMUL");
+static_assert(static_cast<int32_t>(OperationType::PACK) == ANEURALNETWORKS_PACK,
+              "OperationType::PACK != ANEURALNETWORKS_PACK");
 
 static_assert(static_cast<int32_t>(DeviceType::OTHER) == ANEURALNETWORKS_DEVICE_OTHER,
               "DeviceType::OTHER != ANEURALNETWORKS_DEVICE_OTHER");
@@ -621,6 +627,8 @@ static_assert(ANEURALNETWORKS_FEATURE_LEVEL_2 == 28, "ANEURALNETWORKS_FEATURE_LE
 static_assert(ANEURALNETWORKS_FEATURE_LEVEL_3 == 29, "ANEURALNETWORKS_FEATURE_LEVEL_3 has changed");
 static_assert(ANEURALNETWORKS_FEATURE_LEVEL_4 == 30, "ANEURALNETWORKS_FEATURE_LEVEL_4 has changed");
 static_assert(ANEURALNETWORKS_FEATURE_LEVEL_5 == 31, "ANEURALNETWORKS_FEATURE_LEVEL_5 has changed");
+static_assert(ANEURALNETWORKS_FEATURE_LEVEL_6 == 1000006,
+              "ANEURALNETWORKS_FEATURE_LEVEL_6 has changed");
 
 #ifdef NN_COMPATIBILITY_LIBRARY_BUILD
 

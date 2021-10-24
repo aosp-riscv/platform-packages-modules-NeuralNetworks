@@ -553,6 +553,10 @@ std::ostream& operator<<(std::ostream& os, const OperationType& operationType) {
             return os << "FILL";
         case OperationType::RANK:
             return os << "RANK";
+        case OperationType::BATCH_MATMUL:
+            return os << "BATCH_MATMUL";
+        case OperationType::PACK:
+            return os << "PACK";
         case OperationType::OEM_OPERATION:
             return os << "OEM_OPERATION";
 #ifdef NN_EXPERIMENTAL_FEATURE
@@ -896,6 +900,8 @@ std::ostream& operator<<(std::ostream& os, const Version& version) {
             return os << "ANDROID_R";
         case Version::ANDROID_S:
             return os << "ANDROID_S";
+        case Version::FEATURE_LEVEL_6:
+            return os << "FEATURE_LEVEL_6";
         case Version::CURRENT_RUNTIME:
             return os << "CURRENT_RUNTIME";
 #ifdef NN_EXPERIMENTAL_FEATURE

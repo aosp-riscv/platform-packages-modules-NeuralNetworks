@@ -255,6 +255,8 @@ int64_t DriverDevice::getFeatureLevel() const {
             return ANEURALNETWORKS_FEATURE_LEVEL_4;
         case Version::ANDROID_S:
             return ANEURALNETWORKS_FEATURE_LEVEL_5;
+        case Version::FEATURE_LEVEL_6:
+            return ANEURALNETWORKS_FEATURE_LEVEL_6;
         case Version::CURRENT_RUNTIME:
 #ifdef NN_EXPERIMENTAL_FEATURE
         case Version::EXPERIMENTAL:
@@ -435,6 +437,7 @@ std::pair<int, std::shared_ptr<RuntimePreparedModel>> DriverDevice::prepareModel
     if (maybeToken.has_value()) {
         auto result = prepareModelFromCacheInternal(deadline, cacheInfo, *maybeToken);
         if (result.has_value()) {
+            LOG(INFO) << "prepareModelFromCache: successfully prepared model from cache";
             return {ANEURALNETWORKS_NO_ERROR,
                     std::make_shared<DriverPreparedModel>(this, std::move(result).value())};
         } else {

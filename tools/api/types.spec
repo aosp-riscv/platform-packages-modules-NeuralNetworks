@@ -8,6 +8,7 @@
 %define DeclareOperation ANEURALNETWORKS_%{1} = %{2}
 %define DeclareOperation_1.2 ANEURALNETWORKS_%{1} = %{2}
 %define DeclareOperation_1.3 ANEURALNETWORKS_%{1} = %{2}
+%define DeclareOperation_fl6 ANEURALNETWORKS_%{1} = %{2}
 %define FusedActivationFunc FuseCode
 %define DeclareFusedActivationFunc ANEURALNETWORKS_FUSED_%{1} = %{2}
 %define DeclareExecutionPreference ANEURALNETWORKS_PREFER_%{1} = %{2}
@@ -18,6 +19,7 @@
 %define runtime_or_driver runtime
 %define NNAPILevel3 NNAPI feature level 3
 %define NNAPILevel4 NNAPI feature level 4
+%define NNAPILevel6 NNAPI feature level 6
 %define BeforeNNAPILevel3For Before NNAPI feature level 3, for
 %define or_1.2 or {@link ANEURALNETWORKS_%{1}}
 %define NDK_if_specified  (if specified)
@@ -41,6 +43,10 @@
 %section AVAIL4
      *
      * Available since NNAPI feature level 4.
+%/section
+%section AVAIL6
+     *
+     * Available since NNAPI feature level 6.
 %/section
 %section OutputState
      *
@@ -66,6 +72,7 @@
 %define runtime_or_driver driver
 %define NNAPILevel3 HAL version 1.2
 %define NNAPILevel4 HAL version 1.3
+%define NNAPILevel6 NNAPI feature level 6
 %define NDK_if_specified
 %define otherOperandParameters extraParams
 %section AVAIL1
@@ -77,6 +84,8 @@
 %section AVAIL3
 %/section
 %section AVAIL4
+%/section
+%section AVAIL6
 %/section
 %section PaddingCodeValues
      *      following values: {0 (NONE), 1 (SAME), 2 (VALID)}.
@@ -99,6 +108,7 @@
 %/section
 %define DeclareOperation_1.2 @@@NOT_DEFINED@@@
 %define DeclareOperation_1.3 @@@NOT_DEFINED@@@
+%define DeclareOperation_fl6 @@@NOT_DEFINED@@@
 %/kind
 
 %kind aidl canonical hal_1.2 hal_1.3
@@ -110,18 +120,21 @@
 %define DeclareOperation %{1} = @1.1::OperationType:%{1}
 %define DeclareOperation_1.2 %{1} = %{2}
 %define DeclareOperation_1.3 @@@NOT_DEFINED@@@
+%define DeclareOperation_fl6 @@@NOT_DEFINED@@@
 %/kind
 
 %kind hal_1.3
 %define DeclareOperation %{1} = @1.2::OperationType:%{1}
 %define DeclareOperation_1.2 %{1} = @1.2::OperationType:%{1}
 %define DeclareOperation_1.3 %{1} = %{2}
+%define DeclareOperation_fl6 @@@NOT_DEFINED@@@
 %/kind
 
 %kind aidl
 %define DeclareOperation %{1} = %{2}
 %define DeclareOperation_1.2 %{1} = %{2}
 %define DeclareOperation_1.3 %{1} = %{2}
+%define DeclareOperation_fl6 %{1} = %{2}
 %define DeclareEnumValue %{1} = %{2}
 %define OperandLifeTime OperandLifeTime
 %define :: ::
@@ -139,6 +152,7 @@
 %define DeclareOperation %{1} = %{2}
 %define DeclareOperation_1.2 %{1} = %{2}
 %define DeclareOperation_1.3 %{1} = %{2}
+%define DeclareOperation_fl6 %{1} = %{2}
 %define DeclareEnumValue %{1} = %{2}
 %define OperandLifeTime Operand::LifeTime
 %define :: ::
@@ -2059,6 +2073,9 @@
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
 %kind aidl canonical ndk hal_1.3+
      * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} (since %{NNAPILevel4})
+%/kind
+%kind aidl canonical ndk
+     * * {@link %{OperandTypeLinkPfx}TENSOR_INT32} (since %{NNAPILevel6})
 %/kind
      *
      * Supported tensor rank: up to 4.
@@ -6533,6 +6550,99 @@
 
 %section Operation_1.3_MAX
     FUNDAMENTAL_MAX = 101,
+%/section
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% NDK OperationCode and HAL OperationType for Feature Level 6
+
+%section Operation_fl6
+    /**
+     * Performs multiplication of two tensors in batches.
+     *
+     * Multiplies all slices of two input tensors and arranges the individual
+     * results in a single output tensor of the same batch size. Each pair of
+     * slices in the same batch have identical {@link %{OperandType}}. Each
+     * slice can optionally be adjointed (transpose and conjugate) before
+     * multiplication.
+     *
+     * The two input tensors and the output tensor must be 2-D or higher and
+     * have the same batch size.
+     *
+     * Supported tensor {@link %{OperandType}}:
+     * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16}
+     * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
+     * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED}
+     * * {@link %{OperandTypeLinkPfx}TENSOR_INT32}
+     *
+     * Supported tensor rank: at least 2 and up to 4
+     *
+     * Inputs:
+     * * 0: A tensor with 2-D or higher shape [..., r_x, c_x].
+     * * 1: A tensor with 2-D or higher shape [..., r_y, c_y]. It has the same
+     *      {@link %{OperandType}} and batch size as input0.
+     * * 2: An optional {@link %{OperandTypeLinkPfx}BOOL} scalar adj_x, default
+     *      to false. Set to true to adjoint the slices of input0.
+     * * 3: An optional {@link %{OperandTypeLinkPfx}BOOL} scalar adj_y, default
+     *      to false. Set to true to adjoint the slices of input1.
+     *
+     * Outputs:
+     * * 0: A tensor with 2-D or higher shape [..., r_o, c_o], where
+     *      r_o = c_x if adj_x else r_x
+     *      c_o = r_y if adj_y else c_y
+%insert AVAIL6
+     */
+    %{DeclareOperation_fl6 BATCH_MATMUL 102},
+
+    /**
+     * Packs N input tensors (N >= 1) of rank R into one output tensor of rank R+1.
+     * The tensors are packed along a given axis.
+     *
+     * The input tensors must have identical {@link %{OperandType}} and dimensions.
+     *
+     * For example, suppose there are N input tensors of shape (A, B, C).
+     * If axis is 0, the output tensor will have shape (N, A, B, C).
+     * If axis is 1, the output tensor will have shape (A, N, B, C).
+     *
+     * All dimensions through the axis dimension determine the output tile count;
+     * the remaining dimensions determine the tile shape.
+     *
+     * Return to the example of N input tensors of shape (A, B, C).
+     * If axis is 0, there are N tiles in the output, each of shape (A, B, C).
+     * If axis is 1, there are A*N tiles in the output, each of shape (B, C).
+     *
+     * The coordinates of a tile within the output tensor are (t[0],...,t[axis]).
+     * The coordinates of a tile within an input tensor are (t[0],...,t[axis-1]).
+     * (If axis is 0, an input tensor consists of a single tile.)
+     * If we index input tensors starting with 0 (rather than by operand number),
+     * then output_tile[t[0],...,t[axis]] = input_tile[t[axis]][t[0],...,t[axis-1]].
+     * That is, all output tile coordinates except for the axis coordinate select
+     * the corresponding location within some input tensor; and the axis coordinate
+     * selects the input tensor.
+     *
+     * Supported tensor {@link %{OperandType}}:
+     * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT16}
+     * * {@link %{OperandTypeLinkPfx}TENSOR_FLOAT32}
+     * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM}
+     * * {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED}
+     * * {@link %{OperandTypeLinkPfx}TENSOR_INT32}
+     *
+     * Supported input tensor rank: from 1
+     *
+     * Inputs:
+     * * 0: A scalar of type {@link %{OperandTypeLinkPfx}INT32}, specifying
+     *      the axis along which to pack.  The valid range is [0, R+1).
+     * * 1 ~ N: Input tensors to be packed together.
+     *          For {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM} and
+     *          {@link %{OperandTypeLinkPfx}TENSOR_QUANT8_ASYMM_SIGNED} tensors,
+     *          the scales and zeroPoint must be the same for all input tensors,
+     *          and will be the same for the output tensor.
+     *
+     * Outputs:
+     * * 0: The packed tensor.
+%insert AVAIL6
+     */
+    %{DeclareOperation_fl6 PACK 103},
 %/section
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

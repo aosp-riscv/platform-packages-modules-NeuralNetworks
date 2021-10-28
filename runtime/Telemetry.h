@@ -17,6 +17,8 @@
 #ifndef ANDROID_FRAMEWORKS_ML_NN_RUNTIME_TELEMETRY_H
 #define ANDROID_FRAMEWORKS_ML_NN_RUNTIME_TELEMETRY_H
 
+#include <string>
+
 #include "CompilationBuilder.h"
 #include "ExecutionBuilder.h"
 
@@ -48,7 +50,7 @@ struct DiagnosticCompilationInfo {
     // The hash of the model architecture (without weights).
     const uint8_t* modelArchHash;
     // The device IDs as a comma-concatenated string.
-    const char* deviceId;
+    const std::string deviceId;
     // The error code during compilation.
     int32_t errorCode;
     // Data class of the input to the model.
@@ -74,7 +76,7 @@ struct DiagnosticExecutionInfo {
     // The hash of the model architecture (without weights).
     const uint8_t* modelArchHash;
     // The device IDs as a comma-concatenated string.
-    const char* deviceId;
+    const std::string deviceId;
     // Execution mode (e.g. Sync, Burst)
     ExecutionMode executionMode;
     // Data class of the input to the model.

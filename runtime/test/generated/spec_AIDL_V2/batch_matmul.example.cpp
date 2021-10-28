@@ -71,7 +71,7 @@ const TestModel& get_test_model_Simple() {
                         }},
                 .outputIndexes = {4}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -216,7 +216,7 @@ const TestModel& get_test_model_Simple_all_inputs_as_internal() {
                         }},
                 .outputIndexes = {4}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -293,7 +293,7 @@ const TestModel& get_test_model_Simple_float16() {
                         }},
                 .outputIndexes = {4}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -438,7 +438,7 @@ const TestModel& get_test_model_Simple_float16_all_inputs_as_internal() {
                         }},
                 .outputIndexes = {4}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -515,7 +515,7 @@ const TestModel& get_test_model_Simple_int32() {
                         }},
                 .outputIndexes = {4}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -592,7 +592,7 @@ const TestModel& get_test_model_Simple_quant8_signed() {
                         }},
                 .outputIndexes = {4}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -737,7 +737,7 @@ const TestModel& get_test_model_Simple_quant8_signed_all_inputs_as_internal() {
                         }},
                 .outputIndexes = {4}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -814,7 +814,7 @@ const TestModel& get_test_model_RHSAdjoint() {
                         }},
                 .outputIndexes = {4}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -959,7 +959,7 @@ const TestModel& get_test_model_RHSAdjoint_all_inputs_as_internal() {
                         }},
                 .outputIndexes = {4}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -1036,7 +1036,7 @@ const TestModel& get_test_model_RHSAdjoint_float16() {
                         }},
                 .outputIndexes = {4}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -1181,7 +1181,7 @@ const TestModel& get_test_model_RHSAdjoint_float16_all_inputs_as_internal() {
                         }},
                 .outputIndexes = {4}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -1258,7 +1258,7 @@ const TestModel& get_test_model_RHSAdjoint_int32() {
                         }},
                 .outputIndexes = {4}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -1335,7 +1335,7 @@ const TestModel& get_test_model_RHSAdjoint_quant8_signed() {
                         }},
                 .outputIndexes = {4}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -1480,7 +1480,7 @@ const TestModel& get_test_model_RHSAdjoint_quant8_signed_all_inputs_as_internal(
                         }},
                 .outputIndexes = {4}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -1557,7 +1557,7 @@ const TestModel& get_test_model_LHSAdjoint() {
                         }},
                 .outputIndexes = {4}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -1702,7 +1702,7 @@ const TestModel& get_test_model_LHSAdjoint_all_inputs_as_internal() {
                         }},
                 .outputIndexes = {4}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -1779,7 +1779,7 @@ const TestModel& get_test_model_LHSAdjoint_float16() {
                         }},
                 .outputIndexes = {4}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -1924,7 +1924,7 @@ const TestModel& get_test_model_LHSAdjoint_float16_all_inputs_as_internal() {
                         }},
                 .outputIndexes = {4}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -2001,7 +2001,7 @@ const TestModel& get_test_model_LHSAdjoint_int32() {
                         }},
                 .outputIndexes = {4}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -2078,7 +2078,7 @@ const TestModel& get_test_model_LHSAdjoint_quant8_signed() {
                         }},
                 .outputIndexes = {4}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -2223,7 +2223,7 @@ const TestModel& get_test_model_LHSAdjoint_quant8_signed_all_inputs_as_internal(
                         }},
                 .outputIndexes = {4}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -2300,7 +2300,7 @@ const TestModel& get_test_model_TwoBatchSize() {
                         }},
                 .outputIndexes = {4}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -2445,7 +2445,7 @@ const TestModel& get_test_model_TwoBatchSize_all_inputs_as_internal() {
                         }},
                 .outputIndexes = {4}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -2522,7 +2522,7 @@ const TestModel& get_test_model_TwoBatchSize_float16() {
                         }},
                 .outputIndexes = {4}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -2667,7 +2667,7 @@ const TestModel& get_test_model_TwoBatchSize_float16_all_inputs_as_internal() {
                         }},
                 .outputIndexes = {4}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -2744,7 +2744,7 @@ const TestModel& get_test_model_TwoBatchSize_int32() {
                         }},
                 .outputIndexes = {4}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -2821,7 +2821,7 @@ const TestModel& get_test_model_TwoBatchSize_quant8_signed() {
                         }},
                 .outputIndexes = {4}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -2966,7 +2966,7 @@ const TestModel& get_test_model_TwoBatchSize_quant8_signed_all_inputs_as_interna
                         }},
                 .outputIndexes = {4}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;

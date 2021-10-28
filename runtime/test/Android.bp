@@ -122,7 +122,7 @@ cc_defaults {
         "libgmock",
     ],
     whole_static_libs: [
-        "neuralnetworks_generated_FL_6_example",
+        "neuralnetworks_generated_AIDL_V2_example",
         "neuralnetworks_generated_V1_0_example",
         "neuralnetworks_generated_V1_1_example",
         "neuralnetworks_generated_V1_2_example",
@@ -549,9 +549,9 @@ cc_library_static {
 }
 
 cc_library_static {
-    name: "neuralnetworks_generated_FL_6_example",
+    name: "neuralnetworks_generated_AIDL_V2_example",
     defaults: ["neuralnetworks_generated_defaults"],
-    srcs: ["generated/spec_FL_6/*.example.cpp"],
+    srcs: ["generated/spec_AIDL_V2/*.example.cpp"],
 }
 
 cc_library_static {

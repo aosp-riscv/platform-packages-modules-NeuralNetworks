@@ -104,7 +104,7 @@ const uint8_t* SL_ANeuralNetworksDiagnosticCompilationInfo_getModelArchHash(
 
 const char* SL_ANeuralNetworksDiagnosticCompilationInfo_getDeviceIds(
         const ANeuralNetworksDiagnosticCompilationInfo* diagnosticCompilationInfo) {
-    return castTo(diagnosticCompilationInfo)->deviceId;
+    return castTo(diagnosticCompilationInfo)->deviceId.c_str();
 }
 
 int32_t SL_ANeuralNetworksDiagnosticCompilationInfo_getErrorCode(
@@ -159,7 +159,7 @@ const uint8_t* SL_ANeuralNetworksDiagnosticExecutionInfo_getModelArchHash(
 
 const char* SL_ANeuralNetworksDiagnosticExecutionInfo_getDeviceIds(
         const ANeuralNetworksDiagnosticExecutionInfo* diagnosticExecutionInfo) {
-    return castTo(diagnosticExecutionInfo)->deviceId;
+    return castTo(diagnosticExecutionInfo)->deviceId.c_str();
 }
 
 ANeuralNetworksDiagnosticExecutionMode SL_ANeuralNetworksDiagnosticExecutionInfo_getExecutionMode(

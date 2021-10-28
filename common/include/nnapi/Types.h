@@ -991,16 +991,16 @@ struct Timing {
 // Returns status, timingLaunched, timingFenced
 using ExecuteFencedInfoCallback = std::function<GeneralResult<std::pair<Timing, Timing>>()>;
 
+// Note: Update getLatestHalVersion in TypeUtils.h when a newer version is added here.
 enum class Version {
-    ANDROID_OC_MR1,
-    ANDROID_P,
-    ANDROID_Q,
-    ANDROID_R,
-    ANDROID_S,
-    FEATURE_LEVEL_6,
-    CURRENT_RUNTIME,
+    ANDROID_OC_MR1 = 0,
+    ANDROID_P = 2,
+    ANDROID_Q = 4,
+    ANDROID_R = 6,
+    ANDROID_S = 8,
+    FEATURE_LEVEL_6 = 10,
 #ifdef NN_EXPERIMENTAL_FEATURE
-    EXPERIMENTAL,
+    EXPERIMENTAL = 12,
 #endif  // NN_EXPERIMENTAL_FEATURE
 };
 

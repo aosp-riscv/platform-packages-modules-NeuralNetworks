@@ -153,11 +153,9 @@ void onCompilationFinish(CompilationBuilder* c, int resultCode) {
         return;
     }
 
-    const std::string deviceId = makeDeviceId(c->getDevices());
-
     const DiagnosticCompilationInfo info{
             .modelArchHash = c->getModel()->getModelArchHash(),
-            .deviceId = deviceId.c_str(),
+            .deviceId = makeDeviceId(c->getDevices()),
             .errorCode = resultCode,
             .inputDataClass = evalInputDataClass(c->getModel()),
             .outputDataClass = evalOutputDataClass(c->getModel()),
@@ -199,11 +197,9 @@ void onExecutionFinish(ExecutionBuilder* e, ExecutionMode executionMode, int res
         duration_runtime_ns = TimeNanoMeasurer::currentDuration(e->getComputeStartTimePoint());
     }
 
-    const std::string deviceId = makeDeviceId(compilation->getDevices());
-
     const DiagnosticExecutionInfo info{
             .modelArchHash = e->getModel()->getModelArchHash(),
-            .deviceId = deviceId.c_str(),
+            .deviceId = makeDeviceId(compilation->getDevices()),
             .executionMode = executionMode,
             .inputDataClass = evalInputDataClass(e->getModel()),
             .outputDataClass = evalOutputDataClass(e->getModel()),

@@ -1690,7 +1690,7 @@ Result<Version> validateControlFlowOperandUnknownSize(const Operand& operand) {
     if (!isExtension(operand.type) && getNonExtensionSize(operand).value() == 0) {
         // 1.3 HAL (corresponding to Version::ANDROID_R) does not support CF operations with
         // operands of unknown size. See http://b/132458982#comment63.
-        return Version::CURRENT_RUNTIME;
+        return getCurrentRuntimeVersion();
     }
     return Version::ANDROID_R;
 }

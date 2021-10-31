@@ -51,7 +51,7 @@ const TestModel& get_test_model_FLOAT32_unary_axis0() {
                         }},
                 .outputIndexes = {2}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -142,7 +142,7 @@ const TestModel& get_test_model_FLOAT32_unary_axis0_all_inputs_as_internal() {
                         }},
                 .outputIndexes = {2}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -199,7 +199,7 @@ const TestModel& get_test_model_FLOAT32_unary_axis0_float16() {
                         }},
                 .outputIndexes = {2}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -290,7 +290,7 @@ const TestModel& get_test_model_FLOAT32_unary_axis0_float16_all_inputs_as_intern
                         }},
                 .outputIndexes = {2}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -347,7 +347,7 @@ const TestModel& get_test_model_FLOAT32_unary_axis0_quant8_asymm() {
                         }},
                 .outputIndexes = {2}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -438,7 +438,7 @@ const TestModel& get_test_model_FLOAT32_unary_axis0_quant8_asymm_all_inputs_as_i
                         }},
                 .outputIndexes = {2}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -495,7 +495,7 @@ const TestModel& get_test_model_FLOAT32_unary_axis0_quant8_asymm_signed() {
                         }},
                 .outputIndexes = {2}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -586,7 +586,7 @@ const TestModel& get_test_model_FLOAT32_unary_axis0_quant8_asymm_signed_all_inpu
                         }},
                 .outputIndexes = {2}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -643,7 +643,7 @@ const TestModel& get_test_model_FLOAT32_unary_axis0_int32() {
                         }},
                 .outputIndexes = {2}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -700,7 +700,7 @@ const TestModel& get_test_model_FLOAT32_unary_axis1() {
                         }},
                 .outputIndexes = {2}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -791,7 +791,7 @@ const TestModel& get_test_model_FLOAT32_unary_axis1_all_inputs_as_internal() {
                         }},
                 .outputIndexes = {2}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -848,7 +848,7 @@ const TestModel& get_test_model_FLOAT32_unary_axis1_float16() {
                         }},
                 .outputIndexes = {2}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -939,7 +939,7 @@ const TestModel& get_test_model_FLOAT32_unary_axis1_float16_all_inputs_as_intern
                         }},
                 .outputIndexes = {2}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -996,7 +996,7 @@ const TestModel& get_test_model_FLOAT32_unary_axis1_quant8_asymm() {
                         }},
                 .outputIndexes = {2}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -1087,7 +1087,7 @@ const TestModel& get_test_model_FLOAT32_unary_axis1_quant8_asymm_all_inputs_as_i
                         }},
                 .outputIndexes = {2}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -1144,7 +1144,7 @@ const TestModel& get_test_model_FLOAT32_unary_axis1_quant8_asymm_signed() {
                         }},
                 .outputIndexes = {2}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -1235,7 +1235,7 @@ const TestModel& get_test_model_FLOAT32_unary_axis1_quant8_asymm_signed_all_inpu
                         }},
                 .outputIndexes = {2}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -1292,7 +1292,7 @@ const TestModel& get_test_model_FLOAT32_unary_axis1_int32() {
                         }},
                 .outputIndexes = {2}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -1359,7 +1359,7 @@ const TestModel& get_test_model_FLOAT32_binary_axis0() {
                         }},
                 .outputIndexes = {3}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -1494,7 +1494,7 @@ const TestModel& get_test_model_FLOAT32_binary_axis0_all_inputs_as_internal() {
                         }},
                 .outputIndexes = {3}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -1561,7 +1561,7 @@ const TestModel& get_test_model_FLOAT32_binary_axis0_float16() {
                         }},
                 .outputIndexes = {3}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -1696,7 +1696,7 @@ const TestModel& get_test_model_FLOAT32_binary_axis0_float16_all_inputs_as_inter
                         }},
                 .outputIndexes = {3}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -1763,7 +1763,7 @@ const TestModel& get_test_model_FLOAT32_binary_axis0_quant8_asymm() {
                         }},
                 .outputIndexes = {3}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -1898,7 +1898,7 @@ const TestModel& get_test_model_FLOAT32_binary_axis0_quant8_asymm_all_inputs_as_
                         }},
                 .outputIndexes = {3}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -1965,7 +1965,7 @@ const TestModel& get_test_model_FLOAT32_binary_axis0_quant8_asymm_signed() {
                         }},
                 .outputIndexes = {3}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -2100,7 +2100,7 @@ const TestModel& get_test_model_FLOAT32_binary_axis0_quant8_asymm_signed_all_inp
                         }},
                 .outputIndexes = {3}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -2167,7 +2167,7 @@ const TestModel& get_test_model_FLOAT32_binary_axis0_int32() {
                         }},
                 .outputIndexes = {3}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -2234,7 +2234,7 @@ const TestModel& get_test_model_FLOAT32_binary_axis1() {
                         }},
                 .outputIndexes = {3}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -2369,7 +2369,7 @@ const TestModel& get_test_model_FLOAT32_binary_axis1_all_inputs_as_internal() {
                         }},
                 .outputIndexes = {3}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -2436,7 +2436,7 @@ const TestModel& get_test_model_FLOAT32_binary_axis1_float16() {
                         }},
                 .outputIndexes = {3}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -2571,7 +2571,7 @@ const TestModel& get_test_model_FLOAT32_binary_axis1_float16_all_inputs_as_inter
                         }},
                 .outputIndexes = {3}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -2638,7 +2638,7 @@ const TestModel& get_test_model_FLOAT32_binary_axis1_quant8_asymm() {
                         }},
                 .outputIndexes = {3}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -2773,7 +2773,7 @@ const TestModel& get_test_model_FLOAT32_binary_axis1_quant8_asymm_all_inputs_as_
                         }},
                 .outputIndexes = {3}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -2840,7 +2840,7 @@ const TestModel& get_test_model_FLOAT32_binary_axis1_quant8_asymm_signed() {
                         }},
                 .outputIndexes = {3}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -2975,7 +2975,7 @@ const TestModel& get_test_model_FLOAT32_binary_axis1_quant8_asymm_signed_all_inp
                         }},
                 .outputIndexes = {3}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -3042,7 +3042,7 @@ const TestModel& get_test_model_FLOAT32_binary_axis1_int32() {
                         }},
                 .outputIndexes = {3}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -3109,7 +3109,7 @@ const TestModel& get_test_model_FLOAT32_binary_axis2() {
                         }},
                 .outputIndexes = {3}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -3244,7 +3244,7 @@ const TestModel& get_test_model_FLOAT32_binary_axis2_all_inputs_as_internal() {
                         }},
                 .outputIndexes = {3}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -3311,7 +3311,7 @@ const TestModel& get_test_model_FLOAT32_binary_axis2_float16() {
                         }},
                 .outputIndexes = {3}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -3446,7 +3446,7 @@ const TestModel& get_test_model_FLOAT32_binary_axis2_float16_all_inputs_as_inter
                         }},
                 .outputIndexes = {3}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -3513,7 +3513,7 @@ const TestModel& get_test_model_FLOAT32_binary_axis2_quant8_asymm() {
                         }},
                 .outputIndexes = {3}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -3648,7 +3648,7 @@ const TestModel& get_test_model_FLOAT32_binary_axis2_quant8_asymm_all_inputs_as_
                         }},
                 .outputIndexes = {3}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -3715,7 +3715,7 @@ const TestModel& get_test_model_FLOAT32_binary_axis2_quant8_asymm_signed() {
                         }},
                 .outputIndexes = {3}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -3850,7 +3850,7 @@ const TestModel& get_test_model_FLOAT32_binary_axis2_quant8_asymm_signed_all_inp
                         }},
                 .outputIndexes = {3}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -3917,7 +3917,7 @@ const TestModel& get_test_model_FLOAT32_binary_axis2_int32() {
                         }},
                 .outputIndexes = {3}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;

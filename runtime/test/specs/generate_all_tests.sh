@@ -17,7 +17,7 @@
 set -Eeuox pipefail
 cd "$(dirname "$0")/.."  # runtime/test
 
-NNAPI_VERSIONS="V1_0 V1_1 V1_2 V1_3 V1_3_cts_only FL_6 experimental"
+NNAPI_VERSIONS="V1_0 V1_1 V1_2 V1_3 V1_3_cts_only AIDL_V2 experimental"
 EXAMPLE_GENERATOR="../../tools/test_generator/example_generator.py"
 
 for source_version in $NNAPI_VERSIONS; do

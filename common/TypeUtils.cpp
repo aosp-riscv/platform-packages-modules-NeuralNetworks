@@ -61,6 +61,20 @@ std::ostream& operator<<(std::ostream& os, const std::vector<Type>& vec) {
 
 }  // namespace
 
+Version getLatestHalVersion() {
+    // TODO: Once the Experimental Feature Level flag is added to the NNAPI, update this logic to
+    // instead use the Version specified by the Experimental Feature Level flag.
+#ifdef NN_EXPERIMENTAL_FEATURE
+    return Version::EXPERIMENTAL;
+#else
+    return Version::FEATURE_LEVEL_6;
+#endif  // NN_EXPERIMENTAL_FEATURE
+}
+
+Version getCurrentRuntimeVersion() {
+    return static_cast<Version>(underlyingType(getLatestHalVersion()) + 1);
+}
+
 bool isExtension(OperandType type) {
     return getExtensionPrefix(underlyingType(type)) != 0;
 }
@@ -902,12 +916,13 @@ std::ostream& operator<<(std::ostream& os, const Version& version) {
             return os << "ANDROID_S";
         case Version::FEATURE_LEVEL_6:
             return os << "FEATURE_LEVEL_6";
-        case Version::CURRENT_RUNTIME:
-            return os << "CURRENT_RUNTIME";
 #ifdef NN_EXPERIMENTAL_FEATURE
         case Version::EXPERIMENTAL:
             return os << "EXPERIMENTAL";
 #endif  // NN_EXPERIMENTAL_FEATURE
+    }
+    if (version == getCurrentRuntimeVersion()) {
+        return os << "CURRENT_RUNTIME";
     }
     return os << "Version{" << underlyingType(version) << "}";
 }

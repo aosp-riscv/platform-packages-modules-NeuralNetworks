@@ -17,13 +17,17 @@
 #include "TypeUtils.h"
 
 #include <android-base/logging.h>
+#include <android-base/properties.h>
+#include <android-base/strings.h>
 
 #include <algorithm>
 #include <chrono>
 #include <limits>
 #include <memory>
 #include <ostream>
+#include <string>
 #include <type_traits>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -158,6 +162,18 @@ std::optional<size_t> getNonExtensionSize(OperandType operandType, const Dimensi
 
 std::optional<size_t> getNonExtensionSize(const Operand& operand) {
     return getNonExtensionSize(operand.type, operand.dimensions);
+}
+
+bool tensorHasUnspecifiedDimensions(OperandType type, const std::vector<uint32_t>& dimensions) {
+    if (!isExtension(type)) {
+        CHECK(!isNonExtensionScalar(type)) << "A scalar type can never have unspecified dimensions";
+    }
+    return dimensions.empty() ||
+           std::find(dimensions.begin(), dimensions.end(), 0) != dimensions.end();
+}
+
+bool tensorHasUnspecifiedDimensions(const Operand& operand) {
+    return tensorHasUnspecifiedDimensions(operand.type, operand.dimensions);
 }
 
 size_t getOffsetFromInts(int lower, int higher) {
@@ -1039,6 +1055,54 @@ bool operator==(const Operation& a, const Operation& b) {
 }
 bool operator!=(const Operation& a, const Operation& b) {
     return !(a == b);
+}
+
+const char kVLogPropKey[] = "debug.nn.vlog";
+int vLogMask = ~0;
+
+// Split the space separated list of tags from verbose log setting and build the
+// logging mask from it. note that '1' and 'all' are special cases to enable all
+// verbose logging.
+//
+// NN API verbose logging setting comes from system property debug.nn.vlog.
+// Example:
+// setprop debug.nn.vlog 1 : enable all logging tags.
+// setprop debug.nn.vlog "model compilation" : only enable logging for MODEL and
+//                                             COMPILATION tags.
+void initVLogMask() {
+    vLogMask = 0;
+    const std::string vLogSetting = android::base::GetProperty(kVLogPropKey, "");
+    if (vLogSetting.empty()) {
+        return;
+    }
+
+    std::unordered_map<std::string, int> vLogFlags = {{"1", -1},
+                                                      {"all", -1},
+                                                      {"model", MODEL},
+                                                      {"compilation", COMPILATION},
+                                                      {"execution", EXECUTION},
+                                                      {"cpuexe", CPUEXE},
+                                                      {"manager", MANAGER},
+                                                      {"driver", DRIVER},
+                                                      {"memory", MEMORY}};
+
+    std::vector<std::string> elements = android::base::Split(vLogSetting, " ,:");
+    for (const auto& elem : elements) {
+        const auto& flag = vLogFlags.find(elem);
+        if (flag == vLogFlags.end()) {
+            LOG(ERROR) << "Unknown trace flag: " << elem;
+            continue;
+        }
+
+        if (flag->second == -1) {
+            // -1 is used for the special values "1" and "all" that enable all
+            // tracing.
+            vLogMask = ~0;
+            return;
+        } else {
+            vLogMask |= 1 << flag->second;
+        }
+    }
 }
 
 }  // namespace android::nn

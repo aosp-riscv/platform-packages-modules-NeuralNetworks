@@ -20,11 +20,11 @@
 
 #include <nnapi/Validation.h>
 #include <nnapi/hal/aidl/Conversions.h>
+#include <nnapi/hal/aidl/HalUtils.h>
 
 #include <string>
 #include <vector>
 
-#include "AidlHalUtils.h"
 #include "LegacyUtils.h"
 #include "SampleDriverUtils.h"
 

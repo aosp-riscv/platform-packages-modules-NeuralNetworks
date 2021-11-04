@@ -50,6 +50,13 @@
 __BEGIN_DECLS
 
 /**
+ * The Android NNAPI experimental feature level.
+ */
+typedef enum {
+    ANEURALNETWORKS_FEATURE_LEVEL_EXPERIMENTAL = 0x7FFFFFFF,
+} ANeuralNetworksExperimentalFeatureLevelCode;
+
+/**
  * Operation types for experimental features.
  *
  * The type of an operation in a model.

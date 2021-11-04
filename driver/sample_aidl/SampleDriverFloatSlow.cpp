@@ -19,12 +19,12 @@
 #include <android-base/logging.h>
 #include <hidl/LegacySupport.h>
 #include <nnapi/hal/aidl/Conversions.h>
+#include <nnapi/hal/aidl/HalUtils.h>
 
 #include <memory>
 #include <thread>
 #include <vector>
 
-#include "AidlHalUtils.h"
 #include "SampleDriverPartial.h"
 
 namespace android {

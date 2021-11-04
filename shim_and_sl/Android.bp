@@ -39,6 +39,9 @@ package {
 
 cc_library_static {
     name: "libneuralnetworks_shim_static",
+    defaults: [
+        "neuralnetworks_use_latest_utils_hal_aidl",
+    ],
     apex_available: [
         "//apex_available:platform",
         "com.android.neuralnetworks",
@@ -71,14 +74,11 @@ cc_library_static {
         "include",
     ],
     static_libs: [
-        "android.hardware.common-V2-ndk",
-        "android.hardware.neuralnetworks-V2-ndk",
         "libaidlcommonsupport",
         "libarect",
         "libcutils",
         "libneuralnetworks_common",
         "neuralnetworks_supportlibrary_loader",
-        "neuralnetworks_utils_hal_aidl",
         "neuralnetworks_utils_hal_common",
     ],
     shared_libs: [

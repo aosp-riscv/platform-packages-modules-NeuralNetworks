@@ -51,7 +51,7 @@ const TestModel& get_test_model() {
                         }},
                 .outputIndexes = {2}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;
@@ -108,7 +108,7 @@ const TestModel& get_test_model_all_tensors_as_inputs() {
                         }},
                 .outputIndexes = {2}
             },
-        .minSupportedVersion = TestHalVersion::FL_6,
+        .minSupportedVersion = TestHalVersion::AIDL_V2,
         .referenced = {}
     };
     return model;

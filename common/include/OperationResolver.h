@@ -145,7 +145,7 @@ class BuiltinOperationResolver : public IOperationResolver {
 #else
 // This version ignores CPU execution logic (prepare and execute).
 // The compiler is supposed to omit that code so that only validation logic
-// makes it into libneuralnetworks_utils.
+// makes it into libneuralnetworks_common*.
 #define NN_REGISTER_OPERATION(identifier, operationName, validate, unused_prepare, unused_execute, \
                               ...)                                                                 \
     const OperationRegistration* register_##identifier() {                                         \

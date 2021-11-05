@@ -53,7 +53,10 @@ cc_prebuilt_library_shared {
 cc_defaults {
     name: "NeuralNetworksShimDriverAidl_defaults",
     host_supported: false,
-    defaults: ["neuralnetworks_defaults"],
+    defaults: [
+        "neuralnetworks_defaults",
+        "neuralnetworks_use_latest_utils_hal_aidl",
+    ],
     header_libs: [
         "libneuralnetworks_headers",
     ],
@@ -61,15 +64,11 @@ cc_defaults {
         "-DNN_COMPATIBILITY_LIBRARY_BUILD",
     ],
     static_libs: [
-        "android.hardware.common-V2-ndk",
-        "android.hardware.graphics.common-V2-ndk",
-        "android.hardware.neuralnetworks-V2-ndk",
         "libaidlcommonsupport",
         "libarect",
         "libcutils",
         "libneuralnetworks_shim_static",
         "neuralnetworks_supportlibrary_loader",
-        "neuralnetworks_utils_hal_aidl",
         "neuralnetworks_utils_hal_common",
     ],
     shared_libs: [

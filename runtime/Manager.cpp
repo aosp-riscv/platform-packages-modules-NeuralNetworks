@@ -257,11 +257,10 @@ int64_t DriverDevice::getFeatureLevel() const {
             return ANEURALNETWORKS_FEATURE_LEVEL_5;
         case Version::FEATURE_LEVEL_6:
             return ANEURALNETWORKS_FEATURE_LEVEL_6;
-        case Version::CURRENT_RUNTIME:
 #ifdef NN_EXPERIMENTAL_FEATURE
         case Version::EXPERIMENTAL:
-#endif  // NN_EXPERIMENTAL_FEATURE
             break;
+#endif  // NN_EXPERIMENTAL_FEATURE
     }
     LOG(FATAL) << "Unsupported driver feature level: " << featureLevel;
     return -1;

@@ -18,14 +18,14 @@
 #define ANDROID_FRAMEWORKS_ML_NN_DRIVER_SAMPLE_AIDL_SAMPLE_DRIVER_H
 
 #include <android/binder_auto_utils.h>
+#include <nnapi/hal/aidl/BufferTracker.h>
+#include <nnapi/hal/aidl/HalInterfaces.h>
 
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "AidlBufferTracker.h"
-#include "AidlHalInterfaces.h"
 #include "CpuExecutor.h"
 #include "NeuralNetworks.h"
 

@@ -17,13 +17,17 @@
 #include "TypeUtils.h"
 
 #include <android-base/logging.h>
+#include <android-base/properties.h>
+#include <android-base/strings.h>
 
 #include <algorithm>
 #include <chrono>
 #include <limits>
 #include <memory>
 #include <ostream>
+#include <string>
 #include <type_traits>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -60,6 +64,20 @@ std::ostream& operator<<(std::ostream& os, const std::vector<Type>& vec) {
 }
 
 }  // namespace
+
+Version getLatestHalVersion() {
+    // TODO: Once the Experimental Feature Level flag is added to the NNAPI, update this logic to
+    // instead use the Version specified by the Experimental Feature Level flag.
+#ifdef NN_EXPERIMENTAL_FEATURE
+    return Version::EXPERIMENTAL;
+#else
+    return Version::FEATURE_LEVEL_6;
+#endif  // NN_EXPERIMENTAL_FEATURE
+}
+
+Version getCurrentRuntimeVersion() {
+    return static_cast<Version>(underlyingType(getLatestHalVersion()) + 1);
+}
 
 bool isExtension(OperandType type) {
     return getExtensionPrefix(underlyingType(type)) != 0;
@@ -144,6 +162,18 @@ std::optional<size_t> getNonExtensionSize(OperandType operandType, const Dimensi
 
 std::optional<size_t> getNonExtensionSize(const Operand& operand) {
     return getNonExtensionSize(operand.type, operand.dimensions);
+}
+
+bool tensorHasUnspecifiedDimensions(OperandType type, const std::vector<uint32_t>& dimensions) {
+    if (!isExtension(type)) {
+        CHECK(!isNonExtensionScalar(type)) << "A scalar type can never have unspecified dimensions";
+    }
+    return dimensions.empty() ||
+           std::find(dimensions.begin(), dimensions.end(), 0) != dimensions.end();
+}
+
+bool tensorHasUnspecifiedDimensions(const Operand& operand) {
+    return tensorHasUnspecifiedDimensions(operand.type, operand.dimensions);
 }
 
 size_t getOffsetFromInts(int lower, int higher) {
@@ -902,12 +932,13 @@ std::ostream& operator<<(std::ostream& os, const Version& version) {
             return os << "ANDROID_S";
         case Version::FEATURE_LEVEL_6:
             return os << "FEATURE_LEVEL_6";
-        case Version::CURRENT_RUNTIME:
-            return os << "CURRENT_RUNTIME";
 #ifdef NN_EXPERIMENTAL_FEATURE
         case Version::EXPERIMENTAL:
             return os << "EXPERIMENTAL";
 #endif  // NN_EXPERIMENTAL_FEATURE
+    }
+    if (version == getCurrentRuntimeVersion()) {
+        return os << "CURRENT_RUNTIME";
     }
     return os << "Version{" << underlyingType(version) << "}";
 }
@@ -1024,6 +1055,54 @@ bool operator==(const Operation& a, const Operation& b) {
 }
 bool operator!=(const Operation& a, const Operation& b) {
     return !(a == b);
+}
+
+const char kVLogPropKey[] = "debug.nn.vlog";
+int vLogMask = ~0;
+
+// Split the space separated list of tags from verbose log setting and build the
+// logging mask from it. note that '1' and 'all' are special cases to enable all
+// verbose logging.
+//
+// NN API verbose logging setting comes from system property debug.nn.vlog.
+// Example:
+// setprop debug.nn.vlog 1 : enable all logging tags.
+// setprop debug.nn.vlog "model compilation" : only enable logging for MODEL and
+//                                             COMPILATION tags.
+void initVLogMask() {
+    vLogMask = 0;
+    const std::string vLogSetting = android::base::GetProperty(kVLogPropKey, "");
+    if (vLogSetting.empty()) {
+        return;
+    }
+
+    std::unordered_map<std::string, int> vLogFlags = {{"1", -1},
+                                                      {"all", -1},
+                                                      {"model", MODEL},
+                                                      {"compilation", COMPILATION},
+                                                      {"execution", EXECUTION},
+                                                      {"cpuexe", CPUEXE},
+                                                      {"manager", MANAGER},
+                                                      {"driver", DRIVER},
+                                                      {"memory", MEMORY}};
+
+    std::vector<std::string> elements = android::base::Split(vLogSetting, " ,:");
+    for (const auto& elem : elements) {
+        const auto& flag = vLogFlags.find(elem);
+        if (flag == vLogFlags.end()) {
+            LOG(ERROR) << "Unknown trace flag: " << elem;
+            continue;
+        }
+
+        if (flag->second == -1) {
+            // -1 is used for the special values "1" and "all" that enable all
+            // tracing.
+            vLogMask = ~0;
+            return;
+        } else {
+            vLogMask |= 1 << flag->second;
+        }
+    }
 }
 
 }  // namespace android::nn

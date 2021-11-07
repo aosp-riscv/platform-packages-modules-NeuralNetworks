@@ -256,8 +256,7 @@ class ShimBuffer : public BnBuffer {
         }
         const auto unsignedDimensions = ::android::nn::toUnsigned(dimensions);
         if (!unsignedDimensions.has_value()) {
-            return toAStatus(aidl_hal::ErrorStatus::INVALID_ARGUMENT,
-                             unsignedDimensions.error().message);
+            return toAStatus(ErrorStatus::INVALID_ARGUMENT, unsignedDimensions.error().message);
         }
 
         if (!validateDimensions(unsignedDimensions.value())) {

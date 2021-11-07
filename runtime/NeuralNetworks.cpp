@@ -719,7 +719,7 @@ int ANeuralNetworksDevice_getFeatureLevel(const ANeuralNetworksDevice* device,
     if (dFeatureLevel < 0) {
         return ANEURALNETWORKS_BAD_STATE;
     }
-    *featureLevel = dFeatureLevel;
+    *featureLevel = std::min(ANeuralNetworks_getRuntimeFeatureLevel(), dFeatureLevel);
     return ANEURALNETWORKS_NO_ERROR;
 }
 
@@ -1631,7 +1631,19 @@ int ANeuralNetworksExecution_startComputeWithDependencies(
     return n;
 }
 
+#ifdef NN_DEBUGGABLE
+static int64_t sRuntimeFeatureLevel = 0;
+void forTest_setRuntimeFeatureLevel(int64_t level) {
+    sRuntimeFeatureLevel = level;
+}
+#endif
+
 int64_t ANeuralNetworks_getRuntimeFeatureLevel() {
+#ifdef NN_DEBUGGABLE
+    if (sRuntimeFeatureLevel) {
+        return sRuntimeFeatureLevel;
+    }
+#endif
     return kCurrentNNAPIRuntimeFeatureLevel;
 }
 

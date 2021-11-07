@@ -19,6 +19,8 @@
 #include <android-base/unique_fd.h>
 #include <ftw.h>
 #include <gtest/gtest.h>
+#include <libgen.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -50,6 +52,8 @@
 #define NNTRACE_APP(...)
 #define NNTRACE_APP_SWITCH(...)
 #endif
+
+const char* kQCDspLoadPathEnv = "ADSP_LIBRARY_PATH";
 
 extern std::string SUPPORT_LIBRARY_NAME;
 
@@ -92,8 +96,7 @@ class GeneratedTests : public GeneratedTestBase {
     bool mTestDeviceMemory = false;
     Execution::ComputeMode mComputeMode = Execution::getComputeMode();
 
-    std::unique_ptr<const NnApiSupportLibrary> mNnApi =
-            loadNnApiSupportLibrary(SUPPORT_LIBRARY_NAME);
+    std::unique_ptr<const NnApiSupportLibrary> mNnApi;
 };
 
 int GeneratedTests::mVndkVersion = __ANDROID_API_FUTURE__;
@@ -520,6 +523,11 @@ bool GeneratedTests::shouldSkipTest() {
 }
 
 void GeneratedTests::SetUp() {
+    const char* libdir = basename(SUPPORT_LIBRARY_NAME.c_str());
+    setenv(kQCDspLoadPathEnv, libdir, 1);
+    LOG(INFO) << "Overwritten system env variable " << kQCDspLoadPathEnv << " with " << libdir;
+    mNnApi = loadNnApiSupportLibrary(SUPPORT_LIBRARY_NAME);
+
     GeneratedTestBase::SetUp();
 
     mVndkVersion = ::android::base::GetIntProperty("ro.vndk.version", __ANDROID_API_FUTURE__);

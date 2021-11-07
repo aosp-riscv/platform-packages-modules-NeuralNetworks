@@ -24,7 +24,6 @@
 #include <nnapi/TypeUtils.h>
 #include <nnapi/Types.h>
 
-#include <string>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -60,23 +59,6 @@ const int kNumberOfOperationTypesOEM = 1;
 
 // The lowest number assigned to any OEM Code in NeuralNetworksOEM.h.
 const int kOEMCodeBase = 10000;
-
-/* IMPORTANT: if you change the following list, don't
- * forget to update the corresponding 'tags' table in
- * the initVlogMask() function implemented in Utils.cpp.
- */
-enum VLogFlags { MODEL = 0, COMPILATION, EXECUTION, CPUEXE, MANAGER, DRIVER, MEMORY };
-
-#define VLOG_IS_ON(TAG) ((vLogMask & (1 << (TAG))) != 0)
-
-#define VLOG(TAG)                 \
-    if (LIKELY(!VLOG_IS_ON(TAG))) \
-        ;                         \
-    else                          \
-        LOG(INFO)
-
-extern int vLogMask;
-void initVLogMask();
 
 #ifdef NN_DEBUGGABLE
 #define SHOW_IF_DEBUG(msg) msg
@@ -193,9 +175,7 @@ bool nonExtensionOperandTypeIsScalar(int type);
 //
 // Undefined behavior if the operand type is a scalar type.
 bool tensorHasUnspecifiedDimensions(int type, const uint32_t* dim, uint32_t dimCount);
-bool tensorHasUnspecifiedDimensions(OperandType type, const std::vector<uint32_t>& dimensions);
 bool tensorHasUnspecifiedDimensions(OperandType type, const Dimensions& dimensions);
-bool tensorHasUnspecifiedDimensions(const Operand& operand);
 bool tensorHasUnspecifiedDimensions(const ANeuralNetworksOperandType* type);
 
 // Returns the number of padding bytes needed to align data starting at `index` with `length` number
@@ -206,26 +186,6 @@ uint32_t alignBytesNeeded(uint32_t index, size_t length);
 
 // Does a detailed LOG(INFO) of the model
 void logModelToInfo(const Model& model);
-
-inline std::string toString(uint32_t obj) {
-    return std::to_string(obj);
-}
-
-template <typename Type>
-std::string toString(const std::vector<Type>& range) {
-    std::string os = "[";
-    for (size_t i = 0; i < range.size(); ++i) {
-        os += (i == 0 ? "" : ", ") + toString(range[i]);
-    }
-    return os += "]";
-}
-
-template <typename A, typename B>
-std::string toString(const std::pair<A, B>& pair) {
-    std::ostringstream oss;
-    oss << "(" << pair.first << ", " << pair.second << ")";
-    return oss.str();
-}
 
 inline bool validCode(uint32_t codeCount, uint32_t codeCountOEM, uint32_t code) {
     return (code < codeCount) || (code >= kOEMCodeBase && (code - kOEMCodeBase) < codeCountOEM);

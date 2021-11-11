@@ -42,6 +42,10 @@ cc_prebuilt_library_shared {
         android_arm64: {
             srcs: ["android_arm64/neuralnetworks_sample_sl_driver_prebuilt.so"],
         },
+        // FIXME: need to create real file for riscv64, now just use arm64 to pass build
+        android_riscv64: {
+            srcs: ["android_riscv64/neuralnetworks_sample_sl_driver_prebuilt.so"],
+        },
         android_arm: {
             srcs: ["android_arm/neuralnetworks_sample_sl_driver_prebuilt.so"],
         },
